@@ -15,6 +15,7 @@ import { audio } from './audio/audio.js';
 import { CLOUD } from './render/cloudShadow.js';
 import { Weather } from './render/weather.js';
 import { Birds } from './render/birds.js';
+import { Wakes } from './render/wakes.js';
 import { MATCH, AGE_HULLS, UPGRADES, AGES, TEAMS } from './core/config.js';
 
 const params = new URLSearchParams(location.search);
@@ -52,6 +53,7 @@ const ocean = new Ocean(scene);
 await step(58, 'Charting the archipelago');
 const env = new Environment(scene, ISLANDS, SCENERY);
 const birds = new Birds(scene, ISLANDS);
+const wakes = new Wakes(scene);
 const particles = new Particles(scene);
 const fx = new FX(scene, particles, ocean.decals, R);
 const cameraDir = new CameraDirector(R.camera);
@@ -71,7 +73,7 @@ function startGame(spectate) {
   if (worldGroup) scene.remove(worldGroup);
   worldGroup = new THREE.Group();
   scene.add(worldGroup);
-  G = new Game({ renderer: R, scene: worldGroup, fx, ocean, audio, ui: hud, sky }, {
+  G = new Game({ renderer: R, scene: worldGroup, fx, ocean, audio, ui: hud, sky, wakes }, {
     difficulty: settings.difficulty, playerTeam: settings.team, spectate, playerName: 'You', autopilot: !!params.get('autopilot'),
   });
   hud.mount(G);
@@ -345,6 +347,7 @@ function tick(dt, draw) {
   CLOUD.uCloudT.value = wallTime;
   env.update(t);
   birds.update(dt, wallTime);
+  wakes.update(gdt, t);
   ocean.update(gdt, t, f.x, f.z, sky);
   fx.update(gdt, t);
   particles.update(gdt);
