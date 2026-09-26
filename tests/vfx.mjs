@@ -7,6 +7,7 @@ try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require(
 const [effect = 'explosion', frames = '3', spf = '6'] = process.argv.slice(2);
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const settle = (p) => p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 250))))); // let the compositor present the finished frame
 page.on('pageerror', (e) => console.log('ERR', e.message));
 await page.goto('http://localhost:5173/?autoplay=1&photo=1');
 await page.waitForFunction(() => window.__aa && window.__aa.G && window.__aa.G.player, null, { timeout: 90000 });
@@ -30,6 +31,6 @@ await page.evaluate((effect) => {
 }, effect);
 for (let f = 0; f < +frames; f++) {
   await page.evaluate((n) => window.__aa.step(n, 1 / 30), +spf);
-  await page.screenshot({ path: `tests/output/vfx_${effect}${f}.png`, timeout: 120000 });
+  await settle(page); await page.screenshot({ path: `tests/output/vfx_${effect}${f}.png`, timeout: 120000 });
 }
 await browser.close();

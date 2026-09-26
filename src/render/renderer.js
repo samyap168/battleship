@@ -14,9 +14,11 @@ class SolidGTAOPass extends GTAOPass {
     super._overrideVisibility();
     const cache = this._visibilityCache;
     this.scene.traverse((o) => {
-      if (!o.visible || !o.isMesh) return;
+      if (!o.visible) return;
+      if (o.userData.noAO) { o.visible = false; cache.push(o); return; } // whole groups can opt out (gunboats)
+      if (!o.isMesh) return;
       const m = o.material;
-      if (o.userData.noAO || (m && (m.transparent || m.isShaderMaterial || m.blending === THREE.AdditiveBlending))) { o.visible = false; cache.push(o); }
+      if ( (m && (m.transparent || m.isShaderMaterial || m.blending === THREE.AdditiveBlending))) { o.visible = false; cache.push(o); }
     });
   }
 }
@@ -124,6 +126,7 @@ export class Renderer {
     r.outputColorSpace = THREE.SRGBColorSpace;
     r.shadowMap.enabled = this.q.shadows > 0;
     r.shadowMap.type = THREE.PCFShadowMap;
+    r.shadowMap.autoUpdate = false; r.shadowMap.needsUpdate = true; // refreshed every other frame in render()
     container.appendChild(r.domElement);
     this.gl = r;
 
@@ -209,6 +212,10 @@ export class Renderer {
   }
 
   render(dt, time) {
+    // Sun shadows at half rate: the sun and hulls move a fraction of a texel per frame,
+    // and this removes a full scene's worth of draw calls on alternate frames.
+    this.frameN = (this.frameN || 0) + 1;
+    if (this.frameN % 2 === 0) this.gl.shadowMap.needsUpdate = true;
     const u = this.grade.uniforms;
     u.uTime.value = time;
     for (let i = this.shocks.length - 1; i >= 0; i--) {

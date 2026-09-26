@@ -456,6 +456,7 @@ export class HUD {
     // health bars
     c.font = '600 12px Rajdhani, sans-serif';
     c.textAlign = 'center';
+    const placed = [];
     for (const u of G.units) {
       if (!u.alive) continue;
       const sc = u.rig && u.rig.root ? u.rig.root.scale.y : 1;
@@ -464,7 +465,17 @@ export class HUD {
       if (!s || s.x < -50 || s.y < -50 || s.x > w + 50 || s.y > h + 50) continue;
       const hero = u.kind === 'hero', boss = u.kind === 'boss';
       const bw = hero ? 74 : u.kind === 'creep' ? 34 : boss ? 180 : 96, bh = hero ? 8 : u.kind === 'creep' ? 4 : boss ? 10 : 8;
-      const x0 = s.x - bw / 2, y0 = s.y;
+      const x0 = s.x - bw / 2;
+      let y0 = s.y;
+      if (hero || boss) { // stack labelled bars instead of letting names overprint each other
+        const lw = Math.max(bw, boss ? 130 : 90) / 2;
+        for (let pass = 0; pass < 4; pass++) {
+          const hit = placed.find((r) => Math.abs(r.x - s.x) < r.hw + lw && y0 > r.y - 24 && y0 < r.y + 24);
+          if (!hit) break;
+          y0 = hit.y - 26;
+        }
+        placed.push({ x: s.x, y: y0, hw: lw });
+      }
       const f = Math.max(0, u.hp / u.maxHp);
       c.fillStyle = 'rgba(0,0,0,.65)';
       c.fillRect(x0 - 1, y0 - 1, bw + 2, bh + 2);

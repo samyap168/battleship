@@ -6,6 +6,7 @@ try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require(
 const [out, x, z, dist = '160', sim = '3', query = ''] = process.argv.slice(2); // x='player' frames your ship
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+const settle = (p) => p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 250))))); // let the compositor present the finished frame
 page.on('pageerror', (e) => console.log('ERR', e.message));
 await page.goto(`http://localhost:5173/?autoplay=1${query}`);
 await page.waitForFunction(() => window.__aa && window.__aa.G && window.__aa.G.player, null, { timeout: 90000 });
@@ -17,9 +18,11 @@ await page.evaluate(async ([x, z, d, sim]) => {
   A.cameraDir.locked = follow;
   A.cameraDir.distGoal = A.cameraDir.dist = d;
   for (let k = 0; k < 4; k++) {
+    A.cameraDir.cine = null; A.cameraDir.intro = 0; // the opening shot may start after page load
     if (!follow) { A.cameraDir.goal.set(x, 0, z); A.cameraDir.focus.set(x, 0, z); }
     A.step(8, 1 / 30);
   }
+  const an = document.querySelector('#announce'); if (an) an.innerHTML = ''; // harness: no stale title cards
 }, [x === 'player' ? NaN : +x, +z, +dist, +sim]);
-await page.screenshot({ path: out, timeout: 180000 });
+await settle(page); await page.screenshot({ path: out, timeout: 180000 });
 await browser.close();
