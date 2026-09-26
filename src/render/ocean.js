@@ -162,8 +162,11 @@ if (uReflOn > 0.5) {
   vec4 rc = uReflMat * vec4(vOW.x, 0.0, vOW.z, 1.0);
   vec2 ruv = rc.xy / rc.w + wN.xz * 0.022; // mild wobble: mirrored silhouettes must stay legible
   vec3 refl = texture2D(tReflect, clamp(ruv, 0.001, 0.999)).rgb;
-  float F = 0.02 + 0.98 * pow(1.0 - max(dot(wN, V), 0.0), 5.0);
-  reflectedLight.indirectSpecular = refl * F * (1.0 - foam) * 1.15;
+  float F = (0.03 + 0.97 * pow(1.0 - max(dot(wN, V), 0.0), 4.0)) * (1.0 - foam);
+  reflectedLight.indirectSpecular = refl * F * 1.3;
+  // energy conservation: where the water mirrors, it scatters less -> true-colour reflections
+  reflectedLight.directDiffuse *= 1.0 - F; reflectedLight.indirectDiffuse *= 1.0 - F;
+  totalEmissiveRadiance *= 1.0 - F * 0.85;
 }`)
         .replace('#include <opaque_fragment>', `#include <opaque_fragment>
 gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(1.35)); // tame sun-glint fireflies before bloom`);

@@ -23,7 +23,7 @@ function twin(m, team) {
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
 {
   float fr = 1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
-  totalEmissiveRadiance += uTeamRim * (fr * fr * fr) * 1.15;
+  totalEmissiveRadiance += uTeamRim * (fr * fr) * 1.5;
 }`);
   };
   t.customProgramCacheKey = () => prevKey() + '|rim';

@@ -63,7 +63,7 @@ const fx = new FX(scene, particles, ocean.decals, R);
 // Planar reflections on Ultra: tag reflection-worthy objects onto layer 2.
 let refl = null;
 if (settings.quality === 'high' && params.get('refl') !== '0') {
-  refl = new WaterReflection(R.gl, scene, R.camera);
+  refl = new WaterReflection(R.gl, scene, R.camera, 1 / 2);
   ocean.enableReflection(refl.uniforms);
   R.refl = refl;
   [sky.dome, sky.sun, sky.hemi, env.group, birds.mesh, fx.p.add.points, fx.p.alpha.points, fx.debris, ...fx.lights, ...fx.beams].forEach(reflectable);

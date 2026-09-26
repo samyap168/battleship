@@ -116,7 +116,15 @@ function treeGeometries() {
     c.translate((i - 1) * 0.5, 5 + i * 1.7, (i % 2) * 0.4);
     crowns.push(c);
   }
-  const crown = mergeGeometries(crowns);
+  // outer lobes break the silhouette so a canopy never reads as one smooth blob
+  for (let i = 0; i < 4; i++) {
+    const a = i * 1.7 + 0.4, r = 1.55 + (i % 2) * 0.35;
+    const c = new THREE.IcosahedronGeometry(0.95 - (i % 2) * 0.2, 0);
+    c.scale(1, 0.75, 1);
+    c.translate(Math.cos(a) * r, 5.2 + (i % 3) * 1.1, Math.sin(a) * r);
+    crowns.push(c);
+  }
+  const crown = mergeGeometries(crowns.map((g) => g.index ? g.toNonIndexed() : g));
   // jitter crown vertices for organic look
   const p = crown.attributes.position;
   for (let i = 0; i < p.count; i++) {

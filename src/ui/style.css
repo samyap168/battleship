@@ -255,3 +255,12 @@ body.cinematic #announce { top: 36%; }
   border-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='30' height='30'><defs><radialGradient id='r' cx='40%25' cy='35%25' r='65%25'><stop offset='0' stop-color='%23fff1c8'/><stop offset='.45' stop-color='%23c9a15a'/><stop offset='1' stop-color='%233a2a12'/></radialGradient></defs><rect x='.5' y='.5' width='29' height='29' fill='none' stroke='%23d8b36a' stroke-opacity='.75'/><rect x='2.5' y='2.5' width='25' height='25' fill='none' stroke='%23000' stroke-opacity='.7'/><rect x='3.5' y='3.5' width='23' height='23' fill='none' stroke='%23e8c47a' stroke-opacity='.22'/><g fill='url(%23r)'><circle cx='7' cy='7' r='2'/><circle cx='23' cy='7' r='2'/><circle cx='7' cy='23' r='2'/><circle cx='23' cy='23' r='2'/></g></svg>") 10 / 10px / 0 stretch;
   box-shadow: 0 12px 40px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,232,190,.14), inset 0 -2px 3px rgba(0,0,0,.55), inset 0 0 26px rgba(0,0,0,.55), inset 0 18px 24px -18px rgba(255,236,200,.10);
 }
+/* baked plate material + a static specular sheen band across each panel body */
+#abilities, #topbar, #minimap {
+  background-image: linear-gradient(112deg, transparent 28%, rgba(255,238,205,.075) 42%, rgba(255,238,205,.02) 50%, transparent 62%), var(--plate), linear-gradient(180deg, #19202a, #0a0e14);
+  background-blend-mode: screen, overlay, normal; background-size: 100% 100%, 256px 256px, 100% 100%;
+}
+#portrait, #goldbox, #shop {
+  background-image: linear-gradient(112deg, transparent 28%, rgba(255,230,190,.08) 42%, rgba(255,230,190,.02) 50%, transparent 62%), var(--plate), linear-gradient(160deg, #2c2418 0%, #17120c 55%, #221a10 100%);
+  background-blend-mode: screen, overlay, normal; background-size: 100% 100%, 256px 256px, 100% 100%;
+}

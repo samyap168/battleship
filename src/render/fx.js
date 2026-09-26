@@ -291,7 +291,7 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
     d.r = new THREE.Vector3(rnd(0, 6), rnd(0, 6), rnd(0, 6));
     d.w = new THREE.Vector3(rnd(-8, 8), rnd(-8, 8), rnd(-8, 8));
     d.s = rnd(0.4, 1.1) * Math.min(1.5, Math.sqrt(scale));
-    d.alive = true; d.smoke = Math.random() < 0.5; d.heat = d.smoke ? rnd(0.7, 1) : rnd(0, 0.25);
+    d.alive = true; d.smoke = Math.random() < 0.5; d.heat = d.smoke ? rnd(0.7, 1) : rnd(0.25, 0.5);
   }
 
   emp(x, z, radius) {

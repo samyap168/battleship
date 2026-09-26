@@ -9,9 +9,35 @@ const KEYS = ['Q', 'W', 'E', 'R'];
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+// Baked panel material (once at load): brushed, hammered plate with pitting and
+// edge wear, overlaid on the panel gradients via CSS so the HUD reads as forged metal.
+function bakePanelPlate() {
+  if (document.documentElement.style.getPropertyValue('--plate')) return;
+  const N = 256, c = document.createElement('canvas'); c.width = c.height = N;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgb(128,128,128)'; g.fillRect(0, 0, N, N);
+  let seed = 7; const r = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 900; i++) { // brushing: long faint horizontal strokes
+    const y = r() * N, v = r() < 0.5 ? 150 + r() * 40 : 90 + r() * 30;
+    g.strokeStyle = `rgba(${v},${v},${v},${0.05 + r() * 0.08})`; g.lineWidth = 0.5 + r();
+    g.beginPath(); const x = r() * N; g.moveTo(x - 60, y); g.lineTo(x + 60 + r() * 120, y + (r() - 0.5) * 1.5); g.stroke();
+  }
+  for (let i = 0; i < 70; i++) { // hammer dents: soft light/dark pairs
+    const x = r() * N, y = r() * N, rad = 6 + r() * 16;
+    const gr = g.createRadialGradient(x - rad * 0.25, y - rad * 0.25, 0, x, y, rad);
+    gr.addColorStop(0, 'rgba(200,200,200,.10)'); gr.addColorStop(0.6, 'rgba(60,60,60,.08)'); gr.addColorStop(1, 'rgba(128,128,128,0)');
+    g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  }
+  const img = g.getImageData(0, 0, N, N), d = img.data; // fine grain + pitting
+  for (let i = 0; i < d.length; i += 4) { const n = (r() - 0.5) * 26 - (r() < 0.004 ? 60 : 0); d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+  g.putImageData(img, 0, 0);
+  document.documentElement.style.setProperty('--plate', `url(${c.toDataURL()})`);
+}
+
 export class HUD {
   constructor(root, overlayCanvas) {
     this.root = root;
+    bakePanelPlate();
     this.cv = overlayCanvas;
     this.ctx = overlayCanvas.getContext('2d');
     this.floats = [];

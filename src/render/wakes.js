@@ -62,7 +62,7 @@ export class Wakes {
           float erode = age * 0.95;
           float dense = 1.0 - smoothstep(0.0, 0.35, age);
           float fpatch = smoothstep(0.3, 0.75, nz(q * 0.33 - uTime * 0.07));        // foam gathers in drifting clumps
-          float lace = (w1 * 0.55 + w2 * 0.3 + fpatch * 0.35) * mix(0.35, 1.0, fpatch) * smoothstep(erode - 0.1, erode + 0.25, big + w1 * 0.2);
+          float lace = (w1 * 0.55 + w2 * 0.3 + fpatch * 0.35) * mix(0.3 + 0.55 * (1.0 - smoothstep(0.1, 0.6, age)), 1.0, fpatch) * smoothstep(erode - 0.1, erode + 0.25, big + w1 * 0.2);
           float foam = cover * mix(lace, 0.85 + big * 0.15, dense * churn);
           float a = foam * (1.0 - age) * str * smoothstep(0.0, 0.04, age) * 0.75;
           // aerated water under the foam: a faint turquoise glow in the fresh wash
