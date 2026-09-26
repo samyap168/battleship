@@ -545,13 +545,15 @@ export class Environment {
     inst(glow, lampMat, lanterns, place, false);
 
     // Horizon karst peaks (fogged silhouettes).
-    const karstMat = applyCloudShadow(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }));
+    // same sculpted limestone as the playable islands (fluting, strata ledges, jungle
+    // ledges, wet notch) instead of smooth cones: these fill the cinematic backdrops
+    const karstMat = applyTerrainDetail(applyCloudShadow(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 })));
     for (const s of scenery) {
       const rng = mulberry(s.seed);
       const n = 3 + Math.floor(rng() * 4);
       for (let k = 0; k < n; k++) {
         const r = s.r * (0.25 + rng() * 0.3), h = s.h * (0.5 + rng() * 0.8);
-        const g = karstGeometry(r, h, s.seed * 10 + k);
+        const g = karstTower(r * 0.52, h * 1.12, s.seed * 10 + k, (rng() - 0.5) * 0.5).geometry; // slim towers, not mesas
         const m = new THREE.Mesh(g, karstMat);
         m.position.set(s.x + (rng() - 0.5) * s.r * 1.4, 0, s.z + (rng() - 0.5) * s.r * 1.4);
         m.rotation.y = rng() * 6.28;
