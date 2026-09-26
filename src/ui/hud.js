@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { TEAMS, AGES, AGE_HULLS, HULLS, ABILITIES, UPGRADES, MATCH } from '../core/config.js';
 import { ISLANDS, LANES, BOUNDS } from '../game/map.js';
 import { ICONS, abilityIcon } from './icons.js';
+import { hullThumb } from '../render/thumbnails.js';
 
 const _v = new THREE.Vector3();
 const KEYS = ['Q', 'W', 'E', 'R'];
@@ -46,6 +47,7 @@ export class HUD {
       <div id="minimap" class="panel ornate"><canvas id="mm" width="600" height="368"></canvas></div>
       ${p ? `<div id="command">
         <div id="portrait" class="panel ornate">
+          <img id="shipimg" alt="" />
           <div class="lvl" id="lvl">1</div>
           <div class="name" id="shipname"></div>
           <div class="sub" id="shipsub"></div>
@@ -148,7 +150,8 @@ export class HUD {
     const root = this.$('modalRoot');
     root.innerHTML = `<div class="modal"><h1>${next.name.toUpperCase()}</h1><div class="choice">${options.map((id) => {
       const h = HULLS[id];
-      return `<div class="card panel ornate" data-id="${id}"><div class="role">${h.role}</div><h2>${h.name}</h2><p>${h.desc}</p>
+      const src = hullThumb(id, p.team);
+      return `<div class="card panel ornate" data-id="${id}">${src ? `<img class="thumb" src="${src}" alt="" />` : ''}<div class="role">${h.role}</div><h2>${h.name}</h2><p>${h.desc}</p>
         <div class="stats"><span>Hull <b>${h.hp}</b></span><span>Speed <b>${h.speed}</b></span><span>Range <b>${h.guns.range}</b></span></div>
         <ul>${h.abilities.map((a, i) => `<li><b>${KEYS[i]}</b>${ABILITIES[a].name}</li>`).join('')}</ul></div>`;
     }).join('')}</div></div>`;
@@ -371,7 +374,14 @@ export class HUD {
   }
 
   updatePlayerPanel(G, p) {
-    if (p.hullId !== this.lastHull) { this.buildAbilities(); this.lastHull = p.hullId; }
+    if (p.hullId !== this.lastHull || !this.thumbSet) {
+      if (p.hullId !== this.lastHull) this.buildAbilities();
+      this.lastHull = p.hullId;
+      const src = hullThumb(p.hullId, p.team);
+      const img = this.$('shipimg');
+      if (img) { img.src = src; img.style.display = src ? '' : 'none'; }
+      this.thumbSet = true;
+    }
     const hull = HULLS[p.hullId];
     this.txt('shipname', `${p.name} · ${hull.name}`);
     this.txt('shipsub', `${AGES[p.age - 1].name} · ${hull.role}`);

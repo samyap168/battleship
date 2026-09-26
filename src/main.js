@@ -16,6 +16,7 @@ import { CLOUD } from './render/cloudShadow.js';
 import { Weather } from './render/weather.js';
 import { Birds } from './render/birds.js';
 import { Wakes } from './render/wakes.js';
+import { renderThumbnails } from './render/thumbnails.js';
 import { MATCH, AGE_HULLS, UPGRADES, AGES, TEAMS } from './core/config.js';
 
 const params = new URLSearchParams(location.search);
@@ -60,7 +61,9 @@ const cameraDir = new CameraDirector(R.camera);
 fx.onShake = (a, x, z) => cameraDir.addTrauma(a, x, z);
 const hud = new HUD($('#ui'), $('#overlay'));
 const weather = new Weather(scene, fx, R, audio);
-await step(76, 'Compiling shaders');
+await step(70, 'Photographing the fleet');
+renderThumbnails();
+await step(80, 'Compiling shaders');
 
 let G = null;         // current game
 let mode = 'menu';    // menu | play
