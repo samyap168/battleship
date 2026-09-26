@@ -20,6 +20,32 @@ const _w = { y: 0 };
 const rnd = (a, b) => a + Math.random() * (b - a);
 const LANE_OF_SLOT = ['top', 'top', 'mid', 'bot', 'bot'];
 
+// Energy shield: fresnel rim + scrolling hex lattice, hugging the hull as an ellipsoid.
+const SHIELD_GEO = new THREE.SphereGeometry(1, 40, 24);
+function shieldMesh(color) {
+  const m = new THREE.Mesh(SHIELD_GEO, new THREE.ShaderMaterial({
+    uniforms: { uColor: { value: new THREE.Color(color) }, uTime: { value: 0 }, uA: { value: 0 } },
+    vertexShader: `varying vec3 vN; varying vec3 vV; varying vec3 vP;
+      void main(){ vP = position; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `uniform vec3 uColor; uniform float uTime, uA; varying vec3 vN; varying vec3 vV; varying vec3 vP;
+      float hexDist(vec2 p){ p = abs(p); return max(dot(p, normalize(vec2(1.0, 1.732))), p.x); }
+      void main(){
+        float f = pow(1.0 - abs(dot(vN, vV)), 2.5);
+        vec2 uv = vec2(atan(vP.z, vP.x) * 3.0, vP.y * 5.0 + uTime * 0.4);
+        vec2 r = vec2(1.0, 1.732), h = r * 0.5;
+        vec2 a = mod(uv, r) - h, b = mod(uv - h, r) - h;
+        vec2 g = dot(a, a) < dot(b, b) ? a : b;
+        float hex = smoothstep(0.42, 0.5, hexDist(g));
+        float flick = 0.85 + 0.15 * sin(uTime * 23.0 + vP.y * 9.0);
+        float alpha = (f * 0.9 + hex * 0.25 + 0.04) * uA * flick * smoothstep(-0.25, 0.1, vP.y);
+        gl_FragColor = vec4(uColor * 1.8 * alpha, alpha);
+      }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  }));
+  m.renderOrder = 9;
+  return m;
+}
+
 // Team-coloured selection ring that rides the waves under each captain.
 const RING_GEO = new THREE.RingGeometry(0.9, 1, 72, 1).rotateX(-Math.PI / 2);
 function heroRing(color, isPlayer) {
@@ -486,6 +512,19 @@ export class Game {
       u.ring.position.set(u.x, 0, u.z);
       u.ring.material.uniforms.uTime.value = t;
       u.ring.scale.setScalar(r.length * 0.5 + 3 + Math.sin(t * 3) * (u.isPlayer ? 0.3 : 0));
+    }
+    if (u.kind === 'hero') {
+      const want = u.alive && u.shield > 0 ? 1 : 0;
+      if (want && !u.shieldFx) { u.shieldFx = shieldMesh(TEAMS[u.team].glow); this.scene.add(u.shieldFx); }
+      if (u.shieldFx) {
+        const mu = u.shieldFx.material.uniforms;
+        mu.uA.value += (want - mu.uA.value) * Math.min(1, dt * 8);
+        mu.uTime.value = t;
+        u.shieldFx.visible = mu.uA.value > 0.01;
+        u.shieldFx.position.copy(r.root.position);
+        u.shieldFx.quaternion.copy(r.root.quaternion);
+        u.shieldFx.scale.set(r.beam * 0.95 + 3, r.height * 0.75 + 3, r.length * 0.62 + 2);
+      }
     }
     if (!u.alive) return;
     const speed01 = Math.min(1, Math.abs(u.speed) / 25);
