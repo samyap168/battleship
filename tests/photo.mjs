@@ -6,7 +6,7 @@ try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require(
 const [out, x, z, dist = '160', sim = '3', query = ''] = process.argv.slice(2); // x='player' frames your ship
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
-const settle = (p) => p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 250))))); // let the compositor present the finished frame
+const settle = (p) => p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 1200))))); // let the compositor present the finished frame
 page.on('pageerror', (e) => console.log('ERR', e.message));
 await page.goto(`http://localhost:5173/?autoplay=1${query}`);
 await page.waitForFunction(() => window.__aa && window.__aa.G && window.__aa.G.player, null, { timeout: 90000 });

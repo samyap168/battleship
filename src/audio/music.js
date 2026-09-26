@@ -229,6 +229,10 @@ export class Music {
     const pool = I > 0.5 ? WAR : CALM;
     let pi;
     do { pi = (Math.random() * pool.length) | 0; } while (pool.length > 1 && pool === this.lastPool && pi === this.lastProg);
+    // recurring identity: in sustained battle every other section returns to the
+    // Armada theme (WAR[0]) with the horn call, so the score develops a throughline
+    const theme = I > 0.8 && !this.opening && (this.warSecs = (this.warSecs || 0) + 1) % 2 === 1;
+    if (theme) pi = 0;
     this.lastPool = pool;
     this.lastProg = pi;
     this.prog = this.opening ? CALM[0] : pool[pi];
@@ -243,7 +247,7 @@ export class Music {
       if (I < 0.6 && !this.hadLead && Math.random() < 0.7) {
         const variant = Math.random() < 0.62 ? 'dizi' : 'erhu';
         this.plan = { kind: 'lead', bar: pick([1, 2, 4]), off: pick([0, 1, 2]), variant };
-      } else if (I >= 0.55 && Math.random() < 0.6) {
+      } else if (theme || (I >= 0.55 && Math.random() < 0.6)) {
         this.plan = { kind: 'horn', bar: pick([2, 4]), off: pick([0, 1]) };
       }
     }

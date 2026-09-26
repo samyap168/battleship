@@ -8,7 +8,7 @@ try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require(
 const [times = '5', prefix = 'play', query = '', w = '1600', h = '900'] = process.argv.slice(2);
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage({ viewport: { width: +w, height: +h } });
-const settle = (p) => p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 250))))); // let the compositor present the finished frame
+const settle = (p) => p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 1200))))); // let the compositor present the finished frame
 const errs = [];
 page.on('console', (m) => { const t = m.text(); if ((m.type() === 'error' || m.type() === 'warning') && !t.includes('CERT')) errs.push(`[${m.type()}] ${t}`); });
 page.on('pageerror', (e) => errs.push(`[pageerror] ${e.message}\n${e.stack}`));

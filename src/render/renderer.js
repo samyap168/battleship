@@ -118,7 +118,7 @@ export const QUALITY = {
 export class Renderer {
   constructor(container, quality = 'high') {
     this.q = QUALITY[quality] || QUALITY.high;
-    const r = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', stencil: false });
+    const r = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', stencil: false, preserveDrawingBuffer: !!navigator.webdriver }); // automation: compositor can always re-present the finished frame
     r.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.q.pixelRatio));
     r.setSize(window.innerWidth, window.innerHeight);
     r.toneMapping = THREE.ACESFilmicToneMapping;
