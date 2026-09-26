@@ -189,6 +189,11 @@ canvas.addEventListener('pointerdown', (e) => {
   audio.init();
   if (mode !== 'play' || !G || !G.player || G.over) return;
   const p = G.player;
+  if (hud.aiming >= 0) {
+    const i = hud.aiming; hud.aiming = -1;
+    if (e.button === 0) playerCast(i);
+    return;
+  }
   if (e.button === 2 && p.alive) {
     const u = pickUnit(mouse.ground.x, mouse.ground.z, p.team);
     if (u) { p.commandAttack(u); moveMarker(u.x, u.z, true); }
@@ -203,9 +208,16 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if (e.ctrlKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); hud.handlers.buy(UPGRADES[+e.key - 1].id); return; }
   if (hud.modalOpen && k === 'escape') { hud.closeModal(); return; }
+  if (k === 'escape') { hud.aiming = -1; return; }
   if (e.repeat) return;
   const idx = ['q', 'w', 'e', 'r'].indexOf(k);
-  if (idx >= 0) { playerCast(idx); return; }
+  if (idx >= 0) {
+    const ab = G.player && G.player.abilities[idx];
+    // self / auto-targeted abilities fire instantly; aimed ones show an indicator until release
+    if (!ab || ab.target === 'self' || ab.target === 'auto') playerCast(idx);
+    else hud.aiming = idx;
+    return;
+  }
   if (k === 't' || k === 'u') playerAgeUp();
   else if (k === 's') G.player && G.player.stop();
   else if (k === ' ') { cameraDir.locked = true; e.preventDefault(); }
@@ -213,9 +225,12 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'tab') { e.preventDefault(); hud.toggleScoreboard(true); }
   else if (k === 'alt') { hud.showRange = true; e.preventDefault(); }
   else if (k === 'm') audio.muted = !audio.muted;
+  else if (e.key === 'F3') { e.preventDefault(); fpsEl.classList.toggle('hidden'); }
 });
 window.addEventListener('keyup', (e) => {
   cameraDir.keys[e.key] = false;
+  const ui = ['q', 'w', 'e', 'r'].indexOf(e.key.toLowerCase());
+  if (ui >= 0 && hud.aiming === ui) { hud.aiming = -1; playerCast(ui); }
   if (e.key === 'Tab') hud.toggleScoreboard(false);
   if (e.key === 'Alt') hud.showRange = false;
 });
@@ -224,6 +239,8 @@ window.addEventListener('blur', () => { cameraDir.keys = {}; });
 // ---------------------------------------------------------------------------
 // Frame loop
 let lastT = performance.now();
+const fpsEl = Object.assign(document.createElement('div'), { id: 'fps', className: 'hidden' });
+document.body.appendChild(fpsEl);
 let wallTime = 0;
 let fpsAcc = 0, fpsN = 0, fps = 60;
 const lightCol = new THREE.Color();
@@ -248,7 +265,7 @@ window.__aa.step = (n = 1, dt = 1 / 30) => { for (let i = 0; i < n; i++) tick(dt
 function tick(dt, draw) {
   wallTime += dt;
   fpsAcc += dt; fpsN++;
-  if (fpsAcc > 1) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
+  if (fpsAcc > 1) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; if (!fpsEl.classList.contains('hidden')) fpsEl.textContent = `${fps.toFixed(0)} fps · ${(R.gl.getPixelRatio() * 100).toFixed(0)}% res · ${R.gl.info.render.calls} draws`; }
   if (G) G.update(dt);
   const gdt = G ? G.dt : dt;
   const t = G ? G.time : wallTime;
@@ -284,6 +301,7 @@ function tick(dt, draw) {
   const ndc = new THREE.Vector2((mouse.x / window.innerWidth) * 2 - 1, -(mouse.y / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(ndc, R.camera);
   raycaster.ray.intersectPlane(waterPlane, mouse.ground);
+  hud.cursor = mouse.ground;
 
   // cinematic grading reacting to player state
   const gu = R.grade.uniforms;

@@ -135,7 +135,10 @@ b { font-weight: 700; }
 #scoreboard { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); padding: 16px 20px; min-width: 760px; }
 #scoreboard table { width: 100%; border-collapse: collapse; font-size: 15px; }
 #scoreboard th { text-align: left; font-weight: 400; font-size: 12px; color: var(--dim); letter-spacing: .12em; text-transform: uppercase; padding: 4px 8px; }
-#scoreboard td { padding: 5px 8px; border-top: 1px solid rgba(255,255,255,.06); }
+#scoreboard td, #end td { padding: 5px 14px; border-top: 1px solid rgba(255,255,255,.06); white-space: nowrap; }
+#end th { text-align: left; font-weight: 400; font-size: 12px; color: var(--dim); letter-spacing: .12em; text-transform: uppercase; padding: 4px 14px; }
+#end table { border-collapse: collapse; font-size: 15px; }
+#end .team { font-family: var(--font-title); font-size: 16px; padding-top: 12px; }
 #scoreboard tr.me td { background: rgba(232,196,122,.08); }
 #scoreboard .team { font-family: var(--font-title); font-size: 16px; padding-top: 12px; }
 
@@ -164,7 +167,7 @@ b { font-weight: 700; }
 #loading .s { margin-top: 12px; font-size: 13px; letter-spacing: .2em; color: var(--dim); text-transform: uppercase; }
 
 /* ---------- end screen */
-#end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, rgba(0,0,0,.25), rgba(0,0,0,.8)); animation: fadeIn 1s; }
+#end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, rgba(4,6,10,.62), rgba(4,6,10,.92)); backdrop-filter: blur(3px); animation: fadeIn 1s; z-index: 5; }
 #end h1 { font-family: var(--font-title); font-size: 96px; letter-spacing: .25em; margin: 0; }
 #end h1.win { background: linear-gradient(180deg, #fff6df, #e8c47a); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 30px rgba(232,196,122,.5)); }
 #end h1.lose { color: #b9b1a6; text-shadow: 0 0 40px rgba(255,60,40,.5); }
@@ -175,3 +178,5 @@ b { font-weight: 700; }
 .hint kbd { border: 1px solid var(--line); padding: 0 6px; color: var(--gold); margin: 0 2px; }
 
 @media (max-width: 1200px) { #shop { width: 210px; } #minimap canvas { width: 240px; height: 147px; } #portrait { width: 210px; } .ab { width: 58px; height: 58px; } #feed { width: 280px; } }
+
+#fps { position: fixed; top: 8px; left: 10px; z-index: 30; font: 600 12px var(--font-ui); color: #9fe0a0; background: rgba(0,0,0,.5); padding: 3px 8px; pointer-events: none; }

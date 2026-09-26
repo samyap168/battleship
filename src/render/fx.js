@@ -117,7 +117,7 @@ export class FX {
     const len = _v.length();
     g.scale.set(width, len, width);
     g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), _v.normalize());
-    g.userData.mat.uniforms.uColor.value.set(color).multiplyScalar(2.2);
+    g.userData.mat.uniforms.uColor.value.set(color).multiplyScalar(width > 6 ? 0.9 : 2.2);
     g.userData.t = 0; g.userData.life = life;
     return g;
   }
@@ -268,7 +268,7 @@ export class FX {
   /** Transformation moment: a pillar of light, rising rings, sparks. */
   ageUp(pos, color) {
     const c = new THREE.Color(color);
-    const b = this.beam(new THREE.Vector3(pos.x, -2, pos.z), new THREE.Vector3(pos.x, 160, pos.z), color, 18, 1.8);
+    const b = this.beam(new THREE.Vector3(pos.x, -2, pos.z), new THREE.Vector3(pos.x, 130, pos.z), color, 8, 1.5);
     b.userData.pillar = true;
     for (let i = 0; i < 3; i++) this.ring(pos.x, pos.z, 3, 40 + i * 25, color, 1.0 + i * 0.35, 0.06);
     for (let i = 0; i < 80; i++) {

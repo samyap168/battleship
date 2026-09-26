@@ -194,7 +194,7 @@ export class Game {
       this.fx.explosion(pos, u.heavy ? 1.2 : 0.8);
       this.audio.play('explosion', { x: u.x, z: u.z, vol: 0.7 });
       const k = killer && killer.kind === 'hero' ? killer : null;
-      if (k) { k.gold += u.gold; k.creepKills++; if (k === this.player) { this.ui.floatText(u.x, 10, u.z, `+${u.gold}`, '#ffd24a', 15); this.audio.play('gold', { vol: 0.4 }); } }
+      if (k) { k.gold += u.gold; k.creepKills++; if (k === this.player) { this.ui.goldPop(k, u.gold); this.audio.play('gold', { vol: 0.35 }); } }
       this.shareXp(u, u.xpVal, k);
     } else {
       this.structureDeath(u, killer, pos);
@@ -355,7 +355,7 @@ export class Game {
 
     // onboarding: first time the next age is affordable
     const pl = this.player;
-    if (pl && pl.canAgeUp() && pl.gold >= pl.nextAgeCost() && !pl.hintedAge?.[pl.age]) {
+    if (pl && !this.over && pl.canAgeUp() && pl.gold >= pl.nextAgeCost() && !pl.hintedAge?.[pl.age]) {
       (pl.hintedAge ||= {})[pl.age] = true;
       this.ui.hint(`<b>${AGES[pl.age].name}</b> is within reach · press <kbd>T</kbd> to reforge your ship`, 6000);
       this.audio.play('levelUp', { vol: 0.5 });
@@ -502,6 +502,14 @@ export class Game {
         this.fx.p.alpha.emit({ x: u.x + fx * L * 0.85 + fz * side * r.beam * 0.4, y: 0.8, z: u.z + fz * L * 0.85 - fx * side * r.beam * 0.4,
           vx: fz * side * rnd(3, 7) + fx * 4, vy: rnd(3, 7), vz: -fx * side * rnd(3, 7) + fz * 4, life: 0.6, s0: 1.0, s1: 2.6, r: 0.95, g: 0.97, b: 1, a0: 0.45, a1: 0, kind: 3, grav: 18 });
       }
+    }
+    // hull-contact foam: where the hull meets the sea
+    u.hullT = (u.hullT || 0) - dt;
+    if (u.hullT <= 0 && (u.kind === 'hero' || this.frame % 2 === 0)) {
+      u.hullT = 0.12;
+      const fx = Math.sin(u.yaw), fz = Math.cos(u.yaw);
+      const along = (Math.random() - 0.5) * r.length * 0.85, side = (Math.random() < 0.5 ? -1 : 1) * r.beam * 0.5;
+      this.ocean.decals.add(u.x + fx * along + fz * side, u.z + fz * along - fx * side, r.beam * 0.55, 1.2, 0, 0.35, 0.8);
     }
     // funnel smoke / engine glow
     u.stackT = (u.stackT || 0) - dt;

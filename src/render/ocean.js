@@ -147,9 +147,9 @@ vec3 body = vec3(0.006, 0.042, 0.058) * (0.45 + 0.9 * sunUp) * (0.6 + 0.4 * faci
 body = mix(body, uShallow * 0.35, shallow * 0.6);
 totalEmissiveRadiance += body * (1.0 - foam);`)
         .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
-reflectedLight.directSpecular *= 0.45; // soften the sun road so combat stays readable`)
+reflectedLight.directSpecular *= 0.32; // soften the sun road so combat stays readable`)
         .replace('#include <opaque_fragment>', `#include <opaque_fragment>
-gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(2.2)); // tame sun-glint fireflies before bloom`);
+gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(1.35)); // tame sun-glint fireflies before bloom`);
     };
     mat.customProgramCacheKey = () => 'ocean-v2';
     applyCloudShadow(mat);

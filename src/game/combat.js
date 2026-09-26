@@ -88,7 +88,7 @@ export class Combat {
     // floating combat text for anything the player is part of
     const player = G.player;
     if (player && (srcHero === player || target === player) && (dmg + absorbed) >= 1) {
-      if (opts.crit) G.ui.floatText(target.x, (target.rig?.height || 8) + 6, target.z, '✦' + Math.round(dmg + absorbed), '#ffd24a', 24);
+      if (opts.crit && target.kind !== 'creep') G.ui.floatText(target.x, (target.rig?.height || 8) + 6, target.z, '✦' + Math.round(dmg + absorbed), '#ffd24a', 24);
       else if (target === player || target.kind !== 'creep') G.ui.damageNumber(target, dmg + absorbed, target === player);
     }
     if (target.hp <= 0) G.kill(target, srcHero || source);

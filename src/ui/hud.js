@@ -16,6 +16,8 @@ export class HUD {
     this.floats = [];
     this.handlers = {};
     this.hoverAbility = -1;
+    this.aiming = -1;
+    this.cursor = null;
     this.annQueue = [];
     this.annBusy = false;
     this.resize();
@@ -192,6 +194,14 @@ export class HUD {
     if (this.floats.length > 80) this.floats.shift();
     this.floats.push({ x, y, z, text, color, size, t: 0, life: 1.1, dx: (Math.random() - 0.5) * 30 });
   }
+  /** Creep-kill gold is summed into one popup above the player's ship. */
+  goldPop(hero, amount) {
+    const g = this.goldAcc;
+    if (g && g.t < 0.6) { g.sum += amount; g.float.text = `+${g.sum}`; g.t = 0; g.float.t = Math.min(g.float.t, 0.2); return; }
+    const float = { x: hero.x, y: (hero.rig?.height || 8) + 10, z: hero.z, text: `+${amount}`, color: '#ffd24a', size: 17, t: 0, life: 1.2, dx: 0 };
+    this.floats.push(float);
+    this.goldAcc = { t: 0, sum: amount, float };
+  }
   /** Aggregates rapid hits on the same target into one rising number. */
   damageNumber(target, amount, incoming) {
     const key = target.id + (incoming ? 'i' : 'o');
@@ -236,6 +246,7 @@ export class HUD {
     const won = winner === me;
     const title = winner < 0 ? 'STALEMATE' : won ? 'VICTORY' : 'DEFEAT';
     const sub = winner < 0 ? 'The seas remain contested' : reason === 'citadel' ? `${TEAMS[winner].name} razed the enemy citadel` : `${TEAMS[winner].name} controls the seas at dusk`;
+    this.$('hintRoot').innerHTML = ''; this.$('deathRoot').innerHTML = '';
     const r = this.$('modalRoot');
     r.innerHTML = `<div id="end"><h1 class="${won ? 'win' : 'lose'}">${title}</h1><div class="sub">${sub}</div>
       <div class="panel ornate">${this.scoreboardHTML(G)}</div>
@@ -316,12 +327,14 @@ export class HUD {
     this.txt('e1', AGES[G.teams[1].era - 1].name);
     this.txt('clock', fmtTime(Math.max(0, MATCH.duration - G.time)));
     this.sty('sun', 'left', `${Math.min(100, (G.time / MATCH.duration) * 100).toFixed(1)}%`);
-    if (G.frame % 4 === 0) this.drawMinimap(G, camFocus, camView);
+    this.mmT = (this.mmT || 0) + dt;
+    if (this.mmT > 0.066) { this.mmT = 0; this.drawMinimap(G, camFocus, camView); }
     if (p) this.updatePlayerPanel(G, p);
     const sb = this.$('scoreboard');
     if (sb && !sb.classList.contains('hidden') && G.frame % 20 === 0) sb.innerHTML = this.scoreboardHTML(G);
     const rsp = this.$('rsp');
     if (rsp && p) rsp.textContent = Math.max(0, Math.ceil(p.respawn));
+    if (G.over) { this.ctx.setTransform(1, 0, 0, 1, 0, 0); this.ctx.clearRect(0, 0, this.cv.width, this.cv.height); return; }
     this.drawOverlay(G, camera, dt);
   }
 
@@ -392,7 +405,7 @@ export class HUD {
       if (this.hoverAbility >= 0) { const ab = p.abilities[this.hoverAbility]; range = ab.range || (ab.radius || 0); }
       else if (this.showRange) { range = p.hull.guns.range; col = 'rgba(255,255,255,.28)'; }
       if (range) this.drawRing(c, proj, p.x, p.z, range, col);
-      if (G.aim) this.drawRing(c, proj, G.aim.x, G.aim.z, G.aim.r, 'rgba(255,140,90,.7)');
+      if (this.aiming >= 0 && this.cursor) this.drawAim(c, proj, p, p.abilities[this.aiming], this.cursor);
     }
     // health bars
     c.font = '600 12px Rajdhani, sans-serif';
@@ -438,6 +451,7 @@ export class HUD {
       c.fillText('PORT', s.x, s.y + 4);
     }
     if (this.dmgAcc) for (const [k, a] of this.dmgAcc) { a.t += dt; if (a.t > 1.2) this.dmgAcc.delete(k); }
+    if (this.goldAcc) this.goldAcc.t += dt;
     // floating text
     for (let i = this.floats.length - 1; i >= 0; i--) {
       const f = this.floats[i];
@@ -457,7 +471,39 @@ export class HUD {
     }
   }
 
-  drawRing(c, proj, x, z, r, col) {
+  /** Targeting indicator for the ability being aimed. */
+  drawAim(c, proj, p, ab, cur) {
+    let dx = cur.x - p.x, dz = cur.z - p.z;
+    const d = Math.hypot(dx, dz) || 1;
+    dx /= d; dz /= d;
+    const range = ab.range || 60;
+    this.drawRing(c, proj, p.x, p.z, range, 'rgba(232,196,122,.45)');
+    const ready = p.cds[this.aiming] <= 0 && (!ab.minLevel || p.level >= ab.minLevel);
+    const col = ready ? 'rgba(255,170,90,.9)' : 'rgba(160,160,160,.6)';
+    if (ab.target === 'point') {
+      const k = Math.min(d, range);
+      const x = p.x + dx * k, z = p.z + dz * k;
+      const r = ab.area ? ab.area + (ab.radius || 0) : ab.radius || 14;
+      this.drawRing(c, proj, x, z, Math.max(8, r), col, true);
+      const a = proj(x, 0.5, z);
+      if (a) { c.fillStyle = col; c.beginPath(); c.arc(a.x, a.y, 3, 0, Math.PI * 2); c.fill(); }
+    } else {
+      // skillshot lane (width ~ projectile/beam width), fan for spreads
+      const w = (ab.width || ab.radius || 3) + 2;
+      const lanes = ab.count > 1 && ab.spread ? [-ab.spread / 2, 0, ab.spread / 2] : [0];
+      const base = Math.atan2(dx, dz);
+      for (const off of lanes) {
+        const a = base + off, ux = Math.sin(a), uz = Math.cos(a), nx = uz, nz = -ux;
+        const pts = [[p.x + nx * w, p.z + nz * w], [p.x + ux * range + nx * w, p.z + uz * range + nz * w], [p.x + ux * range - nx * w, p.z + uz * range - nz * w], [p.x - nx * w, p.z - nz * w]].map(([x, z]) => proj(x, 0.5, z));
+        if (pts.some((q) => !q)) continue;
+        c.beginPath(); pts.forEach((q, i) => (i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y))); c.closePath();
+        c.fillStyle = ready ? 'rgba(255,150,70,.16)' : 'rgba(150,150,150,.12)'; c.fill();
+        c.strokeStyle = col; c.lineWidth = 1.5; c.stroke();
+      }
+    }
+  }
+
+  drawRing(c, proj, x, z, r, col, solid = false) {
     c.beginPath();
     for (let i = 0; i <= 48; i++) {
       const a = (i / 48) * Math.PI * 2;
@@ -465,6 +511,7 @@ export class HUD {
       if (!s) continue;
       i ? c.lineTo(s.x, s.y) : c.moveTo(s.x, s.y);
     }
-    c.strokeStyle = col; c.lineWidth = 2; c.setLineDash([8, 6]); c.stroke(); c.setLineDash([]);
+    c.strokeStyle = col; c.lineWidth = 2; if (!solid) c.setLineDash([8, 6]); c.stroke(); c.setLineDash([]);
+    if (solid) { c.fillStyle = col.replace(/[\d.]+\)$/, '0.12)'); c.fill(); }
   }
 }
