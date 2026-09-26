@@ -20,7 +20,7 @@ const res = await page.evaluate(async () => {
     await new Promise((r) => setTimeout(r, 0));
   }
   A.cameraDir.intro = 0; A.cameraDir.cine = null;
-  for (let k = 0; k < 6; k++) A.step(15, 1 / 30); // let the end screen appear
+  for (let k = 0; k < 40 && !document.querySelector('#end'); k++) A.step(15, 1 / 30); // let the end screen appear (slow-mo aware)
   return { time: G.time.toFixed(0), winner: G.winner, kills: G.teams.map((t) => t.kills), towers: G.teams.map((t) => t.towersLost), ages: G.heroes.map((h) => h.age).join(''), errors, endShown: !!document.querySelector('#end') };
 });
 await page.screenshot({ path: 'tests/output/end.png', timeout: 180000 });

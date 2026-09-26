@@ -366,7 +366,7 @@ export class HUD {
     if (sb && !sb.classList.contains('hidden') && G.frame % 20 === 0) sb.innerHTML = this.scoreboardHTML(G);
     const rsp = this.$('rsp');
     if (rsp && p) rsp.textContent = Math.max(0, Math.ceil(p.respawn));
-    if (G.over) { this.ctx.setTransform(1, 0, 0, 1, 0, 0); this.ctx.clearRect(0, 0, this.cv.width, this.cv.height); return; }
+    if (G.over || this.modalOpen) { this.ctx.setTransform(1, 0, 0, 1, 0, 0); this.ctx.clearRect(0, 0, this.cv.width, this.cv.height); return; }
     this.drawOverlay(G, camera, dt);
   }
 
