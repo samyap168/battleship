@@ -62,6 +62,12 @@ export class Combat {
       dmg *= target.kind === 'creep' ? 1.8 : 1 + G.structureScale;
     }
     if (source && source.kind === 'creep' && (target.kind === 'tower' || target.kind === 'citadel')) dmg *= 0.6;
+    // Backdoor protection: forts shrug off captains unless allied gunboats escort the siege.
+    if ((target.kind === 'tower' || target.kind === 'citadel') && source && source.kind !== 'creep') {
+      const team = source.team;
+      const escorted = G.creeps.some((c) => c.alive && c.team === team && (c.x - target.x) ** 2 + (c.z - target.z) ** 2 < 95 * 95);
+      if (!escorted) dmg *= 0.45;
+    }
     let absorbed = 0;
     if (target.shield > 0) {
       absorbed = Math.min(target.shield, dmg);
@@ -222,6 +228,7 @@ export class Combat {
         const z1 = target.z + (target.vz || 0) * T * lead + rnd(-scatter, scatter);
         this.ballistic(hero, g.kind, _p.clone(), x1, z1, g.speed, dmg, { crit, hitR: 2.5 });
         G.fx.muzzle(_p, _dir, g.kind === 'ball' ? 1.1 : g.kind === 'flak' ? 0.7 : 1.3, g.kind);
+        if (hero.isPlayer && g.kind !== 'flak') G.fx.shake(0.05 + hero.age * 0.012, hero.x, hero.z);
         G.audio.play(VIS[g.kind].snd, { x: _p.x, z: _p.z, vol: 0.55 });
       });
     }

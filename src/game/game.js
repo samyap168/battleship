@@ -81,7 +81,7 @@ export class Game {
         const sp = spawnPoint(team, slot);
         h.x = sp.x; h.z = sp.z; h.yaw = sp.yaw;
         this.heroes.push(h); this.units.push(h);
-        if (isPlayer) { this.player = h; if (opts.autopilot) this.bots.push(new BotBrain(this, h, DIFFICULTY.hard)); }
+        if (isPlayer) { this.player = h; if (opts.autopilot) this.bots.push(new BotBrain(this, h, this.diff)); }
         else this.bots.push(new BotBrain(this, h, this.diff));
       }
     }
@@ -219,6 +219,8 @@ export class Game {
     u.prevStreak = u.streak;
     u.streak = 0;
     u.respawn = MATCH.respawnBase + MATCH.respawnPerAge * u.age + u.level * 0.4;
+    const behind = this.teams[1 - u.team].kills - this.teams[u.team].kills;
+    if (behind > 4) u.respawn *= Math.max(0.6, 1 - behind * 0.025); // comeback: trailing team returns sooner
     this.drones.popShields(u);
     u.shield = 0; u.buffs = []; u.dash = null; u.pd = null;
     // assists
@@ -248,7 +250,7 @@ export class Game {
       killer.gold += bounty + streakBonus;
       this.teams[killer.team].kills++;
       killerName = `<b style="color:${TEAMS[killer.team].css}">${killer.name}</b>`;
-      if (killer === this.player) this.ui.floatText(u.x, 14, u.z, `+${bounty + streakBonus}`, '#ffd24a', 22);
+      if (killer === this.player) { this.ui.floatText(u.x, 14, u.z, `+${bounty + streakBonus}`, '#ffd24a', 22); this.hitstop = 0.09; this.fx.shake(0.45, u.x, u.z); }
       if (!this.firstBlood) {
         this.firstBlood = true;
         this.ui.announce('FIRST BLOOD', `${killer.name} sinks ${u.name}`, TEAMS[killer.team].css);
@@ -268,7 +270,7 @@ export class Game {
     for (const a of assisters) { a.assists++; a.gold += Math.round(REWARDS.assistGold / Math.max(1, assisters.length) * 1.5); }
     this.shareXp(u, REWARDS.heroXp + REWARDS.heroXpPerLevel * u.level, killer && killer.kind === 'hero' ? killer : null);
     this.ui.feed(`${killerName} sank <b style="color:${TEAMS[u.team].css}">${u.name}</b>${assisters.length ? ` <span class="dim">+${assisters.length}</span>` : ''}`);
-    if (u === this.player) { this.ui.death(u.respawn, killer); this.audio.stinger('warning'); }
+    if (u === this.player) { this.ui.death(u.respawn, killer); this.audio.stinger('warning'); this.slowmo = 0.7; this.fx.shake(0.6, u.x, u.z); }
   }
 
   structureDeath(u, killer, pos) {
@@ -351,6 +353,13 @@ export class Game {
       this.storm = inStorm ? 1 : 0;
     }
 
+    // onboarding: first time the next age is affordable
+    const pl = this.player;
+    if (pl && pl.canAgeUp() && pl.gold >= pl.nextAgeCost() && !pl.hintedAge?.[pl.age]) {
+      (pl.hintedAge ||= {})[pl.age] = true;
+      this.ui.hint(`<b>${AGES[pl.age].name}</b> is within reach · press <kbd>T</kbd> to reforge your ship`, 6000);
+      this.audio.play('levelUp', { vol: 0.5 });
+    }
     // ports
     for (const p of this.ports) this.updatePort(p, dt);
     // smokes

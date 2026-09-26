@@ -234,7 +234,7 @@ export const PORTS = {
 };
 
 export const REWARDS = {
-  heroGold: 240, heroGoldPerAge: 80, assistGold: 90, streakGold: 50,
+  heroGold: 190, heroGoldPerAge: 50, assistGold: 90, streakGold: 50,
   heroXp: 160, heroXpPerLevel: 40,
   xpShareRadius: 110,
 };
