@@ -311,6 +311,10 @@ export class HUD {
       c.fillStyle = TEAMS[s.team].css; c.strokeStyle = '#000'; c.lineWidth = 2;
       c.fillRect(X(s.x) - sz2 / 2, Z(s.z) - sz2 / 2, sz2, sz2); c.strokeRect(X(s.x) - sz2 / 2, Z(s.z) - sz2 / 2, sz2, sz2);
     }
+    if (G.boss && G.boss.alive) {
+      c.beginPath(); c.arc(X(G.boss.x), Z(G.boss.z), 9 + Math.sin(performance.now() / 200) * 1.5, 0, Math.PI * 2);
+      c.fillStyle = '#123'; c.fill(); c.lineWidth = 3; c.strokeStyle = '#7dfff0'; c.stroke();
+    }
     for (const cr of G.creeps) {
       if (!cr.alive) continue;
       c.fillStyle = cr.team === 0 ? '#8fd0ff' : '#ff9a8a';
@@ -457,13 +461,13 @@ export class HUD {
       const height = u.rig ? (u.rig.height || 10) : 10;
       const s = proj(u.x, height + (u.kind === 'citadel' ? 18 : u.kind === 'tower' ? 8 : 5), u.z);
       if (!s || s.x < -50 || s.y < -50 || s.x > w + 50 || s.y > h + 50) continue;
-      const hero = u.kind === 'hero';
-      const bw = hero ? 74 : u.kind === 'creep' ? 34 : 96, bh = hero ? 8 : u.kind === 'creep' ? 4 : 8;
+      const hero = u.kind === 'hero', boss = u.kind === 'boss';
+      const bw = hero ? 74 : u.kind === 'creep' ? 34 : boss ? 180 : 96, bh = hero ? 8 : u.kind === 'creep' ? 4 : boss ? 10 : 8;
       const x0 = s.x - bw / 2, y0 = s.y;
       const f = Math.max(0, u.hp / u.maxHp);
       c.fillStyle = 'rgba(0,0,0,.65)';
       c.fillRect(x0 - 1, y0 - 1, bw + 2, bh + 2);
-      c.fillStyle = u === p ? '#6ff08a' : TEAMS[u.team].css;
+      c.fillStyle = u === p ? '#6ff08a' : u.kind === 'boss' ? '#7dfff0' : TEAMS[u.team].css;
       c.fillRect(x0, y0, bw * f, bh);
       if (u.shield > 0) { c.fillStyle = 'rgba(210,240,255,.9)'; c.fillRect(x0, y0, Math.min(bw, bw * (u.shield / u.maxHp)), bh * 0.45); }
       if (hero) {
@@ -475,6 +479,10 @@ export class HUD {
         const label = `${u.level}  ${u.name}`;
         c.strokeText(label, s.x, y0 - 5); c.fillText(label, s.x, y0 - 5);
         if (u.stun > 0) { c.fillStyle = '#9cf'; c.fillText('STUNNED', s.x, y0 + bh + 12); }
+      } else if (boss) {
+        c.font = '700 14px Cinzel, serif'; c.fillStyle = '#bafff7'; c.strokeStyle = 'rgba(0,0,0,.8)'; c.lineWidth = 3;
+        c.strokeText('THE LEVIATHAN', s.x, y0 - 6); c.fillText('THE LEVIATHAN', s.x, y0 - 6);
+        c.font = '600 12px Rajdhani, sans-serif';
       } else if ((u.kind === 'tower' || u.kind === 'citadel') && u.invulnerable) {
         c.fillStyle = 'rgba(200,220,255,.7)'; c.fillText('⛨', s.x + bw / 2 + 8, y0 + 8);
       }

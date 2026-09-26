@@ -149,7 +149,11 @@ export class Hero extends Unit {
   get hull() { return HULLS[this.hullId]; }
   get abilities() { return this.hull.abilities.map((id) => ({ id, ...ABILITIES[id] })); }
   get lvlMul() { return 1 + 0.07 * (this.level - 1); }
-  get dmgMul() { return this.lvlMul * (1 + 0.1 * this.upg.gunnery); }
+  get dmgMul() {
+    let m = this.lvlMul * (1 + 0.1 * this.upg.gunnery);
+    for (const b of this.buffs) if (b.dmgMul) m *= b.dmgMul;
+    return m;
+  }
   get cdMul() { return 1 - 0.07 * this.upg.reload; }
   get maxSpeed() {
     let m = 1 + 0.06 * this.upg.engines;

@@ -80,6 +80,20 @@ export class BotBrain {
     }
     if (this.state === 'fight') { this.state = 'lane'; h.attackOrder = null; }
 
+    // ---- contest the Leviathan when grouped and healthy
+    const B = G.boss;
+    if (B && B.alive && B.risen && hpF > 0.55 && !enemies.some((e) => e.dist(B) < 120)) {
+      const alliesNear = G.heroes.filter((a) => a.alive && a.team === h.team && a.dist(B) < 200).length;
+      if (alliesNear >= 3 || (B.hp / B.maxHp < 0.35 && h.dist(B) < 260)) {
+        this.state = 'boss';
+        const a = Math.atan2(h.z - B.z, h.x - B.x);
+        this.go(B.x + Math.cos(a) * 62, B.z + Math.sin(a) * 62);
+        h.attackOrder = B;
+        this.tryAbilities([B], B, tookDmg);
+        return;
+      }
+    }
+    if (this.state === 'boss') { this.state = 'lane'; h.attackOrder = null; }
     // ---- capture a port opportunistically
     if (this.state !== 'capture' && Math.random() < 0.06 && hpF > 0.6) {
       const port = G.ports.find((p) => p.owner !== h.team && h.dist(p) < 260 && !G.heroes.some((e) => e.alive && e.team !== h.team && e.dist(p) < 90));

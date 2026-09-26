@@ -7,6 +7,7 @@ import { Drones } from './drones.js';
 import { updateHeroEffects } from './abilities.js';
 import { BotBrain } from './ai/bot.js';
 import { buildPort } from '../render/models/structureModels.js';
+import { Leviathan, LEVIATHAN } from './leviathan.js';
 import { sampleWaves, WAVES_GLSL, WAVE_UNIFORMS } from '../render/waves.js';
 
 class Emitter {
@@ -88,6 +89,8 @@ export class Game {
     this.stormAt = rnd(250, 320); this.stormDur = 55; this.storm = 0;
 
     for (const s of STRUCTURE_LAYOUT) { const st = new Structure(this, s); this.structures.push(st); this.units.push(st); }
+    this.boss = new Leviathan(this);
+    this.units.push(this.boss);
     for (const p of PORT_LAYOUT) {
       const rig = buildPort();
       rig.root.position.set(p.x, 0, p.z);
@@ -127,6 +130,7 @@ export class Game {
     for (const o of this.units) {
       if (!o.alive || o.team === u.team || !o.targetable) continue;
       if ((o.kind === 'tower' || o.kind === 'citadel') && o.invulnerable) continue;
+      if (o.kind === 'boss' && (mode !== 'hero' || !o.risen)) continue;
       if (o.kind === 'hero' && this.inEnemySmoke(o)) continue;
       const d2 = u.dist2(o);
       const r = range + o.radius;
@@ -134,7 +138,7 @@ export class Game {
       let s = d2;
       if (mode === 'tower') s *= o.kind === 'creep' ? 0.3 : 1;
       else if (mode === 'creep') s *= o.kind === 'creep' ? 0.5 : o.kind === 'hero' ? 1 : 0.8;
-      else if (mode === 'hero') s *= o.kind === 'hero' ? 0.55 : o.kind === 'creep' ? 1 : 1.2;
+      else if (mode === 'hero') s *= o.kind === 'hero' ? 0.55 : o.kind === 'creep' ? 1 : o.kind === 'boss' ? 1.6 : 1.2;
       if (s < bs) { bs = s; best = o; }
     }
     return best;
@@ -216,6 +220,7 @@ export class Game {
     u.hp = 0;
     u.sinkT = 0; u.sinkDir = Math.random() < 0.5 ? -1 : 1;
     const pos = new THREE.Vector3(u.x, 2, u.z);
+    if (u.kind === 'boss') { this.bossDeath(u, killer); return; }
     if (u.kind === 'hero') this.heroDeath(u, killer, pos);
     else if (u.kind === 'creep') {
       this.fx.explosion(pos, u.heavy ? 1.2 : 0.8);
@@ -291,14 +296,30 @@ export class Game {
         else if (killer.streak === 5) this.ui.announce('DOMINATING', `${killer.name} is on a rampage`, TEAMS[killer.team].css, 'small');
       }
     } else if (killer) {
-      killerName = killer.kind === 'creep' ? 'a gunboat' : 'a fortress';
-      this.teams[1 - u.team].kills++;
+      killerName = killer.kind === 'creep' ? 'a gunboat' : killer.kind === 'boss' ? '<b style="color:#7dfff0">the Leviathan</b>' : 'a fortress';
+      if (killer.kind !== 'boss') this.teams[1 - u.team].kills++;
     }
     for (const a of assisters) { a.assists++; a.gold += Math.round(REWARDS.assistGold / Math.max(1, assisters.length) * 1.5); }
     this.shareXp(u, REWARDS.heroXp + REWARDS.heroXpPerLevel * u.level, killer && killer.kind === 'hero' ? killer : null);
     if (this.player && u.team === this.player.team && u !== this.player) this.ui.ping(u.x, u.z, '#ffb24a');
     this.ui.feed(`${killerName} sank <b style="color:${TEAMS[u.team].css}">${u.name}</b>${assisters.length ? ` <span class="dim">+${assisters.length}</span>` : ''}`);
     if (u === this.player) { this.ui.death(u.respawn, killer); this.audio.stinger('warning'); this.slowmo = 0.7; this.fx.shake(0.6, u.x, u.z); }
+  }
+
+  bossDeath(u, killer) {
+    const team = killer && killer.team !== undefined && killer.team < 2 ? killer.team : null;
+    for (let i = 0; i < 8; i++) this.combat.after(i * 0.3, () => this.fx.explosion(new THREE.Vector3(u.x + rnd(-30, 30), 4, u.z + rnd(-22, 22)), 2.2, { color: [0.8, 2.2, 2.0] }));
+    this.combat.after(0.5, () => this.fx.megaExplosion(new THREE.Vector3(u.x, 4, u.z), 50));
+    this.audio.play('death', { x: u.x, z: u.z, vol: 1.4, pitch: 0.5 });
+    u.sinkT = 0;
+    if (team === null) return;
+    for (const h of this.heroes) if (h.team === team) {
+      h.gold += LEVIATHAN.gold;
+      h.buffs.push({ t: 0, dur: LEVIATHAN.buffDur, dmgMul: 1.3, healPerSec: h.maxHp * 0.012, blessing: true });
+    }
+    this.ui.announce('LEVIATHAN SLAIN', `${TEAMS[team].name} claims the Leviathan's Blessing`, '#7dfff0');
+    this.audio.stinger(this.player && this.player.team === team ? 'ageUp' : 'enemyAge');
+    this.ui.feed(`<b style="color:${TEAMS[team].css}">${killer.name || TEAMS[team].short}</b> slew <b style="color:#7dfff0">the Leviathan</b> <span class="dim">(+${LEVIATHAN.gold} gold, +30% damage for ${LEVIATHAN.buffDur}s)</span>`);
   }
 
   structureDeath(u, killer, pos) {
@@ -382,6 +403,7 @@ export class Game {
     }
 
     // onboarding hints for the first minutes
+    const pl = this.player;
     if (pl && !this.over) {
       const H = [
         [9, '<kbd>Right-click</kbd> the sea to sail · head for the <b>mid lane</b> and escort your gunboats'],
@@ -394,7 +416,6 @@ export class Game {
       if (this.hintIdx < H.length && this.time > H[this.hintIdx][0]) { this.ui.hint(H[this.hintIdx][1], 7000); this.hintIdx++; }
     }
     // onboarding: first time the next age is affordable
-    const pl = this.player;
     if (pl && !this.over && pl.canAgeUp() && pl.gold >= pl.nextAgeCost() && !pl.hintedAge?.[pl.age]) {
       (pl.hintedAge ||= {})[pl.age] = true;
       this.ui.hint(`<b>${AGES[pl.age].name}</b> is within reach · press <kbd>T</kbd> to reforge your ship`, 6000);
@@ -419,6 +440,7 @@ export class Game {
     }
     for (const c of this.creeps) c.update(dt);
     for (const s of this.structures) s.update(dt);
+    this.boss.update(dt);
     const ships = this.units.filter((u) => u.isShip && u.alive);
     separateShips(ships, dt);
     this.combat.update(dt);
@@ -489,6 +511,11 @@ export class Game {
   syncVisual(u, dt, t) {
     const r = u.rig;
     if (!r) return;
+    if (u.kind === 'boss') {
+      if (!u.alive && u.sinkT !== undefined) { u.sinkT += dt; u.rise = Math.max(0, 1 - u.sinkT / 3); if (u.sinkT > 3.2) r.root.visible = false; }
+      u.sync(t);
+      return;
+    }
     if (u.kind === 'tower' || u.kind === 'citadel') {
       if (!u.alive) {
         u.sinkT += dt;
@@ -587,6 +614,11 @@ export class Game {
       if (r.stacks) for (const s of r.stacks) { s.getWorldPosition(_v); this.fx.stackSmoke(_v, 0.22, u.kind === 'hero' ? 1 : 0.6); }
       const age = u.kind === 'hero' ? u.age : u.era;
       if (age >= 4 && r.engines) for (const e of r.engines) { e.getWorldPosition(_v); this.fx.trailGlow(_v, u.team === 0 ? [0.5, 1.2, 3] : [3, 0.9, 0.4], 2.6 * (0.4 + speed01), 0.14); }
+    }
+    // Leviathan's Blessing aura
+    if (u.kind === 'hero' && u.buffs.some((b) => b.blessing) && this.frame % 3 === 0) {
+      const a = Math.random() * 6.283, rr = r.length * 0.4;
+      this.fx.p.add.emit({ x: u.x + Math.cos(a) * rr, y: 1, z: u.z + Math.sin(a) * rr, vy: rnd(4, 9), life: 0.8, s0: 1.6, s1: 0.2, r: 0.5, g: 2.2, b: 2.0, a0: 1, a1: 0, kind: 2 });
     }
     // damage fire
     const hpF = u.hp / u.maxHp;

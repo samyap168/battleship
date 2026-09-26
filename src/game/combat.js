@@ -76,6 +76,7 @@ export class Combat {
     }
     target.hp -= dmg;
     target.hitFlash = 0.12;
+    if (target.kind === 'boss' && target.onDamaged) target.onDamaged();
     const srcHero = source && source.kind === 'hero' ? source : source && source.owner && source.owner.kind === 'hero' ? source.owner : null;
     if (srcHero) {
       target.damagers.set(srcHero.id, G.time);
