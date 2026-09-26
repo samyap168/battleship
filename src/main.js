@@ -14,6 +14,7 @@ import { CameraDirector } from './core/camera.js';
 import { audio } from './audio/audio.js';
 import { CLOUD } from './render/cloudShadow.js';
 import { Weather } from './render/weather.js';
+import { Birds } from './render/birds.js';
 import { MATCH, AGE_HULLS, UPGRADES, AGES, TEAMS } from './core/config.js';
 
 const params = new URLSearchParams(location.search);
@@ -41,6 +42,7 @@ await step(40, 'Raising the tides');
 const ocean = new Ocean(scene);
 await step(58, 'Charting the archipelago');
 const env = new Environment(scene, ISLANDS, SCENERY);
+const birds = new Birds(scene, ISLANDS);
 const particles = new Particles(scene);
 const fx = new FX(scene, particles, ocean.decals, R);
 const cameraDir = new CameraDirector(R.camera);
@@ -308,6 +310,7 @@ function tick(dt, draw) {
 
   CLOUD.uCloudT.value = wallTime;
   env.update(t);
+  birds.update(dt, wallTime);
   ocean.update(gdt, t, f.x, f.z, sky);
   fx.update(gdt, t);
   particles.update(gdt);

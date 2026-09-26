@@ -245,7 +245,13 @@ export class BotBrain {
     const h = this.h, G = this.G;
     if (h.canAgeUp() && h.gold >= h.nextAgeCost()) {
       const opts = AGE_HULLS[h.age + 1];
-      G.ageUp(h, opts[Math.min(this.branch, opts.length - 1)]);
+      let pick = opts[Math.min(this.branch, opts.length - 1)];
+      if (opts.length > 1) {
+        // composition: avoid a third copy of the same hull on the team
+        const same = G.heroes.filter((o) => o !== h && o.team === h.team && o.hullId === pick).length;
+        if (same >= 2) pick = opts.find((o) => o !== pick) || pick;
+      }
+      G.ageUp(h, pick);
       return;
     }
     // Upgrades get at most ~25% of lifetime earnings until the final age.
