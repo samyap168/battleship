@@ -17,6 +17,7 @@ import { Weather } from './render/weather.js';
 import { Birds } from './render/birds.js';
 import { Wakes } from './render/wakes.js';
 import { renderThumbnails } from './render/thumbnails.js';
+import { WaterReflection, reflectable } from './render/reflection.js';
 import { MATCH, AGE_HULLS, UPGRADES, AGES, TEAMS } from './core/config.js';
 
 const params = new URLSearchParams(location.search);
@@ -45,6 +46,7 @@ const step = async (pct, txt) => { loadBar.style.width = pct + '%'; loadTxt.text
 await step(8, 'Kindling the forge');
 const R = new Renderer($('#app'), settings.quality);
 if (settings.quality === 'low') R.rays.enabled = false;
+if (navigator.webdriver) R.fixedRes = true; // automated captures: keep full quality, no load shedding
 const scene = R.scene;
 await step(22, 'Painting the sky');
 const sky = new Sky(R.gl, scene);
@@ -58,6 +60,14 @@ const birds = new Birds(scene, ISLANDS);
 const wakes = new Wakes(scene);
 const particles = new Particles(scene);
 const fx = new FX(scene, particles, ocean.decals, R);
+// Planar reflections on Ultra: tag reflection-worthy objects onto layer 2.
+let refl = null;
+if (settings.quality === 'high' && params.get('refl') !== '0') {
+  refl = new WaterReflection(R.gl, scene, R.camera);
+  ocean.enableReflection(refl.uniforms);
+  R.refl = refl;
+  [sky.dome, sky.sun, sky.hemi, env.group, birds.mesh, fx.p.add.points, fx.p.alpha.points, fx.debris, ...fx.lights, ...fx.beams].forEach(reflectable);
+}
 const cameraDir = new CameraDirector(R.camera);
 fx.onShake = (a, x, z) => cameraDir.addTrauma(a, x, z);
 const hud = new HUD($('#ui'), $('#overlay'));
@@ -77,7 +87,7 @@ function startGame(spectate) {
   if (worldGroup) scene.remove(worldGroup);
   worldGroup = new THREE.Group();
   scene.add(worldGroup);
-  G = new Game({ renderer: R, scene: worldGroup, fx, ocean, audio, ui: hud, sky, wakes }, {
+  G = new Game({ renderer: R, scene: worldGroup, fx, ocean, audio, ui: hud, sky, wakes, reflect: refl ? reflectable : null }, {
     difficulty: settings.difficulty, playerTeam: settings.team, spectate, playerName: 'You', autopilot: !!params.get('autopilot'),
   });
   hud.mount(G);
@@ -306,7 +316,7 @@ const AGE_GRADE = {
   5: { gain: [0.96, 1.0, 1.07], lift: [0.0, 0.012, 0.03], sat: 1.18, con: 1.15, ca: 0.0013 },
 };
 const gradeCur = { gain: new THREE.Vector3(1, 1, 1), lift: new THREE.Vector3(), sat: 1.1, con: 1.08, ca: 0.0007 };
-window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, get fps() { return fps; } };
+window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, refl, get fps() { return fps; } };
 
 function frame() {
   requestAnimationFrame(frame);
@@ -395,6 +405,7 @@ function tick(dt, draw) {
   document.body.classList.toggle('cinematic', !!cameraDir.cine && cameraDir.cine.letterbox && mode === 'play');
   if (cameraDir.cine) R.gl.toneMappingExposure *= 0.9;
   if (!draw) return;
+  if (refl && refl.uniforms.uReflOn.value) refl.update();
   if (G && mode === 'play') hud.update(G, R.camera, gdt, cameraDir.focus, cameraDir.view);
   R.render(dt, wallTime);
 }

@@ -171,6 +171,7 @@ export class Renderer {
     if (this.ftAvg > 1 / 48) {
       next = Math.max(0.5, cur * 0.85);
       if (cur <= 0.75 && this.ao && this.ao.enabled) { this.ao.enabled = false; next = cur; } // shed AO before going blurrier
+      else if (cur <= 0.75 && this.refl && this.refl.uniforms.uReflOn.value) { this.refl.uniforms.uReflOn.value = 0; next = cur; } // then reflections
     }
     else if (this.ftAvg < 1 / 58 && cur < maxPR) next = Math.min(maxPR, cur * 1.08);
     if (Math.abs(next - cur) > 0.02) { this.gl.setPixelRatio(next); this.resize(); }

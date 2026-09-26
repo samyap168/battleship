@@ -176,6 +176,7 @@ export class Hero extends Unit {
     this.rig = buildHeroShip(id, this.team);
     this.rig.root.traverse((o) => { if (o.isMesh) o.userData.unitId = this.id; });
     this.G.scene.add(this.rig.root);
+    if (this.G.reflect) this.G.reflect(this.rig.root);
     if (old) this.G.scene.remove(old.root);
     this.shieldMesh = null;
     this.reforgeT = initial ? 1 : 0; // age-up scale-in animation
@@ -354,6 +355,7 @@ export class Structure extends Unit {
     // face toward the map centre
     this.rig.root.rotation.y = Math.atan2(-this.x, -this.z);
     G.scene.add(this.rig.root);
+    if (G.reflect) G.reflect(this.rig.root);
     this.era = 1;
   }
   get invulnerable() { return this.G.isStructureProtected(this); }

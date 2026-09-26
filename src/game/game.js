@@ -90,11 +90,13 @@ export class Game {
 
     for (const s of STRUCTURE_LAYOUT) { const st = new Structure(this, s); this.structures.push(st); this.units.push(st); }
     this.boss = new Leviathan(this);
+    if (this.reflect) this.reflect(this.boss.rig.root);
     this.units.push(this.boss);
     for (const p of PORT_LAYOUT) {
       const rig = buildPort();
       rig.root.position.set(p.x, 0, p.z);
       this.scene.add(rig.root);
+      if (this.reflect) this.reflect(rig.root);
       this.ports.push({ ...p, owner: -1, prog: 0, rig, dist(o) { return Math.hypot(o.x - this.x, o.z - this.z); } });
     }
 

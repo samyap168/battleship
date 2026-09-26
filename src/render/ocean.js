@@ -61,7 +61,11 @@ export class Ocean {
       uShallow: { value: new THREE.Color(0.02, 0.2, 0.2) },
       uSSS: { value: new THREE.Color(0.03, 0.2, 0.17) },
       uBodyI: { value: 1 },
+      tReflect: { value: new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1) },
+      uReflMat: { value: new THREE.Matrix4() },
+      uReflOn: { value: 0 },
     };
+    this.uniforms.tReflect.value.needsUpdate = true;
     const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.06, metalness: 0.0, envMapIntensity: 1.0 });
     const U = this.uniforms;
     mat.onBeforeCompile = (sh) => {
@@ -87,6 +91,7 @@ vWaveH = gD.y; vGrid = wpos0.xz; vOW = wpos0 + gD;`);
         .replace('#include <common>', `#include <common>
 uniform float uTime; uniform vec4 uIslands[${MAX_ISLANDS}]; uniform int uIslandCount;
 uniform vec3 uSunDir, uSunColor, uDeep, uShallow, uSSS; uniform float uBodyI;
+uniform sampler2D tReflect; uniform mat4 uReflMat; uniform float uReflOn;
 varying vec3 vOW; varying float vWaveH; varying vec2 vGrid;
 ${WAVES_GLSL}
 ${NOISE_GLSL}`)
@@ -149,11 +154,19 @@ vec3 body = vec3(0.006, 0.042, 0.058) * (0.45 + 0.9 * sunUp) * (0.6 + 0.4 * faci
 body = mix(body, uShallow * 0.35, shallow * 0.6);
 totalEmissiveRadiance += body * (1.0 - foam);`)
         .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
-reflectedLight.directSpecular *= 0.32; // soften the sun road so combat stays readable`)
+reflectedLight.directSpecular *= 0.32; // soften the sun road so combat stays readable
+if (uReflOn > 0.5) {
+  // planar reflection (islands, forts, ships, explosions, sky) replaces the env-map reflection
+  vec4 rc = uReflMat * vec4(vOW.x, 0.0, vOW.z, 1.0);
+  vec2 ruv = rc.xy / rc.w + wN.xz * 0.045;
+  vec3 refl = texture2D(tReflect, clamp(ruv, 0.001, 0.999)).rgb;
+  float F = 0.02 + 0.98 * pow(1.0 - max(dot(wN, V), 0.0), 5.0);
+  reflectedLight.indirectSpecular = refl * F * (1.0 - foam) * 1.05;
+}`)
         .replace('#include <opaque_fragment>', `#include <opaque_fragment>
 gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(1.35)); // tame sun-glint fireflies before bloom`);
     };
-    mat.customProgramCacheKey = () => 'ocean-v2';
+    mat.customProgramCacheKey = () => 'ocean-v3';
     applyCloudShadow(mat);
     this.material = mat;
     this.mesh = new THREE.Mesh(buildOceanGeometry(quality === 'low' ? 170 : quality === 'medium' ? 240 : 300), mat);
@@ -164,6 +177,13 @@ gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(1.35)); // tame sun-glint fireflie
     scene.add(this.mesh);
 
     this.decals = new WaterDecals(scene, U);
+  }
+
+  enableReflection(u) {
+    this.uniforms.tReflect.value = u.tReflect.value;
+    this.uniforms.uReflMat.value = u.uReflMat.value;
+    this.uniforms.uReflOn.value = 1;
+    u.uReflOn = this.uniforms.uReflOn; // one toggle for both
   }
 
   setIslands(list) { this.islands = list; this.cullT = 0; }
