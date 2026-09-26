@@ -40,14 +40,21 @@ void main() {
   } else if (vKind < 3.5) {
     float n = nz(p * 3.0 + vSeed * 31.0);
     a = smoothstep(1.0, 0.2, r + (n - 0.5) * 0.9) * (0.6 + n * 0.5);
-  } else {
+  } else if (vKind < 4.5) {
     float n = nz(vec2(p.x * 2.5, p.y * 1.5 + vSeed * 20.0));
     a = smoothstep(1.0, 0.1, r + (n - 0.5) * 1.1);
     col *= mix(vec3(1.0), vec3(1.6, 1.3, 0.8), 1.0 - r);
+  } else {
+    // kind 5: self-lit fire puff (alpha blended so it occludes instead of saturating)
+    float n = nz(p * 2.6 + vSeed * 23.0) * 0.6 + nz(p * 6.0 - vSeed * 7.0) * 0.4;
+    a = smoothstep(1.0, 0.25, r + (n - 0.5) * 0.9);
+    float core = smoothstep(0.75, 0.0, r + (n - 0.5) * 0.6);
+    col *= 0.55 + core * 0.9 + n * 0.25;
   }
   a *= vColor.a;
   if (a < 0.003) discard;
   if (uAdditive > 0.5) gl_FragColor = vec4(col, a);           // SrcAlpha, One
+  else if (vKind > 4.5) gl_FragColor = vec4(col * a, a);         // emissive, premultiplied
   else gl_FragColor = vec4(col * uLight * a, a);               // premultiplied over
 }`;
 

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { sampleWaves } from './waves.js';
+import { sampleWaves, WAVES_GLSL, WAVE_UNIFORMS } from './waves.js';
 
 // High-level VFX vocabulary. Every effect is layered the way film/AAA VFX
 // are built: flash -> core -> secondary (sparks/debris) -> smoke -> residue
@@ -9,9 +9,14 @@ const _v = new THREE.Vector3();
 const _w = { y: 0, nx: 0, ny: 1, nz: 0 };
 const rnd = (a, b) => a + Math.random() * (b - a);
 
+export const FX_TIME = { value: 0 };
 const ringMat = (color) => new THREE.ShaderMaterial({
-  uniforms: { uColor: { value: new THREE.Color(color) }, uK: { value: 0 }, uAlpha: { value: 1 }, uWidth: { value: 0.12 } },
-  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  uniforms: { uColor: { value: new THREE.Color(color) }, uK: { value: 0 }, uAlpha: { value: 1 }, uWidth: { value: 0.12 }, uTime: FX_TIME, ...WAVE_UNIFORMS },
+  // rings ride the Gerstner surface so swells never slice them
+  vertexShader: `uniform float uTime; varying vec2 vUv; ${WAVES_GLSL}
+    void main(){ vUv = uv; vec4 wp = modelMatrix * vec4(position, 1.0); vec3 n = vec3(0.0, 1.0, 0.0);
+      wp.xyz += gerstnerWave(wp.xz, uTime, n); wp.y += 0.5;
+      gl_Position = projectionMatrix * viewMatrix * wp; }`,
   fragmentShader: `uniform vec3 uColor; uniform float uK, uAlpha, uWidth; varying vec2 vUv;
     void main(){ float r = length(vUv * 2.0 - 1.0);
       float ring = 1.0 - smoothstep(0.0, uWidth, abs(r - 0.92));
@@ -49,7 +54,7 @@ export class FX {
     this.lightIdx = 0;
 
     // Rings (water shock rings, EMP, capture, age-up)
-    const ringGeo = new THREE.PlaneGeometry(2, 2);
+    const ringGeo = new THREE.PlaneGeometry(2, 2, 24, 24);
     ringGeo.rotateX(-Math.PI / 2);
     this.rings = [];
     for (let i = 0; i < 32; i++) {
@@ -149,17 +154,17 @@ export class FX {
     if (scale > 1.2) this.light(pos, 0xffb070, 18 * scale, 40 * scale, 0.12);
   }
 
-  splash(x, z, scale = 1) {
+  splash(x, z, scale = 1, alpha = 0.85) {
     const y = this.waterY(x, z);
     const P = this.p;
     const n = Math.round(14 * scale);
     for (let i = 0; i < n; i++) {
       const a = Math.random() * 6.283, sp = rnd(1, 5) * scale;
       P.alpha.emit({ x: x + Math.cos(a) * scale, y, z: z + Math.sin(a) * scale, vx: Math.cos(a) * sp, vy: rnd(10, 26) * Math.sqrt(scale), vz: Math.sin(a) * sp,
-        life: rnd(0.8, 1.4), s0: rnd(1.5, 3) * scale, s1: rnd(4, 7) * scale, r: 0.95, g: 0.98, b: 1.0, a0: 0.85, a1: 0, kind: 3, grav: 26 });
+        life: rnd(0.8, 1.4), s0: rnd(1.5, 3) * scale, s1: rnd(4, 7) * scale, r: 0.95, g: 0.98, b: 1.0, a0: alpha, a1: 0, kind: 3, grav: 26 });
     }
     // central column
-    P.alpha.emit({ x, y: y + 2 * scale, z, vy: 6 * scale, life: 1.1, s0: 3 * scale, s1: 9 * scale, r: 0.92, g: 0.96, b: 1, a0: 0.7, a1: 0, kind: 3, grav: 4 });
+    P.alpha.emit({ x, y: y + 2 * scale, z, vy: 6 * scale, life: 1.1, s0: 3 * scale, s1: 9 * scale, r: 0.92, g: 0.96, b: 1, a0: alpha * 0.8, a1: 0, kind: 3, grav: 4 });
     this.decals.add(x, z, 4 * scale, 2.5, 1, 0.8, 2.5);
     this.decals.add(x, z, 5 * scale, 6, 0, 0.9, 0.6);
   }
@@ -178,41 +183,44 @@ export class FX {
   explosion(pos, scale = 1, opts = {}) {
     const P = this.p;
     const water = opts.water !== false;
-    const hot = opts.color || [2.6, 1.3, 0.45];
-    // 1. flash
-    P.add.emit({ x: pos.x, y: pos.y + 1, z: pos.z, life: 0.14, s0: 14 * scale, s1: 22 * scale, r: 3, g: 2.4, b: 1.6, a0: 1, a1: 0 });
-    // 2. fireball core
-    const nf = Math.round(18 * scale + 6);
+    const hot = opts.color || [2.4, 1.35, 0.5];
+    const S = scale;
+    // 0. water first, so fire and smoke layer over the spray
+    if (water) {
+      this.splash(pos.x, pos.z, scale * 0.7, 0.55);
+      this.decals.add(pos.x, pos.z, 9 * scale, 1.2, 1, 0.9, 3);
+      this.decals.add(pos.x, pos.z, 6 * scale, 10, 2, 0.55, 0.5);
+      this.ring(pos.x, pos.z, 2 * scale, 20 * scale, 0xffc890, 0.45, 0.07);
+    }
+    // 1. flash (brief, additive)
+    P.add.emit({ x: pos.x, y: pos.y + 1, z: pos.z, life: 0.08, s0: 9 * S, s1: 13 * S, r: 2.2, g: 1.8, b: 1.3, a0: 0.9, a1: 0 });
+    // 2. white-hot core
+    for (let i = 0; i < 4; i++) P.add.emit({ x: pos.x + rnd(-1, 1) * S, y: pos.y + 1.5, z: pos.z + rnd(-1, 1) * S, vy: rnd(1, 4) * S, life: rnd(0.15, 0.28), s0: 3.5 * S, s1: 5 * S, r: 2.6, g: 2.0, b: 1.2, a0: 0.8, a1: 0, kind: 0 });
+    // 3. fireball: occluding, self-lit puffs cooling from yellow to deep red
+    const nf = Math.round(8 + 6 * S);
     for (let i = 0; i < nf; i++) {
-      const a = Math.random() * 6.283, e = rnd(0, 1.3), sp = rnd(4, 16) * scale;
-      P.add.emit({ x: pos.x, y: pos.y + 1, z: pos.z, vx: Math.cos(a) * Math.cos(e) * sp, vy: Math.sin(e) * sp + 3, vz: Math.sin(a) * Math.cos(e) * sp,
-        life: rnd(0.35, 0.8), s0: rnd(4, 7) * scale, s1: rnd(8, 12) * scale, r: hot[0], g: hot[1], b: hot[2], r1: 0.6, g1: 0.12, b1: 0.03, a0: 1, a1: 0, kind: 4, drag: 3.5 });
+      const a = Math.random() * 6.283, e = rnd(0.1, 1.3), sp = rnd(3, 11) * S;
+      P.alpha.emit({ x: pos.x, y: pos.y + 1.5, z: pos.z, vx: Math.cos(a) * Math.cos(e) * sp, vy: Math.sin(e) * sp + 2 * S, vz: Math.sin(a) * Math.cos(e) * sp,
+        life: rnd(0.5, 0.95) * Math.sqrt(S), s0: rnd(4, 6) * S, s1: rnd(9, 13) * S, r: hot[0], g: hot[1], b: hot[2], r1: 0.28, g1: 0.06, b1: 0.02, a0: 1, a1: 0, kind: 5, drag: 3.2 });
     }
-    // 3. sparks / embers
-    for (let i = 0; i < 20 * scale; i++) {
-      const a = Math.random() * 6.283, e = rnd(0.3, 1.4), sp = rnd(20, 55) * scale;
+    // 4. embers
+    for (let i = 0; i < 12 * S; i++) {
+      const a = Math.random() * 6.283, e = rnd(0.3, 1.4), sp = rnd(18, 50) * S;
       P.add.emit({ x: pos.x, y: pos.y + 1, z: pos.z, vx: Math.cos(a) * Math.cos(e) * sp, vy: Math.sin(e) * sp, vz: Math.sin(a) * Math.cos(e) * sp,
-        life: rnd(0.6, 1.4), s0: rnd(0.8, 1.4) * Math.sqrt(scale), s1: 0.2, r: 2.8, g: 1.5, b: 0.5, a0: 1, a1: 0.2, kind: 2, grav: 22, drag: 0.8 });
+        life: rnd(0.6, 1.3), s0: rnd(0.7, 1.2) * Math.sqrt(S), s1: 0.2, r: 2.6, g: 1.3, b: 0.4, a0: 1, a1: 0.1, kind: 2, grav: 22, drag: 0.8 });
     }
-    // 4. smoke billow (lit by sun)
-    for (let i = 0; i < 10 * scale + 4; i++) {
-      const a = Math.random() * 6.283, sp = rnd(2, 7) * scale;
-      const c = rnd(0.12, 0.22);
-      P.alpha.emit({ x: pos.x + rnd(-2, 2) * scale, y: pos.y + rnd(1, 4) * scale, z: pos.z + rnd(-2, 2) * scale, vx: Math.cos(a) * sp, vy: rnd(3, 9) * scale, vz: Math.sin(a) * sp,
-        life: rnd(2.5, 4.5) * Math.sqrt(scale), s0: 5 * scale, s1: rnd(14, 22) * scale, r: c, g: c * 0.95, b: c * 0.9, a0: 0.75, a1: 0, kind: 1, drag: 1.2 });
+    // 5. thick rolling smoke (lit by the sun) for contrast
+    for (let i = 0; i < 7 + 6 * S; i++) {
+      const a = Math.random() * 6.283, sp = rnd(2, 6) * S;
+      const c = rnd(0.07, 0.14);
+      P.alpha.emit({ x: pos.x + rnd(-2, 2) * S, y: pos.y + rnd(2, 5) * S, z: pos.z + rnd(-2, 2) * S, vx: Math.cos(a) * sp, vy: rnd(3, 8) * S, vz: Math.sin(a) * sp,
+        life: rnd(2.6, 4.6) * Math.sqrt(S), s0: 4 * S, s1: rnd(15, 22) * S, r: c, g: c * 0.95, b: c * 0.9, a0: 0.82, a1: 0, kind: 1, drag: 1.1 });
     }
-    // 5. debris
+    // 6. debris
     const nd = Math.round(4 * Math.min(scale, 2.5));
     for (let i = 0; i < nd; i++) this.spawnDebris(pos, scale);
-    // 6. residue + water
-    if (water) {
-      this.splash(pos.x, pos.z, scale * 1.2);
-      this.decals.add(pos.x, pos.z, 9 * scale, 1.2, 1, 1, 3);
-      this.decals.add(pos.x, pos.z, 6 * scale, 10, 2, 0.6, 0.5);
-      this.ring(pos.x, pos.z, 2 * scale, 22 * scale, 0xffc890, 0.5, 0.08);
-    }
-    // 7. light, shockwave, shake
-    this.light(pos, 0xff9a4a, 22 * Math.min(scale, 2), 45 * Math.min(scale, 2.2), 0.3 + 0.08 * scale);
+    // 8. light, shockwave, shake
+    this.light(pos, 0xff8a40, 14 * Math.min(scale, 2), 40 * Math.min(scale, 2.2), 0.28 + 0.06 * scale);
     if (scale >= 1.6) this.renderer.shockwave(pos, Math.min(1.5, scale * 0.5), 0.6);
     this.shake(0.12 * scale, pos.x, pos.z);
   }
@@ -224,10 +232,19 @@ export class FX {
     this.p.add.emit({ x: pos.x, y: pos.y + 4, z: pos.z, life: 0.3, s0: radius * 0.9, s1: radius * 1.4, r: 1.6, g: 1.3, b: 1.0, a0: 0.8, a1: 0 });
     this.ring(pos.x, pos.z, 4, radius * 2.2, 0xffe0b0, 0.9, 0.05);
     this.ring(pos.x, pos.z, 2, radius * 1.4, 0xff7a30, 1.2, 0.2);
-    for (let i = 0; i < 40; i++) {
-      const a = Math.random() * 6.283, sp = rnd(10, 30);
-      this.p.alpha.emit({ x: pos.x, y: pos.y + 2, z: pos.z, vx: Math.cos(a) * sp, vy: rnd(0, 4), vz: Math.sin(a) * sp, life: rnd(2, 3.5),
-        s0: 8, s1: 22, r: 0.85, g: 0.86, b: 0.88, a0: 0.5, a1: 0, kind: 3, drag: 1.5 });
+    // low base surge of spray racing outward
+    for (let i = 0; i < 18; i++) {
+      const a = Math.random() * 6.283, sp = rnd(14, 32);
+      this.p.alpha.emit({ x: pos.x + Math.cos(a) * 4, y: pos.y + 1, z: pos.z + Math.sin(a) * 4, vx: Math.cos(a) * sp, vy: rnd(0, 2), vz: Math.sin(a) * sp, life: rnd(1.6, 2.6),
+        s0: 5, s1: 13, r: 0.85, g: 0.87, b: 0.9, a0: 0.32, a1: 0, kind: 3, drag: 1.6 });
+    }
+    // rising mushroom column of dark smoke with a fiery stem
+    for (let i = 0; i < 22; i++) {
+      const up = rnd(10, 26), c = rnd(0.06, 0.12);
+      this.p.alpha.emit({ x: pos.x + rnd(-3, 3), y: pos.y + rnd(2, 8), z: pos.z + rnd(-3, 3), vx: rnd(-3, 3), vy: up, vz: rnd(-3, 3), life: rnd(3, 5),
+        s0: radius * 0.25, s1: radius * rnd(0.6, 0.9), r: c, g: c * 0.95, b: c * 0.9, a0: 0.85, a1: 0, kind: 1, drag: 0.9 });
+      if (i < 10) this.p.alpha.emit({ x: pos.x + rnd(-2, 2), y: pos.y + 3, z: pos.z + rnd(-2, 2), vy: up * 0.8, life: rnd(0.8, 1.4), s0: radius * 0.2, s1: radius * 0.45,
+        r: 2.4, g: 1.2, b: 0.45, r1: 0.4, g1: 0.08, b1: 0.02, a0: 1, a1: 0, kind: 5, drag: 1.2 });
     }
     this.renderer.shockwave(pos, 2.2, 0.9);
     this.renderer.grade.uniforms.uFlash.value = Math.min(0.12, this.renderer.grade.uniforms.uFlash.value + 0.08);
@@ -301,6 +318,7 @@ export class FX {
 
   update(dt, time) {
     this.time = time;
+    FX_TIME.value = time;
     for (const l of this.lights) {
       const u = l.userData;
       if (u.life <= 0) continue;
@@ -317,7 +335,7 @@ export class FX {
       if (k >= 1) { m.visible = false; continue; }
       const e = 1 - Math.pow(1 - k, 3);
       m.scale.setScalar(u.r0 + (u.r1 - u.r0) * e);
-      m.position.y = this.waterY(m.position.x, m.position.z) + 0.6;
+      m.position.y = 0;
       m.material.uniforms.uK.value = k;
     }
     for (const g of this.beams) {

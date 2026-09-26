@@ -159,7 +159,12 @@ function playerCast(i) {
 }
 hud.on('ageUp', playerAgeUp);
 hud.on('buy', (id) => { if (G && G.player && !G.buyUpgrade(G.player, id)) audio.play('uiError'); });
-hud.on('castButton', (i) => playerCast(i));
+hud.on('castButton', (i) => {
+  const ab = G && G.player && G.player.abilities[i];
+  if (!ab) return;
+  if (ab.target === 'self' || ab.target === 'auto') playerCast(i);
+  else { hud.aiming = i; hud.hint('Click the sea to fire · right-click to cancel', 1800); }
+});
 hud.on('minimapLook', (x, z) => { cameraDir.locked = false; cameraDir.goal.set(x, 0, z); });
 hud.on('minimapMove', (x, z) => { if (G && G.player && G.player.alive) { G.player.commandMove(x, z); moveMarker(x, z); } });
 
