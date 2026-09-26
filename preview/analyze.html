@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Audio analysis harness (temporary)</title></head>
+<body>
+<script type="module">
+  import { audio, SOUND_NAMES, STINGER_NAMES, renderOffline } from '../src/audio/audio.js';
+  import './analyze.js';
+  window.audio = audio; window.SOUND_NAMES = SOUND_NAMES; window.STINGER_NAMES = STINGER_NAMES; window.renderOffline = renderOffline;
+</script>
+</body>
+</html>

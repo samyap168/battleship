@@ -474,6 +474,12 @@ export class Game {
     // Score: structures destroyed x3 + kills; tie -> draw
     const score = [0, 1].map((tm) => this.teams[1 - tm].towersLost * 3 + this.teams[tm].kills
       + (this.structures.find((s) => s.team === 1 - tm && s.kind === 'citadel').maxHp - this.structures.find((s) => s.team === 1 - tm && s.kind === 'citadel').hp) / 1000);
+    // tie-breaks (dusk decides, a 10-minute match should never end without a victor):
+    // damage dealt to enemy forts, then total damage dealt by captains
+    for (const tm of [0, 1]) {
+      score[tm] += this.structures.filter((st) => st.team === 1 - tm).reduce((a, st) => a + (1 - Math.max(0, st.hp) / st.maxHp), 0) * 0.01;
+      score[tm] += this.heroes.filter((h) => h.team === tm).reduce((a, h) => a + (h.dmgDealt || 0), 0) * 1e-9;
+    }
     this.finalScore = score;
     const w = score[0] > score[1] ? 0 : score[1] > score[0] ? 1 : -1;
     this.ui.announce('TIME', w < 0 ? 'The seas are undecided' : `${TEAMS[w].name} controls the seas`, w < 0 ? '#ddd' : TEAMS[w].css);

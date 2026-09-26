@@ -18,6 +18,7 @@ import { Birds } from './render/birds.js';
 import { Wakes } from './render/wakes.js';
 import { renderThumbnails } from './render/thumbnails.js';
 import { WaterReflection, reflectable } from './render/reflection.js';
+import { TEAM_RIM } from './render/teamRim.js';
 import { MATCH, AGE_HULLS, UPGRADES, AGES, TEAMS } from './core/config.js';
 
 const params = new URLSearchParams(location.search);
@@ -318,7 +319,7 @@ const AGE_GRADE = {
 const gradeCur = { gain: new THREE.Vector3(1, 1, 1), lift: new THREE.Vector3(), sat: 1.1, con: 1.08, ca: 0.0007 };
 const _px = new Uint8Array(4);
 function syncGPU() { const g = R.gl.getContext(); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, _px); }
-window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, refl, weather, get fps() { return fps; } };
+window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, refl, weather, TEAM_RIM, get fps() { return fps; } };
 
 function frame() {
   requestAnimationFrame(frame);
