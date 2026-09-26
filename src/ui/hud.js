@@ -194,6 +194,12 @@ export class HUD {
     if (this.floats.length > 80) this.floats.shift();
     this.floats.push({ x, y, z, text, color, size, t: 0, life: 1.1, dx: (Math.random() - 0.5) * 30, born: performance.now() });
   }
+  /** Pulsing minimap alert. */
+  ping(x, z, color = '#ff5a4a') {
+    this.pings ||= [];
+    if (this.pings.length > 8) this.pings.shift();
+    this.pings.push({ x, z, color, born: performance.now() });
+  }
   /** Creep-kill gold is summed into one popup above the player's ship. */
   goldPop(hero, amount) {
     const g = this.goldAcc;
@@ -311,6 +317,16 @@ export class HUD {
     // drones as faint haze
     c.fillStyle = 'rgba(255,255,255,.5)';
     for (let i = 0; i < G.drones.list.length; i += 3) { const d = G.drones.list[i]; c.fillRect(X(d.x), Z(d.z), 1.5, 1.5); }
+    // alert pings
+    if (this.pings) {
+      const now = performance.now();
+      this.pings = this.pings.filter((p) => now - p.born < 2400);
+      for (const p of this.pings) {
+        const k = ((now - p.born) % 800) / 800;
+        c.beginPath(); c.arc(X(p.x), Z(p.z), 6 + k * 22, 0, Math.PI * 2);
+        c.strokeStyle = p.color; c.globalAlpha = 1 - k; c.lineWidth = 3; c.stroke(); c.globalAlpha = 1;
+      }
+    }
     // camera view
     if (camView) {
       c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 1.5;

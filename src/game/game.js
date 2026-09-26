@@ -295,6 +295,7 @@ export class Game {
     }
     for (const a of assisters) { a.assists++; a.gold += Math.round(REWARDS.assistGold / Math.max(1, assisters.length) * 1.5); }
     this.shareXp(u, REWARDS.heroXp + REWARDS.heroXpPerLevel * u.level, killer && killer.kind === 'hero' ? killer : null);
+    if (this.player && u.team === this.player.team && u !== this.player) this.ui.ping(u.x, u.z, '#ffb24a');
     this.ui.feed(`${killerName} sank <b style="color:${TEAMS[u.team].css}">${u.name}</b>${assisters.length ? ` <span class="dim">+${assisters.length}</span>` : ''}`);
     if (u === this.player) { this.ui.death(u.respawn, killer); this.audio.stinger('warning'); this.slowmo = 0.7; this.fx.shake(0.6, u.x, u.z); }
   }

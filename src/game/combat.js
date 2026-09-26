@@ -85,6 +85,12 @@ export class Combat {
       }
     }
     target.lastAttacker = srcHero || source;
+    // alert the player's team when a fortress is under fire (throttled)
+    if ((target.kind === 'tower' || target.kind === 'citadel') && G.player && target.team === G.player.team && G.time - (target.alertT || -99) > 12) {
+      target.alertT = G.time;
+      G.ui.ping(target.x, target.z);
+      G.ui.feed(`<b style="color:#ff8a7a">⚠ Our ${target.kind === 'citadel' ? 'citadel' : target.lane + ' ' + target.tier + ' fortress'} is under attack!</b>`);
+    }
     // floating combat text for anything the player is part of
     const player = G.player;
     if (player && (srcHero === player || target === player) && (dmg + absorbed) >= 1) {
