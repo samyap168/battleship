@@ -1,0 +1,317 @@
+import * as THREE from 'three';
+import './ui/style.css';
+import { Renderer } from './render/renderer.js';
+import { Sky, MENU_TIME } from './render/sky.js';
+import { Ocean } from './render/ocean.js';
+import { Environment } from './render/environment.js';
+import { Particles } from './render/particles.js';
+import { FX } from './render/fx.js';
+import { ISLANDS, SCENERY, BOUNDS } from './game/map.js';
+import { Game } from './game/game.js';
+import { cast } from './game/abilities.js';
+import { HUD } from './ui/hud.js';
+import { CameraDirector } from './core/camera.js';
+import { audio } from './audio/audio.js';
+import { CLOUD } from './render/cloudShadow.js';
+import { Weather } from './render/weather.js';
+import { MATCH, AGE_HULLS, UPGRADES, AGES, TEAMS } from './core/config.js';
+
+const params = new URLSearchParams(location.search);
+const settings = {
+  difficulty: params.get('difficulty') || localGet('aa.diff') || 'normal',
+  team: +(params.get('team') ?? localGet('aa.team') ?? 0),
+  quality: params.get('quality') || localGet('aa.quality') || 'high',
+};
+function localGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function localSet(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } }
+
+const $ = (s) => document.querySelector(s);
+const loadBar = $('#loading .p i'), loadTxt = $('#loading .s');
+const step = async (pct, txt) => { loadBar.style.width = pct + '%'; loadTxt.textContent = txt; await new Promise((r) => setTimeout(r, 16)); };
+
+// ---------------------------------------------------------------------------
+await step(8, 'Kindling the forge');
+const R = new Renderer($('#app'), settings.quality);
+const scene = R.scene;
+await step(22, 'Painting the sky');
+const sky = new Sky(R.gl, scene);
+sky.setTime(MENU_TIME, 0);
+sky.updateEnv(0, true);
+await step(40, 'Raising the tides');
+const ocean = new Ocean(scene);
+await step(58, 'Charting the archipelago');
+new Environment(scene, ISLANDS, SCENERY);
+const particles = new Particles(scene);
+const fx = new FX(scene, particles, ocean.decals, R);
+const cameraDir = new CameraDirector(R.camera);
+fx.onShake = (a, x, z) => cameraDir.addTrauma(a, x, z);
+const hud = new HUD($('#ui'), $('#overlay'));
+const weather = new Weather(scene, fx, R, audio);
+await step(76, 'Compiling shaders');
+
+let G = null;         // current game
+let mode = 'menu';    // menu | play
+let worldGroup = null;
+const mouse = { x: 0, y: 0, nx: 0, ny: 0, ground: new THREE.Vector3(), inside: false };
+const raycaster = new THREE.Raycaster();
+const waterPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+function startGame(spectate) {
+  if (worldGroup) scene.remove(worldGroup);
+  worldGroup = new THREE.Group();
+  scene.add(worldGroup);
+  G = new Game({ renderer: R, scene: worldGroup, fx, ocean, audio, ui: hud, sky }, {
+    difficulty: settings.difficulty, playerTeam: settings.team, spectate, playerName: 'You', autopilot: !!params.get('autopilot'),
+  });
+  hud.mount(G);
+  if (spectate) {
+    // menu backdrop: skip ahead so the seas are already busy
+    G.time = 60;
+    G.nextWave = 0;
+    for (const h of G.heroes) h.gold += 700;
+    cameraDir.orbit = { a: 0, r: 210, h: 95, cx: -120, cz: 40, follow: () => hotspot(G) };
+  } else {
+    cameraDir.orbit = null;
+    const p = G.player;
+    cameraDir.snapTo(p.x, p.z);
+    cameraDir.startIntro(new THREE.Vector3(0, 0, 0), new THREE.Vector3(p.x, 0, p.z));
+    cameraDir.locked = true;
+    cameraDir.distGoal = cameraDir.dist = 165;
+    audio.stinger('matchStart');
+    setTimeout(() => hud.announce('ARMADA ASCENSION', `${TEAMS[settings.team].name} · Destroy the enemy citadel`, TEAMS[settings.team].css), 1200);
+    setTimeout(() => hud.hint('<kbd>Right-click</kbd> sail / attack &nbsp; <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> abilities at cursor &nbsp; <kbd>T</kbd> advance age', 9000), 4800);
+  }
+}
+
+/** Where the action is, for the spectator camera. */
+function hotspot(g) {
+  let best = null, bs = -1;
+  for (const h of g.heroes) {
+    if (!h.alive) continue;
+    let s = 0;
+    for (const o of g.heroes) if (o.alive && o.team !== h.team && h.dist(o) < 120) s++;
+    if (s > bs) { bs = s; best = h; }
+  }
+  return best;
+}
+
+function toMenu() {
+  mode = 'menu';
+  $('#menu').classList.remove('hidden');
+  $('#ui').classList.add('menuMode');
+  startGame(true);
+  document.querySelectorAll('#ui > *:not(#modalRoot)').forEach((el) => el.classList.add('hidden'));
+  audio.startAmbience();
+  audio.startMusic();
+}
+
+function play() {
+  audio.init();
+  mode = 'play';
+  $('#menu').classList.add('hidden');
+  $('#ui').classList.remove('menuMode');
+  startGame(false);
+}
+
+// ---------------------------------------------------------------------------
+// Menu wiring
+function seg(id, key, val, apply) {
+  const box = $(id);
+  box.querySelectorAll('button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.v === String(val));
+    b.onclick = () => {
+      audio.init(); audio.play('uiClick');
+      box.querySelectorAll('button').forEach((x) => x.classList.remove('on'));
+      b.classList.add('on');
+      localSet(key, b.dataset.v);
+      apply(b.dataset.v);
+    };
+    b.onmouseenter = () => audio.play('uiHover');
+  });
+}
+seg('#segDiff', 'aa.diff', settings.difficulty, (v) => (settings.difficulty = v));
+seg('#segTeam', 'aa.team', settings.team, (v) => (settings.team = +v));
+seg('#segQual', 'aa.quality', settings.quality, (v) => { settings.quality = v; location.search = `?quality=${v}`; });
+$('#playBtn').onclick = () => { audio.init(); audio.play('uiClick'); play(); };
+$('#helpBtn').onclick = () => { audio.init(); audio.play('uiClick'); $('#help').classList.toggle('hidden'); };
+hud.on('again', () => play());
+hud.on('menu', () => { hud.closeModal(); toMenu(); });
+
+// ---------------------------------------------------------------------------
+// Player commands
+function playerAgeUp() {
+  const p = G && G.player;
+  if (!p || !p.canAgeUp()) return;
+  if (p.gold < p.nextAgeCost()) { audio.play('uiError'); hud.hint(`Need <b>${p.nextAgeCost() - Math.floor(p.gold)}</b> more gold for the ${AGES[p.age].name}`, 2000); return; }
+  const opts = AGE_HULLS[p.age + 1];
+  if (opts.length === 1) G.ageUp(p, opts[0]);
+  else hud.openAgeChoice(opts, (id) => { G.ageUp(p, id); audio.play('uiClick'); });
+}
+function playerCast(i) {
+  const p = G && G.player;
+  if (!p || !p.alive) return;
+  const ok = cast(G, p, i, mouse.ground.x, mouse.ground.z);
+  if (!ok) {
+    const ab = p.abilities[i];
+    if (ab.minLevel && p.level < ab.minLevel) hud.hint(`${ab.name} unlocks at level ${ab.minLevel}`, 1500);
+    audio.play('uiError');
+  }
+}
+hud.on('ageUp', playerAgeUp);
+hud.on('buy', (id) => { if (G && G.player && !G.buyUpgrade(G.player, id)) audio.play('uiError'); });
+hud.on('castButton', (i) => playerCast(i));
+hud.on('minimapLook', (x, z) => { cameraDir.locked = false; cameraDir.goal.set(x, 0, z); });
+hud.on('minimapMove', (x, z) => { if (G && G.player && G.player.alive) { G.player.commandMove(x, z); moveMarker(x, z); } });
+
+function moveMarker(x, z, attack = false) {
+  fx.ring(x, z, 1, 7, attack ? 0xff5040 : 0x9dffb0, 0.45, 0.2);
+  ocean.decals.add(x, z, 4, 0.8, 1, 0.7, 2);
+}
+
+function pickUnit(x, z, enemyOf) {
+  let best = null, bd = Infinity;
+  for (const u of G.units) {
+    if (!u.alive || (enemyOf !== undefined && u.team === enemyOf)) continue;
+    const d = Math.hypot(u.x - x, u.z - z);
+    if (d < u.radius + 7 && d < bd) { bd = d; best = u; }
+  }
+  return best;
+}
+
+const canvas = R.gl.domElement;
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+canvas.addEventListener('pointermove', (e) => {
+  mouse.x = e.clientX; mouse.y = e.clientY;
+  cameraDir.mouse.x = e.clientX / window.innerWidth; cameraDir.mouse.y = e.clientY / window.innerHeight; cameraDir.mouse.inside = true;
+});
+document.addEventListener('pointerleave', () => (cameraDir.mouse.inside = false));
+canvas.addEventListener('pointerdown', (e) => {
+  audio.init();
+  if (mode !== 'play' || !G || !G.player || G.over) return;
+  const p = G.player;
+  if (e.button === 2 && p.alive) {
+    const u = pickUnit(mouse.ground.x, mouse.ground.z, p.team);
+    if (u) { p.commandAttack(u); moveMarker(u.x, u.z, true); }
+    else { p.commandMove(mouse.ground.x, mouse.ground.z); moveMarker(mouse.ground.x, mouse.ground.z); }
+  }
+});
+canvas.addEventListener('wheel', (e) => { cameraDir.zoom(e.deltaY); e.preventDefault(); }, { passive: false });
+
+window.addEventListener('keydown', (e) => {
+  cameraDir.keys[e.key] = true;
+  if (mode !== 'play' || !G) return;
+  const k = e.key.toLowerCase();
+  if (e.ctrlKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); hud.handlers.buy(UPGRADES[+e.key - 1].id); return; }
+  if (hud.modalOpen && k === 'escape') { hud.closeModal(); return; }
+  if (e.repeat) return;
+  const idx = ['q', 'w', 'e', 'r'].indexOf(k);
+  if (idx >= 0) { playerCast(idx); return; }
+  if (k === 't' || k === 'u') playerAgeUp();
+  else if (k === 's') G.player && G.player.stop();
+  else if (k === ' ') { cameraDir.locked = true; e.preventDefault(); }
+  else if (k === 'y') cameraDir.locked = !cameraDir.locked;
+  else if (k === 'tab') { e.preventDefault(); hud.toggleScoreboard(true); }
+  else if (k === 'alt') { hud.showRange = true; e.preventDefault(); }
+  else if (k === 'm') audio.muted = !audio.muted;
+});
+window.addEventListener('keyup', (e) => {
+  cameraDir.keys[e.key] = false;
+  if (e.key === 'Tab') hud.toggleScoreboard(false);
+  if (e.key === 'Alt') hud.showRange = false;
+});
+window.addEventListener('blur', () => { cameraDir.keys = {}; });
+
+// ---------------------------------------------------------------------------
+// Frame loop
+let lastT = performance.now();
+let wallTime = 0;
+let fpsAcc = 0, fpsN = 0, fps = 60;
+const lightCol = new THREE.Color();
+window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, get fps() { return fps; } };
+
+function frame() {
+  requestAnimationFrame(frame);
+  const now = performance.now(); const dt = Math.min((now - lastT) / 1000, 0.1); lastT = now;
+  if (window.__aa.paused) return;
+  R.adapt(dt);
+  try { tick(dt, true); } catch (e) { console.error('frame error', e && e.stack || e); }
+}
+// Test hook: advance n fixed steps, render only the last.
+// Test hook: cast player ability i at the nearest enemy captain (showcase harness).
+window.__aa.castAt = (i) => {
+  const p = G && G.player; if (!p) return false;
+  const e = G.heroes.filter((h) => h.alive && h.team !== p.team).sort((a, b) => p.dist2(a) - p.dist2(b))[0];
+  p.cds[i] = 0;
+  return e ? cast(G, p, i, e.x, e.z) : false;
+};
+window.__aa.step = (n = 1, dt = 1 / 30) => { for (let i = 0; i < n; i++) tick(dt, i === n - 1); };
+function tick(dt, draw) {
+  wallTime += dt;
+  fpsAcc += dt; fpsN++;
+  if (fpsAcc > 1) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
+  if (G) G.update(dt);
+  const gdt = G ? G.dt : dt;
+  const t = G ? G.time : wallTime;
+
+  // camera + listener
+  const p = G && G.player;
+  cameraDir.update(dt, p && p.alive ? p : null);
+  const f = cameraDir.focus;
+  if (G) { G.listener.x = f.x; G.listener.z = f.z; }
+  audio.setListener(f.x, f.z, cameraDir.dist);
+
+  // time of day: dawn -> dusk across the match
+  const tod = mode === 'play' && G ? G.time / MATCH.duration : MENU_TIME;
+  sky.setTime(tod, wallTime);
+  weather.set(mode === 'play' && G && G.storm > 0);
+  weather.update(dt, f, R.camera);
+  weather.grade(sky);
+  sky.follow(f.x, f.z);
+  sky.updateEnv(dt);
+  sky.dome.position.copy(R.camera.position);
+  R.gl.toneMappingExposure = sky.exposure;
+  R.setSun(sky.sunDir, sky.sun.color, mode === 'menu' ? 1.2 : 0.7);
+  lightCol.copy(sky.sun.color).multiplyScalar(sky.sun.intensity * 0.28).add(sky.hemi.color.clone().multiplyScalar(0.55));
+  particles.setLight(lightCol);
+  particles.setScale(R);
+
+  CLOUD.uCloudT.value = wallTime;
+  ocean.update(gdt, t, f.x, f.z, sky);
+  fx.update(gdt, t);
+  particles.update(gdt);
+
+  // mouse ground point
+  const ndc = new THREE.Vector2((mouse.x / window.innerWidth) * 2 - 1, -(mouse.y / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, R.camera);
+  raycaster.ray.intersectPlane(waterPlane, mouse.ground);
+
+  // cinematic grading reacting to player state
+  const gu = R.grade.uniforms;
+  if (p) {
+    const hpF = p.alive ? p.hp / p.maxHp : 0;
+    gu.uDamage.value += ((hpF < 0.3 && p.alive ? (0.3 - hpF) * 2.5 + Math.sin(wallTime * 6) * 0.08 : 0) - gu.uDamage.value) * Math.min(1, dt * 4);
+    gu.uDesat.value += ((p.alive ? 0 : 0.85) - gu.uDesat.value) * Math.min(1, dt * 2);
+  } else { gu.uDamage.value = 0; gu.uDesat.value = 0; }
+
+  // audio intensity from nearby combat
+  if (G) {
+    let heat = 0;
+    for (const h of G.heroes) if (h.alive && Math.hypot(h.x - f.x, h.z - f.z) < 200 && h.target && h.target.kind === 'hero') heat += 0.25;
+    G.combatHeat = Math.min(1, Math.max(G.combatHeat, heat));
+    audio.setIntensity(mode === 'menu' ? 0.35 : G.combatHeat);
+  }
+
+  if (!draw) return;
+  if (G && mode === 'play') hud.update(G, R.camera, gdt, cameraDir.focus, cameraDir.view);
+  R.render(dt, wallTime);
+}
+
+await step(92, 'Mustering the fleets');
+toMenu();
+// warm up shaders with one frame before revealing
+R.render(0.016, 0);
+await step(100, 'Set sail');
+$('#loading').style.opacity = '0';
+setTimeout(() => $('#loading').remove(), 900);
+if (params.get('autoplay')) play();
+requestAnimationFrame(frame);

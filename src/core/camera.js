@@ -1,0 +1,102 @@
+import * as THREE from 'three';
+import { BOUNDS } from '../game/map.js';
+
+const smooth = (a, b, k) => a + (b - a) * k;
+
+export class CameraDirector {
+  constructor(camera) {
+    this.cam = camera;
+    this.focus = new THREE.Vector3(0, 0, 0);
+    this.goal = new THREE.Vector3();
+    this.dist = 165; this.distGoal = 165;
+    this.locked = true;
+    this.trauma = 0;
+    this.t = 0;
+    this.intro = 0;
+    this.orbit = null; // menu orbit
+    this.keys = {};
+    this.mouse = { x: 0.5, y: 0.5, inside: false };
+    this.yaw = 0;
+  }
+
+  addTrauma(a, x, z) {
+    const d = Math.hypot(x - this.focus.x, z - this.focus.z);
+    const fall = Math.max(0, 1 - d / 260);
+    this.trauma = Math.min(1, this.trauma + a * fall * fall);
+  }
+
+  zoom(delta) { this.distGoal = THREE.MathUtils.clamp(this.distGoal * (1 + delta * 0.0012), 85, 290); }
+
+  startIntro(from, to) {
+    this.intro = 4.2;
+    this.introFrom = from.clone();
+    this.introTo = to.clone();
+  }
+
+  /** view footprint on the water, for the minimap rectangle */
+  get view() { return { w: this.dist * 1.45 * this.cam.aspect * 0.95, h: this.dist * 1.1 }; }
+
+  update(dt, target) {
+    this.t += dt;
+    const cam = this.cam;
+    if (this.orbit) {
+      // slow cinematic drift for the menu / spectator
+      const o = this.orbit;
+      o.a += dt * 0.035;
+      if (o.follow && o.follow()) {
+        const f = o.follow();
+        o.cx = smooth(o.cx, f.x, dt * 0.3); o.cz = smooth(o.cz, f.z, dt * 0.3);
+      }
+      const x = o.cx + Math.cos(o.a) * o.r, z = o.cz + Math.sin(o.a) * o.r;
+      cam.position.set(x, o.h + Math.sin(this.t * 0.2) * 6, z);
+      cam.lookAt(o.cx, 4, o.cz);
+      this.focus.set(o.cx, 0, o.cz);
+      return;
+    }
+    if (this.intro > 0) {
+      this.intro -= dt;
+      const k = 1 - Math.max(0, this.intro) / 4.2;
+      const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+      this.focus.lerpVectors(this.introFrom, this.introTo, e);
+      const d = smooth(520, this.dist, e);
+      const pitch = THREE.MathUtils.degToRad(smooth(30, 56, e));
+      const yaw = smooth(-0.9, 0, e);
+      cam.position.set(this.focus.x + Math.sin(yaw) * Math.cos(pitch) * d, Math.sin(pitch) * d, this.focus.z + Math.cos(yaw) * Math.cos(pitch) * d);
+      cam.lookAt(this.focus);
+      return;
+    }
+    // follow / free pan
+    const pan = 340 * dt * (this.dist / 160);
+    let px = 0, pz = 0;
+    if (this.keys.ArrowLeft) px -= 1; if (this.keys.ArrowRight) px += 1;
+    if (this.keys.ArrowUp) pz -= 1; if (this.keys.ArrowDown) pz += 1;
+    if (this.mouse.inside && !this.locked) {
+      const m = 0.012;
+      if (this.mouse.x < m) px -= 1; if (this.mouse.x > 1 - m) px += 1;
+      if (this.mouse.y < m) pz -= 1; if (this.mouse.y > 1 - m) pz += 1;
+    }
+    if (px || pz) { this.locked = false; this.goal.x += px * pan; this.goal.z += pz * pan; }
+    else if (this.locked && target) {
+      // lead the camera slightly in the direction of travel
+      this.goal.set(target.x + (target.vx || 0) * 0.35, 0, target.z + (target.vz || 0) * 0.35 - 6);
+    }
+    this.goal.x = THREE.MathUtils.clamp(this.goal.x, -BOUNDS.x - 60, BOUNDS.x + 60);
+    this.goal.z = THREE.MathUtils.clamp(this.goal.z, -BOUNDS.z - 40, BOUNDS.z + 60);
+    const k = 1 - Math.exp(-dt * (this.locked ? 5 : 10));
+    this.focus.lerp(this.goal, k);
+    this.dist = smooth(this.dist, this.distGoal, 1 - Math.exp(-dt * 8));
+    const zoomK = (this.dist - 85) / (290 - 85);
+    const pitch = THREE.MathUtils.degToRad(smooth(44, 62, zoomK));
+    let x = this.focus.x, y = Math.sin(pitch) * this.dist, z = this.focus.z + Math.cos(pitch) * this.dist;
+    // trauma shake (squared for a punchy falloff)
+    this.trauma = Math.max(0, this.trauma - dt * 1.6);
+    const s = this.trauma * this.trauma;
+    const n = (f, o) => Math.sin(this.t * f + o) * 0.6 + Math.sin(this.t * f * 2.3 + o * 3.1) * 0.4;
+    x += n(37, 0) * s * 4; y += n(41, 1) * s * 3; z += n(33, 2) * s * 4;
+    cam.position.set(x, y, z);
+    cam.lookAt(this.focus.x + n(29, 4) * s * 1.5, 0, this.focus.z + n(31, 5) * s * 1.5);
+    cam.rotateZ(n(23, 6) * s * 0.03);
+  }
+
+  snapTo(x, z) { this.goal.set(x, 0, z); this.focus.set(x, 0, z); }
+}

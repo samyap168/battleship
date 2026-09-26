@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Armada Audio Lab</title>
+<style>
+  :root { --bg: #0b1320; --panel: #13203a; --line: #24375c; --text: #d9e4f5; --dim: #8fa3c4; --acc: #4db4ff; --warn: #ff5a4a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; padding: 16px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin: 0 0 10px; }
+  .sub { color: var(--dim); margin: 0 0 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  button { background: #1c2d4f; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; font: inherit; }
+  button:hover { border-color: var(--acc); }
+  button.on { background: var(--acc); color: #06121f; }
+  button.primary { background: var(--acc); color: #06121f; font-weight: 600; }
+  label { display: flex; align-items: center; gap: 8px; margin: 6px 0; color: var(--dim); }
+  label span { min-width: 90px; }
+  label output { min-width: 40px; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+  input[type=range] { flex: 1; min-width: 0; }
+  canvas { width: 100%; max-width: 300px; aspect-ratio: 1; background: #07101c; border: 1px solid var(--line); border-radius: 8px; display: block; cursor: crosshair; }
+  #stats { font: 12px/1.5 ui-monospace, monospace; color: var(--dim); white-space: pre-wrap; }
+  .meter { height: 8px; background: #07101c; border-radius: 4px; overflow: hidden; margin: 6px 0; }
+  .meter div { height: 100%; width: 0; background: linear-gradient(90deg, #3fbf7f, #e8c547 80%, var(--warn)); }
+</style>
+</head>
+<body>
+  <h1>Armada Ascension audio lab</h1>
+  <p class="sub">All sound is synthesised live with Web Audio. Click "Start audio" first.</p>
+  <div class="grid">
+    <section>
+      <h2>Engine</h2>
+      <div class="btns">
+        <button class="primary" id="init">Start audio</button>
+        <button id="mute">Mute</button>
+        <button id="amb">Ambience</button>
+        <button id="music">Music</button>
+        <button id="stress">Stress test (80 cannons / 1 s)</button>
+      </div>
+      <label><span>Master</span><input type="range" id="vMaster" min="0" max="1" step="0.01" value="0.8"><output>0.80</output></label>
+      <label><span>Music</span><input type="range" id="vMusic" min="0" max="1" step="0.01" value="0.6"><output>0.60</output></label>
+      <label><span>SFX</span><input type="range" id="vSfx" min="0" max="1" step="0.01" value="0.9"><output>0.90</output></label>
+      <label><span>Intensity</span><input type="range" id="intensity" min="0" max="1" step="0.01" value="0"><output>0.00</output></label>
+      <label><span>Swarm drones</span><input type="range" id="swarm" min="0" max="200" step="1" value="0"><output>0</output></label>
+      <label><span>Zoom</span><input type="range" id="zoom" min="100" max="260" step="1" value="180"><output>180</output></label>
+      <div class="meter"><div id="meter"></div></div>
+      <div id="stats">not started</div>
+    </section>
+    <section>
+      <h2>Position</h2>
+      <p class="sub" style="margin:0 0 8px">Click to set where sounds play (listener at centre, ring = audible radius). Uncheck for UI (non-positional).</p>
+      <label style="color:var(--text)"><input type="checkbox" id="positional"> Positional</label>
+      <canvas id="pad" width="300" height="300"></canvas>
+    </section>
+    <section>
+      <h2>Stingers</h2>
+      <div class="btns" id="stingers"></div>
+      <h2 style="margin-top:14px">Sequences</h2>
+      <div class="btns">
+        <button id="battle">Naval battle (8 s)</button>
+        <button id="swarmDemo">Swarm wave</button>
+      </div>
+    </section>
+    <section style="grid-column: 1 / -1">
+      <h2>Sounds</h2>
+      <div class="btns" id="sounds"></div>
+    </section>
+  </div>
+<script type="module">
+  import { audio, SOUND_NAMES, STINGER_NAMES, renderOffline } from '../src/audio/audio.js';
+  window.audio = audio; window.SOUND_NAMES = SOUND_NAMES; window.STINGER_NAMES = STINGER_NAMES; window.renderOffline = renderOffline;
+
+  const $ = (id) => document.getElementById(id);
+  let pos = { x: 120, z: -60 };
+  const R = () => 420 * Math.sqrt(+$('zoom').value / 180);
+  const opts = () => ($('positional').checked ? { x: pos.x, z: pos.z } : {});
+
+  for (const n of SOUND_NAMES) {
+    const b = document.createElement('button');
+    b.textContent = n;
+    b.onclick = () => { audio.init(); audio.play(n, opts()); };
+    $('sounds').appendChild(b);
+  }
+  const steam = document.createElement('button');
+  steam.textContent = 'engineBoost (steam)';
+  steam.onclick = () => { audio.init(); audio.play('engineBoost', { ...opts(), variant: 'steam' }); };
+  $('sounds').appendChild(steam);
+  for (const n of STINGER_NAMES) {
+    const b = document.createElement('button');
+    b.textContent = n;
+    b.onclick = () => { audio.init(); audio.stinger(n); };
+    $('stingers').appendChild(b);
+  }
+
+  $('init').onclick = () => { audio.init(); };
+  $('mute').onclick = (e) => { audio.muted = !audio.muted; e.target.classList.toggle('on', audio.muted); };
+  let ambOn = false, musicOn = false;
+  $('amb').onclick = (e) => { audio.init(); ambOn = !ambOn; ambOn ? audio.startAmbience() : audio.stopAmbience(2); e.target.classList.toggle('on', ambOn); };
+  $('music').onclick = (e) => { audio.init(); musicOn = !musicOn; musicOn ? audio.startMusic() : audio.stopMusic(3); e.target.classList.toggle('on', musicOn); };
+
+  const bind = (id, fn, fmt = (v) => (+v).toFixed(2)) => {
+    const el = $(id), out = el.nextElementSibling;
+    el.oninput = () => { out.textContent = fmt(el.value); fn(+el.value); };
+  };
+  bind('vMaster', (v) => audio.setVolume({ master: v }));
+  bind('vMusic', (v) => audio.setVolume({ music: v }));
+  bind('vSfx', (v) => audio.setVolume({ sfx: v }));
+  bind('intensity', (v) => audio.setIntensity(v));
+  bind('swarm', (v) => audio.setSwarm(v), (v) => v);
+  bind('zoom', (v) => { audio.setListener(0, 0, v); draw(); }, (v) => v);
+
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  $('stress').onclick = () => {
+    audio.init();
+    for (let i = 0; i < 80; i++) setTimeout(() => audio.play(Math.random() < 0.8 ? 'cannon' : 'explosion', { x: rnd(-250, 250), z: rnd(-200, 200) }), i * 12);
+  };
+  $('battle').onclick = () => {
+    audio.init();
+    audio.setIntensity(1); $('intensity').value = 1; $('intensity').nextElementSibling.textContent = '1.00';
+    const seq = ['cannon', 'cannon', 'cannonHeavy', 'shellWhistle', 'splash', 'explosion', 'hit', 'flak', 'missile', 'torpedoLaunch', 'laser', 'pulse'];
+    for (let i = 0; i < 120; i++) setTimeout(() => audio.play(seq[(Math.random() * seq.length) | 0], { x: rnd(-300, 300), z: rnd(-220, 220) }), i * 65);
+    setTimeout(() => audio.play('explosionBig', { x: 60, z: 20 }), 4000);
+    setTimeout(() => audio.stinger('firstBlood'), 2000);
+  };
+  $('swarmDemo').onclick = () => {
+    audio.init();
+    let c = 0;
+    const iv = setInterval(() => {
+      c += 10; const n = c <= 200 ? c : 400 - c;
+      audio.setSwarm(n); $('swarm').value = n; $('swarm').nextElementSibling.textContent = n;
+      if (Math.random() < 0.5) audio.play('dronePop', { x: rnd(-150, 150), z: rnd(-150, 150) });
+      if (c >= 400) clearInterval(iv);
+    }, 150);
+  };
+
+  const cv = $('pad'), g = cv.getContext('2d');
+  function draw() {
+    const w = cv.width, s = w / (2 * 520);
+    g.clearRect(0, 0, w, w);
+    g.strokeStyle = '#24375c'; g.beginPath(); g.arc(w / 2, w / 2, R() * s, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = '#4db4ff'; g.beginPath(); g.arc(w / 2, w / 2, 5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#ff5a4a'; g.beginPath(); g.arc(w / 2 + pos.x * s, w / 2 + pos.z * s, 5, 0, Math.PI * 2); g.fill();
+  }
+  cv.onclick = (e) => {
+    const r = cv.getBoundingClientRect(), s = (2 * 520) / r.width;
+    pos = { x: (e.clientX - r.left - r.width / 2) * s, z: (e.clientY - r.top - r.height / 2) * s };
+    $('positional').checked = true; draw();
+  };
+  draw();
+
+  setInterval(() => {
+    const st = audio.stats();
+    if (st.state === 'off') return;
+    $('meter').style.width = Math.max(0, Math.min(100, (st.peakDb + 48) / 48 * 100)) + '%';
+    $('stats').textContent = `context ${st.state}  voices ${st.voices}  intensity ${st.intensity.toFixed(2)}\npeak ${st.peakDb.toFixed(1)} dBFS  rms ${st.rmsDb.toFixed(1)} dBFS\n` +
+      Object.entries(st.byName).map(([k, v]) => `${k}:${v}`).join('  ');
+  }, 100);
+</script>
+</body>
+</html>

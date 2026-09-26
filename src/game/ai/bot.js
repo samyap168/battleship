@@ -1,0 +1,277 @@
+import { AGE_HULLS, UPGRADES, ABILITIES } from '../../core/config.js';
+import { laneFor, fountain } from '../map.js';
+import { cast, canCast } from '../abilities.js';
+
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+// Utility-style bot: every think tick it scores a handful of desires
+// (retreat, fight, farm/push, capture, shop) and executes the winner.
+export class BotBrain {
+  constructor(G, hero, diff) {
+    this.G = G; this.h = hero; this.d = diff;
+    this.thinkT = rnd(0, 0.5);
+    this.state = 'lane';
+    this.branch = Math.random() < 0.5 ? 0 : 1;
+    this.upgOrder = shuffle(['plating', 'gunnery', 'reload', 'engines', 'repair'], hero.slot);
+    hero.aimSkill = diff.aim;
+    this.lastHp = hero.hp;
+    this.dest = null;
+  }
+
+  update(dt) {
+    const h = this.h, G = this.G;
+    if (!h.alive) { this.state = 'lane'; this.shop(); return; }
+    this.thinkT -= dt;
+    if (this.thinkT > 0) return;
+    this.thinkT = this.d.react * rnd(0.6, 1.2);
+    const tookDmg = this.lastHp - h.hp;
+    this.lastHp = h.hp;
+
+    this.shop();
+    const hpF = h.hp / h.maxHp;
+    const near = 170;
+    const enemies = G.heroes.filter((e) => e.alive && e.team !== h.team && h.dist(e) < near && e.targetable);
+    const allies = G.heroes.filter((a) => a.alive && a.team === h.team && a !== h && h.dist(a) < near);
+    const enemyPower = enemies.reduce((s, e) => s + e.hp * e.dmgMul, 0);
+    const allyPower = allies.reduce((s, a) => s + a.hp * a.dmgMul, 0) + h.hp * h.dmgMul;
+
+    // ---- retreat
+    const outnumbered = enemyPower > allyPower * 1.35;
+    if (this.state === 'retreat') {
+      if (hpF > 0.92) this.state = 'lane';
+    } else if (hpF < 0.28 || (hpF < 0.45 && outnumbered) || (hpF < 0.6 && this.inEnemyTowerRange() && tookDmg > 0 && !this.creepsTanking())) {
+      this.state = 'retreat';
+    }
+
+    if (this.state === 'retreat') {
+      const f = fountain(h.team);
+      this.go(f.x, f.z);
+      // defensive casts
+      this.tryDefensive(enemies, true, tookDmg);
+      return;
+    }
+
+    // ---- fight: pick a kill target
+    let prey = null, preyScore = -Infinity;
+    for (const e of enemies) {
+      const eF = e.hp / e.maxHp;
+      const underTower = this.enemyTowerCovers(e.x, e.z);
+      let s = (1 - eF) * 2 + (h.dmgMul * h.hp) / (e.dmgMul * e.hp + 1) - h.dist(e) / 200;
+      if (underTower && eF > 0.2) s -= 2;
+      if (s > preyScore) { preyScore = s; prey = e; }
+    }
+    const aggressive = this.d.aggression + (allyPower > enemyPower ? 0.2 : -0.2);
+    const engage = prey && (preyScore > 1.2 - aggressive || prey.hp / prey.maxHp < 0.3) && hpF > 0.4;
+    this.tryAbilities(enemies, prey, tookDmg);
+
+    if (engage) {
+      this.state = 'fight';
+      const range = h.hull.guns.range;
+      // kite: keep at ~85% of range rather than face-hugging
+      const d = h.dist(prey);
+      if (d > range * 0.9) this.go(prey.x + (prey.vx || 0) * 0.8, prey.z + (prey.vz || 0) * 0.8);
+      else {
+        const ax = h.x - prey.x, az = h.z - prey.z, l = Math.hypot(ax, az) || 1;
+        const side = (h.slot % 2 ? 1 : -1);
+        this.go(prey.x + (ax / l) * range * 0.75 + (-az / l) * 25 * side, prey.z + (az / l) * range * 0.75 + (ax / l) * 25 * side);
+      }
+      h.attackOrder = prey;
+      return;
+    }
+    if (this.state === 'fight') { this.state = 'lane'; h.attackOrder = null; }
+
+    // ---- capture a port opportunistically
+    if (this.state !== 'capture' && Math.random() < 0.06 && hpF > 0.6) {
+      const port = G.ports.find((p) => p.owner !== h.team && h.dist(p) < 260 && !G.heroes.some((e) => e.alive && e.team !== h.team && e.dist(p) < 90));
+      if (port) { this.state = 'capture'; this.capPort = port; this.capT = 14; }
+    }
+    if (this.state === 'capture') {
+      this.capT -= this.d.react;
+      if (this.capPort.owner === h.team || this.capT <= 0) this.state = 'lane';
+      else { this.go(this.capPort.x + rnd(-8, 8), this.capPort.z + rnd(-8, 8)); return; }
+    }
+
+    // ---- lane / push
+    this.laneBehaviour();
+  }
+
+  go(x, z) {
+    const h = this.h;
+    if (!this.dest || Math.hypot(this.dest.x - x, this.dest.z - z) > 14 || !h.path.length) {
+      this.dest = { x, z };
+      h.setDestination(x, z);
+    }
+  }
+
+  laneBehaviour() {
+    const h = this.h, G = this.G;
+    // late game: group up on the lane with the weakest enemy defenses
+    if (G.time > 330 && !this.groupLane) {
+      this.groupLane = G.weakestEnemyLane(h.team);
+    }
+    const lane = this.groupLane && G.time > 330 ? this.groupLane : h.lane;
+    const wp = laneFor(h.team, lane);
+    // lane front = furthest allied creep along this lane
+    let front = null, best = -Infinity;
+    for (const c of G.creeps) {
+      if (!c.alive || c.team !== h.team || c.lane !== lane) continue;
+      const prog = h.team === 0 ? c.x : -c.x;
+      if (prog > best) { best = prog; front = c; }
+    }
+    const range = h.hull.guns.range;
+    let tx, tz;
+    if (front) {
+      // stand slightly behind the front, toward our base
+      const back = h.team === 0 ? -1 : 1;
+      tx = front.x + back * range * 0.35 + rnd(-10, 10);
+      tz = front.z + rnd(-14, 14);
+    } else {
+      // no creeps: hold at our furthest alive tower in the lane, else lane midpoint
+      const t = G.structures.filter((s) => s.alive && s.team === h.team && s.lane === lane).sort((a, b) => (h.team === 0 ? b.x - a.x : a.x - b.x))[0];
+      const p = t ? { x: t.x + (h.team === 0 ? 40 : -40), z: t.z * 0.9 } : wp[Math.floor(wp.length / 2)];
+      tx = p.x; tz = p.z;
+    }
+    // tower safety: don't stand inside enemy tower range unless creeps tank it
+    const tower = this.enemyTowerCovers(tx, tz);
+    if (tower && !this.creepsTanking(tower)) {
+      const ax = tx - tower.x, az = tz - tower.z, l = Math.hypot(ax, az) || 1;
+      tx = tower.x + (ax / l) * (tower.def.range + 14);
+      tz = tower.z + (az / l) * (tower.def.range + 14);
+      if (h.team === 0 ? tx > tower.x : tx < tower.x) tx = tower.x + (h.team === 0 ? -1 : 1) * (tower.def.range + 14);
+    }
+    this.go(tx, tz);
+    // hit the tower when creeps are tanking
+    const tw = G.structures.find((s) => s.alive && s.team !== h.team && !s.invulnerable && h.dist(s) < range + s.radius + 25);
+    if (tw && this.creepsTanking(tw)) h.attackOrder = tw;
+    else if (h.attackOrder && h.attackOrder.kind !== 'hero') h.attackOrder = null;
+  }
+
+  enemyTowerCovers(x, z) {
+    for (const s of this.G.structures) {
+      if (!s.alive || s.team === this.h.team) continue;
+      if ((s.x - x) ** 2 + (s.z - z) ** 2 < (s.def.range + 8) ** 2) return s;
+    }
+    return null;
+  }
+  inEnemyTowerRange() { return !!this.enemyTowerCovers(this.h.x, this.h.z); }
+  creepsTanking(tower) {
+    const t = tower || this.enemyTowerCovers(this.h.x, this.h.z);
+    if (!t) return false;
+    if (t.target && t.target.kind === 'creep') return true;
+    return this.G.creeps.some((c) => c.alive && c.team === this.h.team && c.dist(t) < t.def.range);
+  }
+
+  // ------------------------------------------------------------------ abilities
+  tryDefensive(enemies, retreating, tookDmg) {
+    const h = this.h, G = this.G;
+    h.abilities.forEach((ab, i) => {
+      if (!canCast(h, i)) return;
+      if (ab.type === 'buff') {
+        if (ab.speedMul && (retreating || enemies.length)) cast(G, h, i, h.x, h.z);
+        else if (ab.healPct && h.hp / h.maxHp < 0.55) cast(G, h, i, h.x, h.z);
+        else if (ab.shield && (tookDmg > 0 || enemies.length)) cast(G, h, i, h.x, h.z);
+      } else if (ab.type === 'smoke' && retreating && enemies.length) cast(G, h, i, h.x, h.z);
+      else if (ab.type === 'mines' && retreating && enemies.length) cast(G, h, i, h.x, h.z);
+      else if (ab.type === 'pointdefense' && this.threatCount() > 3) cast(G, h, i, h.x, h.z);
+    });
+  }
+
+  threatCount() {
+    const h = this.h, G = this.G;
+    let n = 0;
+    for (const d of G.drones.list) if (d.team !== h.team && d.type !== 'shield' && (d.x - h.x) ** 2 + (d.z - h.z) ** 2 < 60 * 60) n++;
+    for (const p of G.combat.list) if (p.team !== h.team && p.type === 'homing' && (p.x - h.x) ** 2 + (p.z - h.z) ** 2 < 70 * 70) n++;
+    return n;
+  }
+
+  tryAbilities(enemies, prey, tookDmg) {
+    const h = this.h, G = this.G;
+    if (Math.random() > this.d.abilityRate) return;
+    this.tryDefensive(enemies, false, tookDmg);
+    const creeps = G.creeps.filter((c) => c.alive && c.team !== h.team && h.dist(c) < 200);
+    for (let i = 0; i < 4; i++) {
+      if (!canCast(h, i)) continue;
+      const ab = h.abilities[i];
+      const range = ab.range || 0;
+      const heroT = prey && h.dist(prey) <= range ? prey : enemies.find((e) => h.dist(e) <= range);
+      const lead = (t, T) => ({ x: t.x + (t.vx || 0) * T * this.d.aim, z: t.z + (t.vz || 0) * T * this.d.aim });
+      switch (ab.type) {
+        case 'projectile':
+        case 'beam': {
+          let t = heroT;
+          if (!t && creeps.length >= 3 && Math.random() < 0.4) t = creeps.find((c) => h.dist(c) < range);
+          if (!t) break;
+          const T = ab.speed ? h.dist(t) / ab.speed : 0.05;
+          const p = lead(t, T);
+          const err = (1 - this.d.aim) * 14;
+          cast(G, h, i, p.x + rnd(-err, err), p.z + rnd(-err, err));
+          return;
+        }
+        case 'dash':
+          if (heroT && h.dist(heroT) < range * 0.9 && h.hp / h.maxHp > 0.5) { cast(G, h, i, heroT.x, heroT.z); return; }
+          break;
+        case 'barrage':
+        case 'swarm': {
+          let target = heroT ? lead(heroT, ab.delay || 1) : null;
+          if (!target) {
+            const c = clusterCenter(creeps.filter((c) => h.dist(c) < range), 30);
+            if (c && c.n >= (ab.minLevel ? 4 : 3)) target = c;
+          }
+          if (!target && (ab.drone || ab.type === 'barrage')) {
+            const tw = G.structures.find((s) => s.alive && s.team !== h.team && !s.invulnerable && h.dist(s) < range);
+            if (tw && this.creepsTanking(tw)) target = { x: tw.x, z: tw.z };
+          }
+          if (ab.drone === 'fighter' && !target && enemies.length) target = enemies[0];
+          if (target) { cast(G, h, i, target.x, target.z); return; }
+          break;
+        }
+        case 'volley':
+        case 'homing': {
+          const inR = enemies.filter((e) => h.dist(e) <= range).length;
+          const cr = creeps.filter((c) => h.dist(c) <= range).length;
+          if (inR >= 1 || cr >= 5) { cast(G, h, i, h.x, h.z); return; }
+          break;
+        }
+        case 'mines':
+          if (enemies.length && enemies.some((e) => h.dist(e) < 80)) { cast(G, h, i, h.x, h.z); return; }
+          break;
+        default: break;
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------ shop
+  shop() {
+    const h = this.h, G = this.G;
+    if (h.canAgeUp() && h.gold >= h.nextAgeCost()) {
+      const opts = AGE_HULLS[h.age + 1];
+      G.ageUp(h, opts[Math.min(this.branch, opts.length - 1)]);
+      return;
+    }
+    // Upgrades get at most ~25% of lifetime earnings until the final age.
+    const earned = h.gold + (h.spentAge || 0) + (h.spentUpg || 0);
+    const budget = h.age === 5 ? Infinity : earned * 0.25 - (h.spentUpg || 0);
+    for (const id of this.upgOrder) {
+      const c = h.upgradeCost(id);
+      if (!isFinite(c) || c > budget || h.gold < c) continue;
+      G.buyUpgrade(h, id);
+      return;
+    }
+  }
+}
+
+function clusterCenter(list, radius) {
+  let best = null;
+  for (const a of list) {
+    let n = 0, sx = 0, sz = 0;
+    for (const b of list) if ((a.x - b.x) ** 2 + (a.z - b.z) ** 2 < radius * radius) { n++; sx += b.x; sz += b.z; }
+    if (!best || n > best.n) best = { x: sx / n, z: sz / n, n };
+  }
+  return best;
+}
+
+function shuffle(arr, seed) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = (seed * 7 + i * 13) % (i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
