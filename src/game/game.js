@@ -381,6 +381,18 @@ export class Game {
       this.storm = inStorm ? 1 : 0;
     }
 
+    // onboarding hints for the first minutes
+    if (pl && !this.over) {
+      const H = [
+        [9, '<kbd>Right-click</kbd> the sea to sail · head for the <b>mid lane</b> and escort your gunboats'],
+        [26, 'Guns fire automatically · shells take time to land, so <b>keep moving</b> to dodge enemy salvos'],
+        [48, 'Sinking gunboats earns <b>gold</b> · hold <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> to aim abilities, release to fire'],
+        [80, 'Sail into a <b>trade port</b> (◆ on the minimap) to capture it · every captain on your team earns more gold'],
+        [120, 'Forts only fall with gunboat support · break <b>two lanes</b> to expose the enemy citadel'],
+      ];
+      this.hintIdx ||= 0;
+      if (this.hintIdx < H.length && this.time > H[this.hintIdx][0]) { this.ui.hint(H[this.hintIdx][1], 7000); this.hintIdx++; }
+    }
     // onboarding: first time the next age is affordable
     const pl = this.player;
     if (pl && !this.over && pl.canAgeUp() && pl.gold >= pl.nextAgeCost() && !pl.hintedAge?.[pl.age]) {
