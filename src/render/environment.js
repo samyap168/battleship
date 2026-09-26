@@ -20,7 +20,7 @@ function fbm(x, z, s, oct = 5) { let v = 0, a = 0.5; for (let i = 0; i < oct; i+
 
 const C = {
   wetSand: new THREE.Color(0.2, 0.17, 0.12), sand: new THREE.Color(0.48, 0.4, 0.27),
-  grass: new THREE.Color(0.16, 0.28, 0.08), jungle: new THREE.Color(0.07, 0.18, 0.05),
+  grass: new THREE.Color(0.12, 0.22, 0.06), jungle: new THREE.Color(0.05, 0.13, 0.035),
   rock: new THREE.Color(0.34, 0.32, 0.3), rockDark: new THREE.Color(0.18, 0.17, 0.17), moss: new THREE.Color(0.2, 0.28, 0.14),
 };
 
@@ -103,7 +103,7 @@ function treeGeometries() {
   trunk.translate(0, 2.5, 0);
   const crowns = [];
   for (let i = 0; i < 3; i++) {
-    const c = new THREE.IcosahedronGeometry(2.2 - i * 0.45, 2);
+    const c = new THREE.IcosahedronGeometry(2.2 - i * 0.45, 1);
     c.scale(1, 0.8, 1);
     c.translate((i - 1) * 0.5, 5 + i * 1.7, (i % 2) * 0.4);
     crowns.push(c);
@@ -116,6 +116,16 @@ function treeGeometries() {
     p.setXYZ(i, p.getX(i) * s, p.getY(i), p.getZ(i) * s);
   }
   crown.computeVertexNormals();
+  // baked ambient occlusion: dark, cool underside -> warm sunlit crown
+  crown.computeBoundingBox();
+  const bb = crown.boundingBox, col = new Float32Array(p.count * 3);
+  for (let i = 0; i < p.count; i++) {
+    const h = (p.getY(i) - bb.min.y) / (bb.max.y - bb.min.y);
+    const up = crown.attributes.normal.getY(i);
+    const ao = 0.35 + 0.65 * Math.pow(h, 0.8) + Math.max(0, up) * 0.25;
+    col[i * 3] = ao * 1.02; col[i * 3 + 1] = ao; col[i * 3 + 2] = ao * 0.86;
+  }
+  crown.setAttribute('color', new THREE.BufferAttribute(col, 3));
   return { trunk, crown };
 }
 
@@ -142,7 +152,20 @@ function pagodaGeometry() {
     y += 1.0;
   }
   const spire = new THREE.ConeGeometry(0.35, 3.5, 6); spire.translate(0, y + 1.7, 0); parts.push(spire);
-  return { body: mergeGeometries(parts), roof: mergeGeometries(roofs) };
+  // lantern-lit windows on each face of every tier
+  const wins = [];
+  let wy = 1.5;
+  for (let t = 0; t < 4; t++) {
+    const w = 6 - t * 1.1, hh = 3.2 - t * 0.35;
+    for (let f = 0; f < 4; f++) {
+      const g = new THREE.BoxGeometry(w * 0.34, hh * 0.45, 0.12);
+      g.translate(0, wy + hh * 0.5, w / 2 + 0.04);
+      g.rotateY((f * Math.PI) / 2);
+      wins.push(g);
+    }
+    wy += hh + 1.0;
+  }
+  return { body: mergeGeometries(parts), roof: mergeGeometries(roofs), windows: mergeGeometries(wins) };
 }
 
 function lanternGeometry() {
@@ -245,9 +268,9 @@ export class Environment {
     scene.add(this.group);
     const islandMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 });
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3524, roughness: 0.9 });
-    const leafMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.75 });
-    const stoneMat = new THREE.MeshStandardMaterial({ color: 0x8a8378, roughness: 0.85 });
-    const roofMat = new THREE.MeshStandardMaterial({ color: 0x2b3a3a, roughness: 0.55, metalness: 0.2 });
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.78, vertexColors: true });
+    const stoneMat = new THREE.MeshStandardMaterial({ color: 0xcab89a, roughness: 0.8 });
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x3f7a6c, roughness: 0.45, metalness: 0.35 }); // weathered bronze-patina tiles
     const lampMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xffa040, emissiveIntensity: 4 });
     [islandMat, trunkMat, leafMat, stoneMat, roofMat].forEach(applyCloudShadow);
 
@@ -283,7 +306,7 @@ export class Environment {
       this.group.add(m);
       const rng = mulberry(isl.seed * 97 + 5);
       if (kind === 'jungle' || kind === 'edge' || kind === 'harbor') {
-        const count = Math.round(isl.r * isl.r * 0.04 * (kind === 'jungle' ? 1.4 : 0.8));
+        const count = Math.round(isl.r * isl.r * 0.05 * (kind === 'jungle' ? 1.4 : 0.8));
         for (let k = 0; k < count; k++) {
           const a = rng() * Math.PI * 2, rr = Math.sqrt(rng()) * isl.r * 0.8;
           const x = Math.cos(a) * rr, z = Math.sin(a) * rr;
@@ -294,7 +317,7 @@ export class Environment {
       }
       // jungle crowns on the karst summits
       for (const t of tops) {
-        const cnt = Math.round(t.r * t.r * 0.34) + 5;
+        const cnt = Math.round(t.r * t.r * 0.26) + 4;
         for (let k = 0; k < cnt; k++) {
           const a = rng() * 6.28, rr = Math.sqrt(rng()) * t.r * 0.9;
           trees.push({ x: isl.x + t.x + Math.cos(a) * rr, y: t.y - 1.6 - rr * 0.3, z: isl.z + t.z + Math.sin(a) * rr, s: 0.55 + rng() * 0.55, r: rng() * 6.28 });
@@ -321,19 +344,28 @@ export class Environment {
       const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
       list.forEach((o, i) => { fn(o, p, q, s); m4.compose(p, q, s); im.setMatrixAt(i, m4); });
       im.castShadow = shadow; im.receiveShadow = true;
+      im.computeBoundingSphere(); // enables per-group frustum culling (main + shadow pass)
       this.group.add(im);
       return im;
     };
     const place = (o, p, q, s) => { p.set(o.x, o.y, o.z); q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), o.r || 0); s.setScalar(o.s || 1); };
-    inst(trunk, trunkMat, trees, place);
-    const crowns = inst(crown, leafMat, trees, place);
-    if (crowns) {
-      const c = new THREE.Color();
-      trees.forEach((t, i) => { c.setHSL(0.21 + hash2(t.x, t.z, 1) * 0.1, 0.55 + hash2(t.x, t.z, 3) * 0.2, 0.13 + hash2(t.z, t.x, 2) * 0.12); crowns.setColorAt(i, c); });
+    // Forests are instanced per ~150-unit cell so off-screen groves are culled.
+    const cells = new Map();
+    for (const t of trees) {
+      const key = Math.floor(t.x / 150) + ',' + Math.floor(t.z / 150);
+      if (!cells.has(key)) cells.set(key, []);
+      cells.get(key).push(t);
+    }
+    const c = new THREE.Color();
+    for (const list of cells.values()) {
+      inst(trunk, trunkMat, list, place);
+      const crowns = inst(crown, leafMat, list, place);
+      list.forEach((t, i) => { c.setHSL(0.21 + hash2(t.x, t.z, 1) * 0.1, 0.55 + hash2(t.x, t.z, 3) * 0.2, 0.13 + hash2(t.z, t.x, 2) * 0.12); crowns.setColorAt(i, c); });
     }
     const pg = pagodaGeometry();
     inst(pg.body, stoneMat, pagodas, place);
     inst(pg.roof, roofMat, pagodas, place);
+    inst(pg.windows, lampMat, pagodas, place, false);
     inst(lanternGeometry(), stoneMat, lanterns, place, false);
     const glow = new THREE.SphereGeometry(0.45, 8, 6); glow.translate(0, 1.9, 0);
     inst(glow, lampMat, lanterns, place, false);

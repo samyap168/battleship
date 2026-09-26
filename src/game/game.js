@@ -253,7 +253,7 @@ export class Game {
       if (killer === this.player) { this.ui.floatText(u.x, 14, u.z, `+${bounty + streakBonus}`, '#ffd24a', 22); this.hitstop = 0.09; this.fx.shake(0.45, u.x, u.z); }
       if (!this.firstBlood) {
         this.firstBlood = true;
-        this.ui.announce('FIRST BLOOD', `${killer.name} sinks ${u.name}`, TEAMS[killer.team].css);
+        this.ui.announce('FIRST BLOOD', `${killer.name} ${killer === this.player ? 'sink' : 'sinks'} ${u.name}`, TEAMS[killer.team].css);
         this.audio.stinger('firstBlood');
       } else {
         const now = this.time;
