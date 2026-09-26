@@ -84,8 +84,35 @@ export class FX {
 
     // Debris chunks
     this.debrisMax = 400;
-    const dGeo = new THREE.BoxGeometry(1, 0.35, 0.6);
-    const dMat = new THREE.MeshStandardMaterial({ color: 0x2a2522, roughness: 0.8, metalness: 0.3 });
+    // splintered planks: a subdivided box with jagged, torn vertices
+    const dGeo = new THREE.BoxGeometry(1, 0.35, 0.6, 3, 1, 2);
+    { const dp = dGeo.attributes.position;
+      for (let i = 0; i < dp.count; i++) {
+        const x = dp.getX(i), h = Math.sin(x * 91.7 + dp.getZ(i) * 37.3) * 0.5 + 0.5;
+        dp.setXYZ(i, x * (1 + (Math.abs(x) > 0.49 ? h * 0.5 : 0)), dp.getY(i) * (0.7 + h * 0.5), dp.getZ(i) * (0.8 + h * 0.35));
+      }
+      dGeo.computeVertexNormals(); }
+    this.dHeat = new THREE.InstancedBufferAttribute(new Float32Array(this.debrisMax), 1).setUsage(THREE.DynamicDrawUsage);
+    dGeo.setAttribute('aHeat', this.dHeat);
+    const dMat = new THREE.MeshStandardMaterial({ color: 0x2e2620, roughness: 0.85, metalness: 0.2 });
+    // burning debris: glowing ember cracks that cool as the chunk flies
+    dMat.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute float aHeat; varying float vHeat; varying vec3 vDbP;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvHeat = aHeat; vDbP = position * 4.0;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', `#include <common>
+varying float vHeat; varying vec3 vDbP;
+float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719))) * 43758.5453); }`)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+{
+  float cr = dbH(vDbP) * 0.6 + dbH(vDbP * 2.3 + 1.7) * 0.4;
+  float ember = smoothstep(0.45, 0.9, cr) * vHeat;
+  totalEmissiveRadiance += vec3(3.2, 1.0, 0.22) * ember * 1.6 + vec3(0.9, 0.25, 0.05) * vHeat * 0.35;
+  diffuseColor.rgb *= 1.0 - vHeat * 0.45; // charred
+}`);
+    };
+    dMat.customProgramCacheKey = () => 'debris-ember';
     this.debris = new THREE.InstancedMesh(dGeo, dMat, this.debrisMax);
     this.debris.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.debris.count = 0; this.debris.castShadow = true; this.debris.frustumCulled = false;
@@ -264,7 +291,7 @@ export class FX {
     d.r = new THREE.Vector3(rnd(0, 6), rnd(0, 6), rnd(0, 6));
     d.w = new THREE.Vector3(rnd(-8, 8), rnd(-8, 8), rnd(-8, 8));
     d.s = rnd(0.4, 1.1) * Math.min(1.5, Math.sqrt(scale));
-    d.alive = true; d.smoke = Math.random() < 0.5;
+    d.alive = true; d.smoke = Math.random() < 0.5; d.heat = d.smoke ? rnd(0.7, 1) : rnd(0, 0.25);
   }
 
   emp(x, z, radius) {
@@ -354,7 +381,11 @@ export class FX {
       d.v.y -= 32 * dt;
       d.p.addScaledVector(d.v, dt);
       d.r.addScaledVector(d.w, dt);
+      d.heat = Math.max(0, d.heat - dt * 0.35);
       if (d.smoke && Math.random() < 0.6) this.trailSmoke(d.p, 0.8, 0.15, 0.5);
+      if (d.heat > 0.35 && Math.random() < 0.5) // licking flame + sparks off burning chunks
+        this.p.alpha.emit({ x: d.p.x, y: d.p.y, z: d.p.z, vx: d.v.x * 0.1, vy: 2, vz: d.v.z * 0.1, life: rnd(0.25, 0.45), s0: 1.1 * d.s, s1: 2.2 * d.s,
+          r: 2.2, g: 1.0, b: 0.35, r1: 0.35, g1: 0.08, b1: 0.02, a0: 0.9 * d.heat, a1: 0, kind: 5, drag: 2 });
       if (d.p.y < this.waterY(d.p.x, d.p.z) - 0.5 && d.v.y < 0) {
         d.alive = false;
         this.p.alpha.emit({ x: d.p.x, y: d.p.y + 0.5, z: d.p.z, vy: 8, life: 0.6, s0: 1.5, s1: 3.5, r: 0.95, g: 0.97, b: 1, a0: 0.8, a1: 0, kind: 3, grav: 20 });
@@ -365,8 +396,10 @@ export class FX {
       this._q.setFromEuler(this._e);
       this._s.setScalar(d.s);
       this._m.compose(d.p, this._q, this._s);
+      this.dHeat.array[n] = d.heat || 0;
       this.debris.setMatrixAt(n++, this._m);
     }
+    this.dHeat.needsUpdate = true;
     this.debris.count = n;
     this.debris.instanceMatrix.needsUpdate = true;
   }

@@ -17,6 +17,6 @@ page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}\n${e.stack}`));
 await page.goto(url, { waitUntil: 'load' });
 if (evalJs) await page.evaluate(evalJs);
 await page.waitForTimeout(+wait);
-await page.screenshot({ path: out });
+await page.screenshot({ path: out, timeout: 180000 });
 console.log(logs.slice(-40).join('\n'));
 await browser.close();

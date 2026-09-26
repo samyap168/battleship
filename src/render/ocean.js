@@ -221,7 +221,8 @@ gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(1.35)); // tame sun-glint fireflie
 const DECAL_MAX = 2400;
 export class WaterDecals {
   constructor(scene, oceanUniforms) {
-    const geo = new THREE.PlaneGeometry(1, 1, 2, 2);
+    // subdivided so big rings/slicks follow the swell instead of slicing into it
+    const geo = new THREE.PlaneGeometry(1, 1, 6, 6);
     geo.rotateX(-Math.PI / 2);
     this.a0 = new Float32Array(DECAL_MAX * 4); // x, z, rot, size
     this.a1 = new Float32Array(DECAL_MAX * 4); // age01, kind, alpha, grow
@@ -250,7 +251,7 @@ export class WaterDecals {
           vec2 wp = aD0.xy + lp;
           vec3 n = vec3(0.0, 1.0, 0.0);
           vec3 d = gerstnerWave(wp, uTime, n);
-          vec3 p = vec3(wp.x, 0.12, wp.y) + d;
+          vec3 p = vec3(wp.x, 0.12 + s * 0.006, wp.y) + d;
           gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
         }`,
       fragmentShader: /* glsl */ `
@@ -267,8 +268,13 @@ export class WaterDecals {
           if (kind < 0.5) {         // foam blob
             a = smoothstep(1.0, 0.25, r + n * 0.45) * smoothstep(0.25, 0.55, n + (1.0 - age) * 0.5);
           } else if (kind < 1.5) {  // expanding ring
-            float ring = 1.0 - abs(r - 0.72) * 4.5;
-            a = clamp(ring, 0.0, 1.0) * (0.5 + n * 0.7);
+            // torn, lacy foam front with a faint churned interior
+            float n2 = nz(vUv * 23.0 + age * 3.0 + vD1.z * 5.0);
+            float rr = r + (n - 0.5) * 0.18;
+            float band = 1.0 - smoothstep(0.0, 0.13 + age * 0.12, abs(rr - 0.74));
+            float lace = smoothstep(0.3, 0.72, n2 * 0.55 + n * 0.45 + (1.0 - age) * 0.28);
+            float inner = smoothstep(0.75, 0.15, r) * smoothstep(0.4, 0.8, n2) * 0.22 * (1.0 - age);
+            a = band * lace * 1.15 + inner;
           } else {                  // dark scorch / oil slick
             a = smoothstep(1.0, 0.1, r + n * 0.5) * 0.8;
             gl_FragColor = vec4(vec3(0.02, 0.018, 0.016), a * vD1.z * (1.0 - age));
@@ -277,7 +283,7 @@ export class WaterDecals {
           a *= vD1.z * (1.0 - age) * (1.0 - age * 0.3);
           gl_FragColor = vec4(vec3(0.9, 0.95, 0.98), a);
         }`,
-      transparent: true, depthWrite: false,
+      transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
     });
     this.mesh = new THREE.Mesh(ig, mat);
     this.mesh.frustumCulled = false;
