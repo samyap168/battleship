@@ -518,8 +518,13 @@ export class HUD {
         c.strokeText(label, s.x, y0 - 5); c.fillText(label, s.x, y0 - 5);
         if (u.stun > 0) { c.fillStyle = '#9cf'; c.fillText('STUNNED', s.x, y0 + bh + 12); }
       } else if (boss) {
-        c.font = '700 14px Cinzel, serif'; c.fillStyle = '#bafff7'; c.strokeStyle = 'rgba(0,0,0,.8)'; c.lineWidth = 3;
-        c.strokeText('THE LEVIATHAN', s.x, y0 - 6); c.fillText('THE LEVIATHAN', s.x, y0 - 6);
+        // same serif + glow treatment as the banner typography (no hard game-UI outline)
+        c.save();
+        c.font = "600 15px Cinzel, 'Trajan Pro', Georgia, serif"; if ('letterSpacing' in c) c.letterSpacing = '4px';
+        c.shadowColor = 'rgba(80,255,230,.75)'; c.shadowBlur = 12; c.fillStyle = '#e6fffb';
+        c.fillText('THE LEVIATHAN', s.x, y0 - 8);
+        c.shadowColor = 'rgba(0,0,0,.9)'; c.shadowBlur = 4; c.fillText('THE LEVIATHAN', s.x, y0 - 8);
+        c.restore();
         c.font = '600 12px Rajdhani, sans-serif';
       } else if ((u.kind === 'tower' || u.kind === 'citadel') && u.invulnerable) {
         c.fillStyle = 'rgba(200,220,255,.7)'; c.fillText('⛨', s.x + bw / 2 + 8, y0 + 8);

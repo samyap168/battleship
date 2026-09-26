@@ -108,7 +108,7 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
 {
   float cr = dbH(vDbP) * 0.6 + dbH(vDbP * 2.3 + 1.7) * 0.4;
   float ember = smoothstep(0.45, 0.9, cr) * vHeat;
-  totalEmissiveRadiance += vec3(3.2, 1.0, 0.22) * ember * 1.6 + vec3(0.9, 0.25, 0.05) * vHeat * 0.35;
+  totalEmissiveRadiance += vec3(3.2, 1.0, 0.22) * ember * 1.6 + vec3(0.9, 0.25, 0.05) * vHeat * 0.35 + vec3(0.5, 0.16, 0.04) * smoothstep(0.55, 0.95, cr) * step(0.01, vHeat); // smouldering edges even far from fire
   diffuseColor.rgb *= 1.0 - vHeat * 0.45; // charred
 }`);
     };

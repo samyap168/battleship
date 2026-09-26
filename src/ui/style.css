@@ -264,3 +264,7 @@ body.cinematic #announce { top: 36%; }
   background-image: linear-gradient(112deg, transparent 28%, rgba(255,230,190,.08) 42%, rgba(255,230,190,.02) 50%, transparent 62%), var(--plate), linear-gradient(160deg, #2c2418 0%, #17120c 55%, #221a10 100%);
   background-blend-mode: screen, overlay, normal; background-size: 100% 100%, 256px 256px, 100% 100%;
 }
+/* the sheen band sweeps slowly across the plate, like light catching brushed metal */
+@keyframes plateSheen { 0%, 55% { background-position: -140% 0, 0 0, 0 0; } 100% { background-position: 240% 0, 0 0, 0 0; } }
+#abilities, #topbar, #minimap, #portrait, #goldbox, #shop { background-size: 60% 100%, 256px 256px, 100% 100%; background-repeat: no-repeat, repeat, no-repeat; animation: plateSheen 11s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { #abilities, #topbar, #minimap, #portrait, #goldbox, #shop { animation: none; } }

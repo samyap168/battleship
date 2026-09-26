@@ -117,9 +117,9 @@ function treeGeometries() {
     crowns.push(c);
   }
   // outer lobes break the silhouette so a canopy never reads as one smooth blob
-  for (let i = 0; i < 4; i++) {
-    const a = i * 1.7 + 0.4, r = 1.55 + (i % 2) * 0.35;
-    const c = new THREE.IcosahedronGeometry(0.95 - (i % 2) * 0.2, 0);
+  for (let i = 0; i < 5; i++) {
+    const a = i * 1.26 + 0.4, r = 2.05 + (i % 2) * 0.45;
+    const c = new THREE.IcosahedronGeometry(1.05 - (i % 2) * 0.25, 0);
     c.scale(1, 0.75, 1);
     c.translate(Math.cos(a) * r, 5.2 + (i % 3) * 1.1, Math.sin(a) * r);
     crowns.push(c);
