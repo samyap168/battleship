@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node tests/smoke.mjs"
+    "test": "node tests/fullmatch.mjs",
+    "shots": "node tests/play.mjs \"30,150,330\" shot \"&autopilot=1&photo=1\""
   },
   "dependencies": {
     "three": "^0.186.1"

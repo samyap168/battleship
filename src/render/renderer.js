@@ -162,6 +162,7 @@ export class Renderer {
 
   /** Screen-space shockwave at a world position. */
   shockwave(pos, strength = 1, life = 0.7) {
+    if (this.noShock) return; // menu backdrop: screen warps read as glitches
     const v = pos.clone().project(this.camera);
     if (v.z > 1 || Math.abs(v.x) > 1.3 || Math.abs(v.y) > 1.3) return;
     if (this.shocks.length >= 4) this.shocks.shift();

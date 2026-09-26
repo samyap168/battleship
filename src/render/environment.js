@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { applyCloudShadow } from './cloudShadow.js';
+import { WAVES_GLSL, WAVE_UNIFORMS } from './waves.js';
 
 // Procedural archipelago: sculpted islands with vertex-coloured strata,
 // instanced forests, pagoda ruins, and misty karst peaks on the horizon.
@@ -39,18 +40,22 @@ export function buildIsland(R, kind = 'jungle', seed = 1) {
   const outer = R * 1.25;
   const pos = [], col = [], idx = [];
   const H = P.h * (0.8 + 0.4 * hash2(seed, 1, 3)) * Math.min(1.4, 0.6 + R / 60);
+  // Lobed, irregular coastline (bays, headlands) instead of a circle.
+  const coast = (a) => {
+    const n = fbm(Math.cos(a) * 1.6 + seed * 1.7, Math.sin(a) * 1.6 - seed, seed, 4) - 0.5;
+    const lobes = 0.1 * Math.sin(3 * a + seed * 2.3) + 0.07 * Math.sin(5 * a - seed) + 0.05 * Math.sin(2 * a + seed * 0.7);
+    return R * THREE.MathUtils.clamp(1 + n * 0.5 + lobes, 0.74, 1.1);
+  };
   const hAt = (x, z) => {
     const a = Math.atan2(z, x);
-    // wobble the coastline
-    const wob = 1 + (fbm(Math.cos(a) * 1.3 + seed, Math.sin(a) * 1.3, seed, 3) - 0.5) * 0.35;
-    const r = Math.hypot(x, z) / (R * wob);
+    const r = Math.hypot(x, z) / coast(a);
     const n = fbm(x / 14 + seed * 3, z / 14, seed);
     const ridge = 1 - Math.abs(fbm(x / 22, z / 22 + seed, seed + 5) * 2 - 1);
     let dome = Math.max(0, 1 - r * r);
     dome = Math.pow(dome, 1 - P.cliff * 0.6);
     let h = H * dome * (0.6 + 0.6 * n + 0.35 * ridge);
     // beach shelf
-    h += (1 - THREE.MathUtils.smoothstep(r, 0.9, 1.04)) * 1.1 - 2.6 * THREE.MathUtils.smoothstep(r, 0.98, 1.12);
+    h += (1 - THREE.MathUtils.smoothstep(r, 0.9, 1.02)) * 1.1 - 4.5 * THREE.MathUtils.smoothstep(r, 0.97, 1.06);
     return h;
   };
   pos.push(0, hAt(0, 0), 0);
@@ -81,8 +86,10 @@ export function buildIsland(R, kind = 'jungle', seed = 1) {
     const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
     const slope = 1 - nrm.getY(i);
     const n = fbm(x / 6, z / 6, seed + 9, 3);
-    if (y < 0.4) tmp.copy(C.wetSand);
-    else if (y < 1.8 + n * 1.5) tmp.copy(C.sand);
+    if (y < -0.6) tmp.setRGB(0.05, 0.09, 0.09); // submerged shelf fades into the sea
+    else if (y < 0.4) tmp.copy(C.wetSand);
+    else if (y < 1.4 + n * 1.2 && slope < 0.35) tmp.copy(C.sand);
+    else if (y < 2.5 && slope >= 0.35) tmp.copy(C.rockDark).lerp(C.moss, 0.3); // steep wave-cut banks: dark rock, not sand
     else {
       const green = P.green * (1 - THREE.MathUtils.smoothstep(slope, 0.25, 0.55));
       tmp.copy(C.rock).lerp(C.rockDark, n);
@@ -94,7 +101,7 @@ export function buildIsland(R, kind = 'jungle', seed = 1) {
     col.push(tmp.r, tmp.g, tmp.b);
   }
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  return { geometry: g, heightAt: hAt, H };
+  return { geometry: g, heightAt: hAt, H, coast };
 }
 
 // ---------------------------------------------------------------------------
@@ -127,6 +134,65 @@ function treeGeometries() {
   }
   crown.setAttribute('color', new THREE.BufferAttribute(col, 3));
   return { trunk, crown };
+}
+
+function aoColors(geo, low = 0.35) {
+  geo.computeBoundingBox();
+  const p = geo.attributes.position, bb = geo.boundingBox, col = new Float32Array(p.count * 3);
+  for (let i = 0; i < p.count; i++) {
+    const h = (p.getY(i) - bb.min.y) / Math.max(1e-3, bb.max.y - bb.min.y);
+    const ao = low + (1 - low) * Math.pow(h, 0.8);
+    col[i * 3] = ao * 1.02; col[i * 3 + 1] = ao; col[i * 3 + 2] = ao * 0.86;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return geo;
+}
+
+/** Conifer: three stacked jittered cones. */
+function coniferGeometries() {
+  const parts = [];
+  for (let i = 0; i < 3; i++) {
+    const c = new THREE.ConeGeometry(2.1 - i * 0.55, 3.2 - i * 0.4, 7, 2);
+    c.translate(0, 3.4 + i * 1.9, 0);
+    parts.push(c);
+  }
+  const crown = mergeGeometries(parts.map((g) => g.toNonIndexed()));
+  const p = crown.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const j = 1 + (hash2(p.getX(i) * 5, p.getZ(i) * 5, p.getY(i) * 3) - 0.5) * 0.25;
+    p.setXYZ(i, p.getX(i) * j, p.getY(i), p.getZ(i) * j);
+  }
+  crown.computeVertexNormals();
+  const trunk = new THREE.CylinderGeometry(0.22, 0.4, 3.6, 5); trunk.translate(0, 1.8, 0);
+  return { trunk, crown: aoColors(crown, 0.3) };
+}
+
+/** Palm: curved segmented trunk + drooping frond fan. */
+function palmGeometries() {
+  const segs = [];
+  let x = 0, y = 0;
+  for (let i = 0; i < 5; i++) {
+    const c = new THREE.CylinderGeometry(0.2, 0.26, 1.5, 5);
+    c.rotateZ(-0.08 * i);
+    c.translate(x, y + 0.75, 0);
+    segs.push(c.toNonIndexed());
+    x += Math.sin(0.08 * i) * 1.5 * 1.1; y += 1.45;
+  }
+  const trunk = mergeGeometries(segs);
+  const fronds = [];
+  for (let k = 0; k < 7; k++) {
+    const f = new THREE.PlaneGeometry(0.9, 3.4, 1, 4);
+    const fp = f.attributes.position;
+    for (let i = 0; i < fp.count; i++) { const t = (fp.getY(i) + 1.7) / 3.4; fp.setZ(i, -t * t * 1.4); fp.setX(i, fp.getX(i) * (1 - t * 0.6)); }
+    f.translate(0, 1.7, 0);
+    f.rotateX(-1.05);
+    f.rotateY((k / 7) * Math.PI * 2);
+    f.translate(x, y, 0);
+    fronds.push(f.toNonIndexed());
+  }
+  const crown = mergeGeometries(fronds);
+  crown.computeVertexNormals();
+  return { trunk, crown: aoColors(crown, 0.5) };
 }
 
 function pagodaGeometry() {
@@ -205,7 +271,7 @@ function karstGeometry(r, h, seed) {
 // ---------------------------------------------------------------------------
 // Limestone karst tower (Ha Long Bay / Guilin): sheer strata cliffs,
 // undercut wave notch at the waterline, rounded jungle crown.
-const LIME = new THREE.Color(0.3, 0.315, 0.32), LIME_D = new THREE.Color(0.13, 0.14, 0.145), STAIN = new THREE.Color(0.08, 0.085, 0.08);
+const LIME = new THREE.Color(0.25, 0.285, 0.27), LIME_D = new THREE.Color(0.11, 0.13, 0.12), STAIN = new THREE.Color(0.08, 0.085, 0.08);
 const CANOPY = new THREE.Color(0.07, 0.19, 0.05), CANOPY_L = new THREE.Color(0.2, 0.34, 0.08), WET = new THREE.Color(0.1, 0.1, 0.09);
 export function karstTower(r, h, seed, lean = 0) {
   const radial = 36, rows = 26;
@@ -262,7 +328,34 @@ const STACKS = {
   harbor: { n: [1, 2], r: [0.24, 0.34], h: [16, 26], spread: 0.4 },
 };
 
+// Shoreline surf: a ribbon extruded outward from the true coastline, riding the
+// waves, with foam bands rolling onto the beach.
+function shoreRibbon(islands) {
+  const pos = [], uv = [], idx = [];
+  for (const isl of islands) {
+    const seg = Math.max(48, Math.round(isl.r * 2.4));
+    const base = pos.length / 3;
+    let per = 0;
+    for (let j = 0; j <= seg; j++) {
+      const a = (j / seg) * Math.PI * 2;
+      const rc = isl.coast(a) * 0.985;
+      const w = 5 + isl.r * 0.06;
+      pos.push(isl.x + Math.cos(a) * (rc - 2.5), 0, isl.z + Math.sin(a) * (rc - 2.5));
+      pos.push(isl.x + Math.cos(a) * (rc + w), 0, isl.z + Math.sin(a) * (rc + w));
+      per = (j / seg) * isl.r * 0.9;
+      uv.push(per, 0, per, 1);
+      if (j < seg) { const k = base + j * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  return g;
+}
+
 export class Environment {
+  update(t) { if (this.shoreUniforms) this.shoreUniforms.uTime.value = t; }
   constructor(scene, islands, scenery) {
     this.group = new THREE.Group();
     scene.add(this.group);
@@ -277,9 +370,11 @@ export class Environment {
     const { trunk, crown } = treeGeometries();
     const trees = [];
     const pagodas = [], lanterns = [];
+    const shores = [];
     for (const isl of islands) {
       const kind = isl.kind === 'edge' ? 'edge' : isl.kind;
       const built = buildIsland(isl.r, kind, isl.seed || 1);
+      shores.push({ x: isl.x, z: isl.z, r: isl.r, coast: built.coast });
       const rngS = mulberry(isl.seed * 31 + 7);
       const cfg = STACKS[kind];
       const geos = [built.geometry];
@@ -315,6 +410,15 @@ export class Environment {
           trees.push({ x: isl.x + x, y: h - 0.4, z: isl.z + z, s: 0.5 + rng() * 0.6, r: rng() * 6.28 });
         }
       }
+      // palms fringing the beaches
+      if (kind === 'jungle' || kind === 'harbor' || kind === 'edge') {
+        const np = Math.round(isl.r * 0.35);
+        for (let k = 0; k < np; k++) {
+          const a = rng() * Math.PI * 2, rr = built.coast(a) * (0.72 + rng() * 0.16);
+          const x = Math.cos(a) * rr, z = Math.sin(a) * rr, h = built.heightAt(x, z);
+          if (h > 0.4 && h < 5) trees.push({ x: isl.x + x, y: h - 0.2, z: isl.z + z, s: 0.8 + rng() * 0.4, r: rng() * 6.28, palm: true });
+        }
+      }
       // jungle crowns on the karst summits
       for (const t of tops) {
         const cnt = Math.round(t.r * t.r * 0.26) + 4;
@@ -338,6 +442,32 @@ export class Environment {
         }
       }
     }
+    this.shoreUniforms = { uTime: { value: 0 }, ...WAVE_UNIFORMS };
+    const shoreMat = new THREE.ShaderMaterial({
+      uniforms: this.shoreUniforms,
+      vertexShader: `uniform float uTime; varying vec2 vUv; varying vec3 vW; ${WAVES_GLSL}
+        void main(){ vUv = uv; vec3 p = position; vec3 n = vec3(0.0, 1.0, 0.0);
+          p += gerstnerWave(p.xz, uTime, n); p.y += 0.3; vW = p;
+          gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0); }`,
+      fragmentShader: `uniform float uTime; varying vec2 vUv; varying vec3 vW;
+        float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+        float nz(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+          return mix(mix(h(i), h(i + vec2(1, 0)), u.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), u.x), u.y); }
+        void main(){
+          float v = vUv.y;
+          float n = nz(vW.xz * 0.35) * 0.6 + nz(vW.xz * 1.1 + uTime * 0.2) * 0.4;
+          // wash line hugging the sand + two surf bands rolling shoreward
+          float wash = smoothstep(0.22, 0.0, v + (n - 0.5) * 0.18);
+          float band1 = smoothstep(0.12, 0.0, abs(fract(v * 1.6 + uTime * 0.18 + n * 0.3) - 0.5) - 0.32) * (1.0 - v);
+          float lace = smoothstep(0.55, 0.75, n) * (1.0 - v) * 0.6;
+          float a = clamp(wash + band1 * 0.55 + lace * 0.35, 0.0, 1.0) * smoothstep(1.0, 0.6, v);
+          gl_FragColor = vec4(vec3(0.93, 0.96, 0.98) * a, a * 0.9);
+        }`,
+      transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    });
+    const shore = new THREE.Mesh(shoreRibbon(shores), shoreMat);
+    shore.renderOrder = 1; shore.frustumCulled = false;
+    this.group.add(shore);
     const inst = (geo, mat, list, fn, shadow = true) => {
       if (!list.length) return null;
       const im = new THREE.InstancedMesh(geo, mat, list.length);
@@ -357,16 +487,37 @@ export class Environment {
       cells.get(key).push(t);
     }
     const c = new THREE.Color();
+    const conifer = coniferGeometries(), palm = palmGeometries();
+    const leafDS = leafMat.clone(); leafDS.side = THREE.DoubleSide; applyCloudShadow(leafDS);
+    const TYPES = {
+      broad: { trunk, crown, mat: leafMat, hue: [0.21, 0.1], sat: [0.55, 0.2], lig: [0.13, 0.12] },
+      conifer: { trunk: conifer.trunk, crown: conifer.crown, mat: leafMat, hue: [0.28, 0.06], sat: [0.45, 0.15], lig: [0.09, 0.07] },
+      palm: { trunk: palm.trunk, crown: palm.crown, mat: leafDS, hue: [0.19, 0.06], sat: [0.6, 0.15], lig: [0.2, 0.1] },
+    };
+    // Tilt + scale jitter so no two trees match.
+    const placeJ = (o, p, q, sc) => {
+      p.set(o.x, o.y, o.z);
+      q.setFromEuler(new THREE.Euler((hash2(o.x, o.z, 7) - 0.5) * 0.22, o.r || 0, (hash2(o.z, o.x, 8) - 0.5) * 0.22));
+      const s0 = o.s || 1;
+      sc.set(s0 * (0.85 + hash2(o.x, o.z, 9) * 0.3), s0 * (0.8 + hash2(o.x, o.z, 10) * 0.5), s0 * (0.85 + hash2(o.z, o.x, 11) * 0.3));
+    };
     for (const list of cells.values()) {
-      inst(trunk, trunkMat, list, place);
-      const crowns = inst(crown, leafMat, list, place);
-      list.forEach((t, i) => { c.setHSL(0.21 + hash2(t.x, t.z, 1) * 0.1, 0.55 + hash2(t.x, t.z, 3) * 0.2, 0.13 + hash2(t.z, t.x, 2) * 0.12); crowns.setColorAt(i, c); });
+      const byType = { broad: [], conifer: [], palm: [] };
+      for (const t of list) byType[t.palm || (t.y < 3.2 && hash2(t.x, t.z, 5) < 0.4) ? 'palm' : t.y > 22 && hash2(t.x, t.z, 6) < 0.6 ? 'conifer' : 'broad'].push(t);
+      for (const [type, arr] of Object.entries(byType)) {
+        if (!arr.length) continue;
+        const T = TYPES[type];
+        inst(T.trunk, trunkMat, arr, placeJ);
+        const crowns = inst(T.crown, T.mat, arr, placeJ);
+        arr.forEach((t, i) => { c.setHSL(T.hue[0] + hash2(t.x, t.z, 1) * T.hue[1], T.sat[0] + hash2(t.x, t.z, 3) * T.sat[1], T.lig[0] + hash2(t.z, t.x, 2) * T.lig[1]); crowns.setColorAt(i, c); });
+      }
     }
     const pg = pagodaGeometry();
     inst(pg.body, stoneMat, pagodas, place);
     inst(pg.roof, roofMat, pagodas, place);
     inst(pg.windows, lampMat, pagodas, place, false);
-    inst(lanternGeometry(), stoneMat, lanterns, place, false);
+    const lanternStone = applyCloudShadow(new THREE.MeshStandardMaterial({ color: 0x5d5a52, roughness: 0.9 }));
+    inst(lanternGeometry(), lanternStone, lanterns, place, false);
     const glow = new THREE.SphereGeometry(0.45, 8, 6); glow.translate(0, 1.9, 0);
     inst(glow, lampMat, lanterns, place, false);
 

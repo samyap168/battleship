@@ -122,7 +122,7 @@ export class Drones {
       const pitch = -Math.atan2(d.vy, hs + 1e-3);
       _e.set(pitch * 0.8, yaw, d.bank);
       _q.setFromEuler(_e);
-      _s.setScalar(d.type === 'micro' ? 1.9 : d.type === 'fighter' ? 1.5 : d.type === 'bomber' ? 1.4 : 1.4);
+      _s.setScalar((d.type === 'micro' ? 1.9 : d.type === 'fighter' ? 1.5 : 1.4) * (0.82 + ((d.idx * 0.618) % 1) * 0.36));
       _m.compose(_p.set(d.x, d.y, d.z), _q, _s);
       im.setMatrixAt(c, _m);
       im.setColorAt(c, this.teamCol[d.team]);

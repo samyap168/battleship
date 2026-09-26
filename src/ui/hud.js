@@ -327,6 +327,17 @@ export class HUD {
         c.strokeStyle = p.color; c.globalAlpha = 1 - k; c.lineWidth = 3; c.stroke(); c.globalAlpha = 1;
       }
     }
+    // radar sweep + vignette
+    const sweep = (performance.now() / 2600) % 1 * Math.PI * 2;
+    const cx = W / 2, cy = H / 2, R = Math.hypot(W, H) / 2;
+    const grad = c.createConicGradient ? c.createConicGradient(sweep, cx, cy) : null;
+    if (grad) {
+      grad.addColorStop(0, 'rgba(140,230,200,0.16)'); grad.addColorStop(0.08, 'rgba(140,230,200,0.0)'); grad.addColorStop(1, 'rgba(140,230,200,0.0)');
+      c.fillStyle = grad; c.fillRect(0, 0, W, H);
+    }
+    const vg = c.createRadialGradient(cx, cy, R * 0.55, cx, cy, R);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.45)');
+    c.fillStyle = vg; c.fillRect(0, 0, W, H);
     // camera view
     if (camView) {
       c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 1.5;

@@ -84,7 +84,7 @@ export function fountain(team) { return { x: team === 0 ? -SPAWN_X : SPAWN_X, z:
 // -------------------------------------------------------------------------
 // Obstacles used for collision + nav (islands + structure islets + ports)
 export function buildObstacles() {
-  const obs = ISLANDS.map((i) => ({ x: i.x, z: i.z, r: i.r }));
+  const obs = ISLANDS.map((i) => ({ x: i.x, z: i.z, r: i.r, natural: true })); // natural islands draw their own surf ribbon
   for (const s of STRUCTURE_LAYOUT) obs.push({ x: s.x, z: s.z, r: s.tier === 'citadel' ? 30 : s.tier === 'inner' ? 14 : 12.5 });
   for (const p of PORT_LAYOUT) obs.push({ x: p.x, z: p.z, r: 17 });
   return obs;

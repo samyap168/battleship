@@ -40,7 +40,7 @@ sky.updateEnv(0, true);
 await step(40, 'Raising the tides');
 const ocean = new Ocean(scene);
 await step(58, 'Charting the archipelago');
-new Environment(scene, ISLANDS, SCENERY);
+const env = new Environment(scene, ISLANDS, SCENERY);
 const particles = new Particles(scene);
 const fx = new FX(scene, particles, ocean.decals, R);
 const cameraDir = new CameraDirector(R.camera);
@@ -249,6 +249,15 @@ document.body.appendChild(fpsEl);
 let wallTime = 0;
 let fpsAcc = 0, fpsN = 0, fps = 60;
 const lightCol = new THREE.Color();
+// Per-age colour grade: the look escalates with your technology.
+const AGE_GRADE = {
+  1: { gain: [1.04, 1.0, 0.93], lift: [0.016, 0.01, 0.0], sat: 1.1, con: 1.07, ca: 0.0006 },
+  2: { gain: [1.03, 0.99, 0.92], lift: [0.012, 0.009, 0.006], sat: 0.98, con: 1.12, ca: 0.0006 },
+  3: { gain: [0.99, 1.0, 1.03], lift: [0.006, 0.01, 0.016], sat: 1.03, con: 1.12, ca: 0.0007 },
+  4: { gain: [1.0, 1.01, 1.02], lift: [0.008, 0.01, 0.014], sat: 1.14, con: 1.09, ca: 0.0008 },
+  5: { gain: [0.96, 1.0, 1.07], lift: [0.0, 0.012, 0.03], sat: 1.18, con: 1.15, ca: 0.0013 },
+};
+const gradeCur = { gain: new THREE.Vector3(1, 1, 1), lift: new THREE.Vector3(), sat: 1.1, con: 1.08, ca: 0.0007 };
 window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, get fps() { return fps; } };
 
 function frame() {
@@ -298,6 +307,7 @@ function tick(dt, draw) {
   particles.setScale(R);
 
   CLOUD.uCloudT.value = wallTime;
+  env.update(t);
   ocean.update(gdt, t, f.x, f.z, sky);
   fx.update(gdt, t);
   particles.update(gdt);
@@ -310,6 +320,13 @@ function tick(dt, draw) {
 
   // cinematic grading reacting to player state
   const gu = R.grade.uniforms;
+  const ag = AGE_GRADE[(mode === 'play' && p) ? p.age : 1];
+  const gk = Math.min(1, dt * 1.2);
+  gradeCur.gain.lerp(new THREE.Vector3(...ag.gain), gk); gradeCur.lift.lerp(new THREE.Vector3(...ag.lift), gk);
+  gradeCur.sat += (ag.sat - gradeCur.sat) * gk; gradeCur.con += (ag.con - gradeCur.con) * gk; gradeCur.ca += (ag.ca - gradeCur.ca) * gk;
+  gu.uGain.value.copy(gradeCur.gain); gu.uLift.value.copy(gradeCur.lift);
+  gu.uSat.value = gradeCur.sat; gu.uContrast.value = gradeCur.con; gu.uCA.value = gradeCur.ca;
+  R.noShock = mode === 'menu';
   if (p && !params.get('photo')) {
     const hpF = p.alive ? p.hp / p.maxHp : 0;
     gu.uDamage.value += ((hpF < 0.3 && p.alive ? (0.3 - hpF) * 2.5 + Math.sin(wallTime * 6) * 0.08 : 0) - gu.uDamage.value) * Math.min(1, dt * 4);

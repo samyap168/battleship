@@ -111,18 +111,20 @@ wN = normalize(wN);
 vec3 V = normalize(cameraPosition - vOW);
 
 // --- islands: shore distance
-float shoreD = 1e4;
+float shoreD = 1e4, foamD = 1e4;
 for (int i = 0; i < ${MAX_ISLANDS}; i++) {
   if (i >= uIslandCount) break;
   vec4 isl = uIslands[i];
-  shoreD = min(shoreD, length(vOW.xz - isl.xy) - isl.z);
+  float d = length(vOW.xz - isl.xy) - isl.z;
+  shoreD = min(shoreD, d);
+  if (isl.w > 0.5) foamD = min(foamD, d); // round fort/port islets: analytic surf
 }
 float n1 = oFbm(vOW.xz * 0.12 + vec2(uTime * 0.05, -uTime * 0.03));
 float n2 = oFbm(vOW.xz * 0.45 - vec2(uTime * 0.11, uTime * 0.07));
-float shallow = 1.0 - smoothstep(0.0, 34.0, shoreD);
-float shoreFoam = (1.0 - smoothstep(0.0, 3.5 + n1 * 4.0, shoreD));
+float shoreFoam = (1.0 - smoothstep(0.0, 3.5 + n1 * 4.0, foamD));
 shoreFoam *= smoothstep(0.35, 0.75, 0.5 + 0.5 * sin(shoreD * 0.9 - uTime * 1.6 + n1 * 6.0) + n2 * 0.4);
-shoreFoam = max(shoreFoam * 0.85, (1.0 - smoothstep(0.0, 1.4, shoreD)) * smoothstep(0.3, 0.6, n2 + 0.2));
+shoreFoam = max(shoreFoam * 0.85, (1.0 - smoothstep(0.0, 1.4, foamD)) * smoothstep(0.3, 0.6, n2 + 0.2));
+float shallow = 1.0 - smoothstep(-6.0, 30.0, shoreD);
 float crest = smoothstep(1.15, 2.2, vWaveH + n1 * 0.9) * smoothstep(0.5, 0.85, n2) * 0.7;
 float foam = clamp(shoreFoam + crest * 0.8, 0.0, 1.0);
 vec3 waterAlbedo = mix(uDeep, uShallow * 0.6, shallow * 0.8);
@@ -173,7 +175,7 @@ gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(1.35)); // tame sun-glint fireflie
     for (const o of list) {
       if (n >= MAX_ISLANDS) break;
       if (Math.abs(o.x - fx) > 460 + o.r || Math.abs(o.z - fz) > 380 + o.r) continue;
-      arr[n++].set(o.x, o.z, o.r, 0);
+      arr[n++].set(o.x, o.z, o.r, o.natural ? 0 : 1);
     }
     this.uniforms.uIslandCount.value = n;
   }
