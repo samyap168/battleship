@@ -298,6 +298,7 @@ export class Creep extends Unit {
     this.wp = waypoints; this.wpi = 1;
     this.gold = def.gold; this.xpVal = def.xp;
     this.rig = buildCreepShip(era, heavy, team);
+    this.rig.root.traverse((o) => { if (o.isMesh) o.castShadow = false; }); // perf: gunboat shadows are imperceptible from above
     G.scene.add(this.rig.root);
     this.gunKind = era <= 1 ? 'ball' : era >= 5 ? 'laser' : era >= 4 ? 'pulse' : 'shell';
   }

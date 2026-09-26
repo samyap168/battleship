@@ -21,5 +21,5 @@ await page.evaluate(async ([x, z, d, sim]) => {
     A.step(8, 1 / 30);
   }
 }, [x === 'player' ? NaN : +x, +z, +dist, +sim]);
-await page.screenshot({ path: out });
+await page.screenshot({ path: out, timeout: 180000 });
 await browser.close();

@@ -501,14 +501,25 @@ export class Environment {
       const s0 = o.s || 1;
       sc.set(s0 * (0.85 + hash2(o.x, o.z, 9) * 0.3), s0 * (0.8 + hash2(o.x, o.z, 10) * 0.5), s0 * (0.85 + hash2(o.z, o.x, 11) * 0.3));
     };
+    // One merged geometry per tree type (bark keeps its colour via vertex colours) -> 1 draw per type per cell.
+    const merged = (trunkG, crownG) => {
+      const tg = trunkG.index ? trunkG.toNonIndexed() : trunkG.clone();
+      const cg = crownG.index ? crownG.toNonIndexed() : crownG.clone();
+      for (const g of [tg, cg]) { if (g.attributes.uv) g.deleteAttribute('uv'); }
+      const tc = new Float32Array(tg.attributes.position.count * 3);
+      for (let i = 0; i < tc.length; i += 3) { tc[i] = 1.3; tc[i + 1] = 0.75; tc[i + 2] = 0.55; } // bark (x instance tint)
+      tg.setAttribute('color', new THREE.BufferAttribute(tc, 3));
+      if (!tg.attributes.normal) tg.computeVertexNormals();
+      return mergeGeometries([tg, cg]);
+    };
+    for (const T of Object.values(TYPES)) T.geo = merged(T.trunk, T.crown);
     for (const list of cells.values()) {
       const byType = { broad: [], conifer: [], palm: [] };
       for (const t of list) byType[t.palm || (t.y < 3.2 && hash2(t.x, t.z, 5) < 0.4) ? 'palm' : t.y > 22 && hash2(t.x, t.z, 6) < 0.6 ? 'conifer' : 'broad'].push(t);
       for (const [type, arr] of Object.entries(byType)) {
         if (!arr.length) continue;
         const T = TYPES[type];
-        inst(T.trunk, trunkMat, arr, placeJ);
-        const crowns = inst(T.crown, T.mat, arr, placeJ);
+        const crowns = inst(T.geo, T.mat, arr, placeJ);
         arr.forEach((t, i) => { c.setHSL(T.hue[0] + hash2(t.x, t.z, 1) * T.hue[1], T.sat[0] + hash2(t.x, t.z, 3) * T.sat[1], T.lig[0] + hash2(t.z, t.x, 2) * T.lig[1]); crowns.setColorAt(i, c); });
       }
     }
