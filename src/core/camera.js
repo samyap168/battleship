@@ -25,7 +25,7 @@ export class CameraDirector {
     this.trauma = Math.min(1, this.trauma + a * fall * fall);
   }
 
-  zoom(delta) { this.distGoal = THREE.MathUtils.clamp(this.distGoal * (1 + delta * 0.0012), 85, 290); }
+  zoom(delta) { this.distGoal = THREE.MathUtils.clamp(this.distGoal * (1 + delta * 0.0012), 45, 290); }
 
   /** Keyframed cinematic: [{ t, pos: Vector3, look: Vector3 }], ends at the gameplay pose. */
   startCinematic(keys, end, opts = {}) {
@@ -108,8 +108,12 @@ export class CameraDirector {
     const k = 1 - Math.exp(-dt * (this.locked ? 5 : 10));
     this.focus.lerp(this.goal, k);
     this.dist = smooth(this.dist, this.distGoal, 1 - Math.exp(-dt * 8));
+    // tactical view from 85 up (44-62 deg); zooming in past that swings down to a
+    // low 'photo' angle just above the swell, looking toward the horizon
     const zoomK = (this.dist - 85) / (290 - 85);
-    const pitch = THREE.MathUtils.degToRad(smooth(44, 62, zoomK));
+    const lowK = THREE.MathUtils.smoothstep(85 - this.dist, 0, 40);
+    const pitch = THREE.MathUtils.degToRad(zoomK >= 0 ? smooth(44, 62, zoomK) : smooth(44, 16, lowK));
+    const lookY = lowK * 9;
     let x = this.focus.x, y = Math.sin(pitch) * this.dist, z = this.focus.z + Math.cos(pitch) * this.dist;
     // trauma shake (squared for a punchy falloff)
     this.trauma = Math.max(0, this.trauma - dt * 1.6);
@@ -117,7 +121,7 @@ export class CameraDirector {
     const n = (f, o) => Math.sin(this.t * f + o) * 0.6 + Math.sin(this.t * f * 2.3 + o * 3.1) * 0.4;
     x += n(37, 0) * s * 4; y += n(41, 1) * s * 3; z += n(33, 2) * s * 4;
     cam.position.set(x, y, z);
-    cam.lookAt(this.focus.x + n(29, 4) * s * 1.5, 0, this.focus.z + n(31, 5) * s * 1.5);
+    cam.lookAt(this.focus.x + n(29, 4) * s * 1.5, lookY, this.focus.z + n(31, 5) * s * 1.5);
     cam.rotateZ(n(23, 6) * s * 0.03);
   }
 

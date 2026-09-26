@@ -122,4 +122,4 @@ Every captain's hull carries a Fresnel rim light in team colour, so friend and f
 
 ## 13. Controls
 
-RMB move/attack · QWER quick-cast at cursor · T advance age · Ctrl+1–5 upgrades · Space centre camera · Y free camera · Wheel zoom · Tab scoreboard · Alt gun range · M mute.
+RMB move/attack · QWER quick-cast at cursor · T advance age · Ctrl+1–5 upgrades · Space centre camera · Y free camera · Wheel zoom (all the way in swings to a low cinematic angle) · Tab scoreboard · Alt gun range · M mute.
