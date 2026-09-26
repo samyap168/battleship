@@ -84,7 +84,8 @@ export class BotBrain {
     const B = G.boss;
     if (B && B.alive && B.risen && hpF > 0.55 && !enemies.some((e) => e.dist(B) < 120)) {
       const alliesNear = G.heroes.filter((a) => a.alive && a.team === h.team && a.dist(B) < 200).length;
-      if (alliesNear >= 3 || (B.hp / B.maxHp < 0.35 && h.dist(B) < 260)) {
+      const need = G.time > 420 ? 2 : 3; // grow bolder as dusk approaches
+      if (alliesNear >= need || (B.hp / B.maxHp < 0.35 && h.dist(B) < 260)) {
         this.state = 'boss';
         const a = Math.atan2(h.z - B.z, h.x - B.x);
         this.go(B.x + Math.cos(a) * 62, B.z + Math.sin(a) * 62);

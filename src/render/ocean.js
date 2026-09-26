@@ -50,7 +50,7 @@ function buildOceanGeometry(segments = 300, radius = 3200) {
 }
 
 export class Ocean {
-  constructor(scene) {
+  constructor(scene, quality = 'high') {
     this.uniforms = {
       uTime: { value: 0 },
       uIslands: { value: Array.from({ length: MAX_ISLANDS }, () => new THREE.Vector4(1e5, 1e5, 0, 0)) },
@@ -156,7 +156,7 @@ gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(1.35)); // tame sun-glint fireflie
     mat.customProgramCacheKey = () => 'ocean-v2';
     applyCloudShadow(mat);
     this.material = mat;
-    this.mesh = new THREE.Mesh(buildOceanGeometry(), mat);
+    this.mesh = new THREE.Mesh(buildOceanGeometry(quality === 'low' ? 170 : quality === 'medium' ? 240 : 300), mat);
     this.mesh.receiveShadow = true;
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = -1;

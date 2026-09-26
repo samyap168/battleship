@@ -547,7 +547,7 @@ export class Game {
         const c = new THREE.Color(TEAMS[u.team].glow);
         this.fx.p.add.emit({ x: u.x + Math.cos(a) * rr, y: Math.random() * r.height, z: u.z + Math.sin(a) * rr, vy: 12, life: 0.6, s0: 1.4, s1: 0.1, r: c.r * 3, g: c.g * 3, b: c.b * 3, a0: 1, a1: 0, kind: 2 });
       }
-    } else if (u.kind === 'hero' && r.root.scale.x !== 1) r.root.scale.setScalar(1);
+    } else if (u.kind === 'hero') r.root.scale.setScalar(this.viewScale || 1); // readability boost when zoomed out
     if (u.kind === 'hero') {
       if (!u.ring) { u.ring = heroRing(u.isPlayer ? 0xffd27a : TEAMS[u.team].glow, u.isPlayer); this.scene.add(u.ring); }
       u.ring.visible = u.alive;

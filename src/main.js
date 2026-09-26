@@ -44,13 +44,14 @@ const step = async (pct, txt) => { loadBar.style.width = pct + '%'; loadTxt.text
 // ---------------------------------------------------------------------------
 await step(8, 'Kindling the forge');
 const R = new Renderer($('#app'), settings.quality);
+if (settings.quality === 'low') R.rays.enabled = false;
 const scene = R.scene;
 await step(22, 'Painting the sky');
 const sky = new Sky(R.gl, scene);
 sky.setTime(MENU_TIME, 0);
 sky.updateEnv(0, true);
 await step(40, 'Raising the tides');
-const ocean = new Ocean(scene);
+const ocean = new Ocean(scene, settings.quality);
 await step(58, 'Charting the archipelago');
 const env = new Environment(scene, ISLANDS, SCENERY);
 const birds = new Birds(scene, ISLANDS);
@@ -329,7 +330,7 @@ function tick(dt, draw) {
   const p = G && G.player;
   cameraDir.update(dt, p && p.alive ? p : null);
   const f = cameraDir.focus;
-  if (G) { G.listener.x = f.x; G.listener.z = f.z; }
+  if (G) { G.listener.x = f.x; G.listener.z = f.z; G.viewScale = 1 + THREE.MathUtils.smoothstep(cameraDir.dist, 180, 290) * 0.28; }
   audio.setListener(f.x, f.z, cameraDir.dist);
 
   // time of day: dawn -> dusk across the match
@@ -342,7 +343,8 @@ function tick(dt, draw) {
   sky.updateEnv(dt);
   sky.dome.position.copy(R.camera.position);
   R.gl.toneMappingExposure = sky.exposure;
-  R.setSun(sky.sunDir, sky.sun.color, mode === 'menu' ? 1.2 : 0.7);
+  R.setSun(sky.sunDir, sky.sun.color, mode === 'menu' ? 1.0 : cameraDir.cine ? 0.8 : 0.6);
+  R.bloom.strength = cameraDir.cine ? 0.34 : 0.42;
   lightCol.copy(sky.sun.color).multiplyScalar(sky.sun.intensity * 0.28).add(sky.hemi.color.clone().multiplyScalar(0.55));
   particles.setLight(lightCol);
   particles.setScale(R);

@@ -54,9 +54,9 @@ void main() {
   float sunSide = 0.5 + 0.5 * mu;
   col += uSunColor * pow(sunSide, 6.0) * (1.0 - h) * 0.55;
   // Mie glow + disk
-  col += uSunColor * pow(max(mu, 0.0), 32.0) * 0.8 * uSunI * 0.25;
-  col += uSunColor * pow(max(mu, 0.0), 420.0) * 3.0;
-  col += uSunColor * smoothstep(0.99955, 0.99975, mu) * 40.0;
+  col += uSunColor * pow(max(mu, 0.0), 48.0) * 0.5 * uSunI * 0.2;
+  col += uSunColor * pow(max(mu, 0.0), 600.0) * 1.4;
+  col += uSunColor * smoothstep(0.99955, 0.99975, mu) * 9.0;
 
   // Clouds: project onto a plane
   if (d.y > 0.0) {
@@ -74,6 +74,8 @@ void main() {
   } else {
     col = mix(uHorizon * 0.6, uHorizon * 0.25, clamp(-d.y * 4.0, 0.0, 1.0));
   }
+  // soft-clip the sky before bloom so the sun reads as a disk + halo, not a blown-out wall
+  col = col / (1.0 + max(max(col.r, col.g), col.b) * 0.12);
   gl_FragColor = vec4(col, 1.0);
 }
 `;

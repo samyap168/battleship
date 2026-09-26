@@ -88,7 +88,7 @@ const GodRayShader = {
         decay *= 0.965;
       }
       float falloff = 1.0 - smoothstep(0.0, 1.2, length((vUv - uSun) * vec2(1.6, 1.0)));
-      gl_FragColor = vec4(base.rgb + uTint * acc * uStrength * 0.018 * falloff, base.a);
+      gl_FragColor = vec4(base.rgb + uTint * min(acc * uStrength * 0.012, 0.6) * falloff, base.a);
     }`,
 };
 
@@ -120,6 +120,7 @@ export class Renderer {
     composer.addPass(new RenderPass(this.scene, this.camera));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.42, 0.5, 1.0);
     this.bloom.enabled = this.q.bloom;
+    this.bloom.highPassUniforms.smoothWidth.value = 0.45; // soft knee: highlights roll into bloom instead of clipping
     composer.addPass(this.bloom);
     this.rays = new ShaderPass(GodRayShader);
     this.rays.enabled = this.q.bloom;

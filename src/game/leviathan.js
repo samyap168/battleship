@@ -12,8 +12,31 @@ const SEG = 42;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const _w = { y: 0 };
 
+// Overlapping-scale pattern painted on a canvas: bump + roughness detail.
+function scaleTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = '#808080'; g.fillRect(0, 0, 256, 256);
+  const S = 32;
+  for (let row = -1; row < 256 / (S * 0.5) + 1; row++) {
+    for (let col = -1; col < 256 / S + 1; col++) {
+      const x = col * S + (row % 2 ? S / 2 : 0), y = row * S * 0.5;
+      const grd = g.createRadialGradient(x, y - S * 0.2, 2, x, y, S * 0.62);
+      grd.addColorStop(0, '#e8e8e8'); grd.addColorStop(0.75, '#8a8a8a'); grd.addColorStop(1, '#2a2a2a');
+      g.fillStyle = grd;
+      g.beginPath(); g.arc(x, y, S * 0.6, 0, Math.PI); g.fill();
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(4, 3);
+  return t;
+}
+
 function serpentMaterials() {
-  const skin = applyCloudShadow(new THREE.MeshPhysicalMaterial({ color: 0x0c6663, roughness: 0.3, metalness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.25, iridescence: 0.6, iridescenceIOR: 1.6 }));
+  const sc = scaleTexture();
+  const skin = applyCloudShadow(new THREE.MeshPhysicalMaterial({ color: 0x0c6663, roughness: 0.3, metalness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.25, iridescence: 0.6, iridescenceIOR: 1.6, bumpMap: sc, bumpScale: 2.2, roughnessMap: sc }));
   const belly = applyCloudShadow(new THREE.MeshStandardMaterial({ color: 0xc9c08a, roughness: 0.55 }));
   const spine = applyCloudShadow(new THREE.MeshStandardMaterial({ color: 0x3a2a24, roughness: 0.5, metalness: 0.2 }));
   const glow = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x7dfff0, emissiveIntensity: 3 });
