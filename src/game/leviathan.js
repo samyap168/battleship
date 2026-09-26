@@ -61,18 +61,25 @@ export class Leviathan extends Unit {
     const segGeo = new THREE.SphereGeometry(1, 20, 14);
     const spineGeo = new THREE.ConeGeometry(0.35, 1.6, 6);
     const spotGeo = new THREE.SphereGeometry(1, 8, 6);
-    for (let i = 0; i < SEG; i++) {
-      const g = new THREE.Group();
-      const body = new THREE.Mesh(segGeo, M.skin); body.scale.set(1, 0.92, 1.35); body.castShadow = true;
-      const bel = new THREE.Mesh(segGeo, M.belly); bel.scale.set(0.82, 0.55, 1.2); bel.position.y = -0.42;
-      const sp = new THREE.Mesh(spineGeo, M.spine); sp.position.set(0, 1.05, 0); sp.rotation.x = -0.5;
-      g.add(body, bel, sp);
-      if (i % 2 === 0) { // bioluminescent flank spots
-        for (const sx of [-0.78, 0.78]) { const dot = new THREE.Mesh(spotGeo, M.glow); dot.position.set(sx, 0.05, 0); dot.scale.setScalar(0.16); g.add(dot); }
-      }
-      root.add(g);
-      this.segs.push(g);
+    // Body parts are instanced (one draw call per part type) and driven by
+    // lightweight per-segment transforms.
+    const L = (px, py, pz, rx, sx, sy, sz) => new THREE.Matrix4().compose(new THREE.Vector3(px, py, pz), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, 0, 0)), new THREE.Vector3(sx, sy, sz));
+    this.parts = [
+      { geo: segGeo, mat: M.skin, local: [L(0, 0, 0, 0, 1, 0.92, 1.35)], every: 1, shadow: true },
+      { geo: segGeo, mat: M.belly, local: [L(0, -0.42, 0, 0, 0.82, 0.55, 1.2)], every: 1 },
+      { geo: spineGeo, mat: M.spine, local: [L(0, 1.05, 0, -0.5, 1, 1, 1)], every: 1, shadow: true },
+      { geo: spotGeo, mat: M.glow, local: [L(-0.78, 0.05, 0, 0, 0.16, 0.16, 0.16), L(0.78, 0.05, 0, 0, 0.16, 0.16, 0.16)], every: 2 },
+    ];
+    for (const part of this.parts) {
+      const n = Math.ceil(SEG / part.every) * part.local.length;
+      part.mesh = new THREE.InstancedMesh(part.geo, part.mat, n);
+      part.mesh.castShadow = !!part.shadow;
+      part.mesh.frustumCulled = false;
+      part.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      root.add(part.mesh);
     }
+    for (let i = 0; i < SEG; i++) this.segs.push(new THREE.Object3D());
+    this._pm = new THREE.Matrix4();
     // head: skull, jaw, fins, glowing eyes
     const head = new THREE.Group();
     const skull = new THREE.Mesh(new THREE.ConeGeometry(1.25, 4.2, 12), M.skin); skull.rotation.x = Math.PI / 2; skull.scale.set(1.1, 1, 0.75); skull.castShadow = true;
@@ -187,10 +194,17 @@ export class Leviathan extends Unit {
       g.lookAt(q);
       const s = 4.3 * (1 - u * 0.6) + 0.9;
       g.scale.setScalar(s);
+      g.updateMatrix();
+      for (const part of this.parts) {
+        if (i % part.every) continue;
+        const base = Math.floor(i / part.every) * part.local.length;
+        part.local.forEach((lm, k) => part.mesh.setMatrixAt(base + k, this._pm.multiplyMatrices(g.matrix, lm)));
+      }
       // churn where the body cuts the surface
       const wy = sampleWaves(p.x, p.z, t, _w).y;
       if (Math.abs(p.y - wy) < s && Math.random() < 0.08) this.G.ocean.decals.add(p.x, p.z, s * 2.4, 2.2, 0, 0.6, 1.4);
     }
+    for (const part of this.parts) part.mesh.instanceMatrix.needsUpdate = true;
     // head leads the first segment, rearing up; jaw snaps on bite
     this.spine(0, t, p); this.spine(0.02, t, q);
     const dir = p.clone().sub(q).normalize();
