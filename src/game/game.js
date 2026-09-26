@@ -393,8 +393,14 @@ export class Game {
     // match flow
     if (!this.over) {
       if (t >= this.nextWave) { this.spawnWave(); this.nextWave += MATCH.waveInterval; }
+      // catch-up stipend: captains behind the enemy fleet's median age earn faster passive gold
+      const medAge = [0, 1].map((tm) => { const a = this.heroes.filter((x) => x.team === tm).map((x) => x.age).sort((p, q) => p - q); return a[a.length >> 1] || 1; });
       for (const h of this.heroes) {
-        h.gold += MATCH.passiveGold * dt * (h.isPlayer ? 1 : this.diff.goldMul);
+        const gap = Math.max(0, medAge[1 - h.team] - h.age);
+        h.gold += MATCH.passiveGold * dt * (h.isPlayer ? 1 : this.diff.goldMul) * (1 + 0.6 * gap);
+        // harbour repairs: fast regeneration close to your own citadel
+        if (h.alive && h.hp < h.maxHp) { if (!this.citadels) this.citadels = [0, 1].map((tm) => this.structures.find((st) => st.team === tm && st.kind === 'citadel')); const c = this.citadels[h.team]; if (c && c.alive && (c.x - h.x) ** 2 + (c.z - h.z) ** 2 < 90 * 90) h.hp = Math.min(h.maxHp, h.hp + h.maxHp * 0.06 * dt); }
+        if (h.spawnGuard > 0) h.spawnGuard -= dt;
         for (const p of this.ports) if (p.owner === h.team) h.gold += PORTS.goldPerSec * dt;
       }
       if (t >= MATCH.duration) this.timeUp();
@@ -478,7 +484,7 @@ export class Game {
     const sp = spawnPoint(h.team, h.slot);
     h.alive = true; h.hp = h.maxHp; h.x = sp.x; h.z = sp.z; h.yaw = sp.yaw; h.speed = 0;
     h.sinkT = undefined; h.stun = 0; h.slowT = 0; h.path = []; h.moveX = null; h.attackOrder = null;
-    h.rig.root.visible = true;
+    h.rig.root.visible = true; h.spawnGuard = 3; // brief invulnerability: no spawn camping
     this.fx.ring(h.x, h.z, 4, 30, this.teamGlow(h.team), 0.8, 0.1);
     if (h === this.player) this.ui.respawned();
   }

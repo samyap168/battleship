@@ -3,6 +3,7 @@ import { HULLS, ABILITIES, CREEPS, STRUCTURES, MATCH, TEAMS, AGES, UPGRADES } fr
 import { sampleWaves } from '../render/waves.js';
 import { buildHeroShip, buildCreepShip } from '../render/models/shipModels.js';
 import { buildStructure } from '../render/models/structureModels.js';
+import { applyTeamRim } from '../render/teamRim.js';
 import { BOUNDS, segmentBlocked } from './map.js';
 
 let NEXT_ID = 1;
@@ -174,6 +175,7 @@ export class Hero extends Unit {
     this.cds = [0, 0, 0, 0];
     const old = this.rig;
     this.rig = buildHeroShip(id, this.team);
+    applyTeamRim(this.rig.root, this.team);
     this.rig.root.traverse((o) => { if (o.isMesh) o.userData.unitId = this.id; });
     this.G.scene.add(this.rig.root);
     if (this.G.reflect) this.G.reflect(this.rig.root);

@@ -111,7 +111,15 @@ The team that lands the killing blow gets **350 gold per captain** and **the Lev
 - **Catch-up XP:** lower-level captains earn up to 1.6× XP.
 - **Faster respawn** for the trailing team.
 - **Backdoor protection:** forts take 45% damage from captains unless allied gunboats are within 95 units.
+- **Catch-up stipend:** captains below the enemy fleet's median age earn +60% passive gold per age behind.
+- **Home waters:** a team trailing by 6+ kills takes up to 30% less damage near its own forts, and its forts take up to 25% less. This is announced once.
+- **Harbour repairs:** captains within 90 units of their own citadel regenerate 6% hp/s.
+- **Spawn guard:** 3 s of invulnerability after recommissioning, so no spawn camping.
 
-## 12. Controls
+## 12. Faction readability
+
+Every captain's hull carries a Fresnel rim light in team colour, so friend and foe read by silhouette through smoke and at fleet zoom.
+
+## 13. Controls
 
 RMB move/attack · QWER quick-cast at cursor · T advance age · Ctrl+1–5 upgrades · Space centre camera · Y free camera · Wheel zoom · Tab scoreboard · Alt gun range · M mute.

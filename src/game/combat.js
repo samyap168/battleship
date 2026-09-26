@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { getProjectileAssets } from '../render/models/smallModels.js';
 import { sampleWaves } from '../render/waves.js';
+import { TEAMS } from '../core/config.js';
 
 const _w = { y: 0 };
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _p = new THREE.Vector3();
@@ -51,6 +52,7 @@ export class Combat {
   damage(target, amount, source, opts = {}) {
     const G = this.G;
     if (!target || !target.alive) return 0;
+    if (target.spawnGuard > 0) return 0;
     if ((target.kind === 'tower' || target.kind === 'citadel') && target.invulnerable) {
       if (source && source.isPlayer && Math.random() < 0.15) G.ui.floatText(target.x, 18, target.z, 'PROTECTED', '#9ab', 14);
       return 0;
@@ -67,6 +69,19 @@ export class Combat {
       const team = source.team;
       const escorted = G.creeps.some((c) => c.alive && c.team === team && (c.x - target.x) ** 2 + (c.z - target.z) ** 2 < 95 * 95);
       if (!escorted) dmg *= 0.45;
+    }
+    // Home waters: a team trailing badly defends its own forts more stubbornly (anti-stomp).
+    const behind = G.teams[1 - target.team] && target.team >= 0 ? G.teams[1 - target.team].kills - G.teams[target.team].kills : 0;
+    if (behind >= 6 && source && source.team !== target.team) {
+      const k = Math.min(1, (behind - 5) / 15);
+      if (target.kind === 'tower' || target.kind === 'citadel') dmg *= 1 - 0.25 * k;
+      else if (target.kind === 'hero' && G.structures.some((st) => st.alive && st.team === target.team && (st.x - target.x) ** 2 + (st.z - target.z) ** 2 < 120 * 120)) {
+        dmg *= 1 - 0.3 * k;
+        if (!G.teams[target.team].homeWaters) {
+          G.teams[target.team].homeWaters = true;
+          G.ui.announce('HOME WATERS', `${G.teams[target.team].short} defenders dig in near their forts`, TEAMS[target.team].css, 'small');
+        }
+      }
     }
     let absorbed = 0;
     if (target.shield > 0) {
