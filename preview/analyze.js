@@ -173,6 +173,21 @@ export async function distanceCompare(name, dists = [0, 200, 380], opts = {}) {
   return out;
 }
 
+// Isolated per-shot variation: N fully independent offline renders (no
+// cross-voice/reverb-tail bleed between shots) so peak/centroid differences
+// reflect only the recipe's own per-play randomisation (pitch/level jitter,
+// random noise-buffer read offsets).
+export async function isolatedVariation(name, count = 5, opts = {}) {
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const { buf, sr } = await renderBuf(async (e) => { e.play(name, { x: 0, z: 0, ...opts }); }, { seconds: 3 });
+    const L = buf.getChannelData(0);
+    let pk = 0; for (const x of L) { const a = Math.abs(x); if (a > pk) pk = a; }
+    out.push({ peakDb: +dbfs(pk).toFixed(2), centroidHz: Math.round(spectralCentroid(L, sr, 0, 1)) });
+  }
+  return out;
+}
+
 export async function fullAnalyze(name, opts = {}, seconds = 5) {
   const { buf, sr } = await renderBuf(async (e) => { e.play(name, { x: 0, z: 0, ...opts }); }, { seconds });
   const L = buf.getChannelData(0), R = buf.getChannelData(1);
@@ -182,4 +197,4 @@ export async function fullAnalyze(name, opts = {}, seconds = 5) {
   return { name, ...at, bandsPct: sb.pct, stereo: width };
 }
 
-window.Analyze = { renderBuf, spectralBalance, attackAndTail, stereoWidth, variation, distanceCompare, fullAnalyze };
+window.Analyze = { renderBuf, spectralBalance, attackAndTail, stereoWidth, variation, distanceCompare, fullAnalyze, isolatedVariation };

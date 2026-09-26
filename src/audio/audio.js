@@ -101,14 +101,15 @@ export class Engine {
     const dl = ctx.createDelay(1.5);
     dl.delayTime.value = 0.41;
     const elp = k.filter('lowpass', 1300, 0.7);
-    const fb = k.gain(0.3);
+    const fb = k.gain(0.42); // 2-3 audible repeats rolling back off the islands
     this.echoIn.connect(dl); dl.connect(elp); elp.connect(fb); fb.connect(dl);
     elp.connect(k.gain(0.35, this.sfxIn));
     elp.connect(k.gain(0.25, this.sfxRevIn));
     // Music
     this.musicVol = k.gain(0.6, this.preMaster);
     this.musicFade = k.gain(0, k.gain(0.56, this.musicVol)); // fade stage + fixed score trim
-    this.musicIn = k.gain(1, this.musicFade); // duck stage
+    this.combatDuck = k.gain(1, this.musicFade); // combat sidechain stage (heavy fire pushes the score back)
+    this.musicIn = k.gain(1, this.combatDuck); // stinger duck stage
     const hall = ctx.createConvolver();
     hall.buffer = this.res.irHall;
     this.hallIn = k.gain(1, hall);
@@ -147,7 +148,7 @@ export class Engine {
       const dn = clamp((d - near) / (R - near));
       g = Math.pow(1 - dn, 1.6) / (1 + 1.5 * dn);
       pan = clamp(dx / (R * 0.55), -1, 1) * 0.8;
-      if (dn > 0.04) cutoff = 1500 + 17000 * (1 - dn) * (1 - dn);
+      if (dn > 0.04) cutoff = 900 + 15000 * (1 - dn) * (1 - dn) * (1 - dn); // air absorption: highs die first over open water
     }
     const jit = 1 + (Math.random() * 2 - 1) * def.jv;
     let base = vol * def.lvl * jit;
@@ -184,11 +185,21 @@ export class Engine {
     if (cutoff) { const lp = V.filter('lowpass', cutoff, 0.5); head.connect(lp); head = lp; nodes.push(lp); }
     if (positional) { const p = V.pan(pan); head.connect(p); head = p; nodes.push(p); }
     head.connect(this.sfxIn);
-    V.wet = V.gain(base * def.rev * Math.sqrt(g), this.sfxRevIn);
+    // sends are darkened by distance too (gentler than the dry path), so far shots
+    // sound muffled instead of their reverb tail staying bright
+    const sendDest = (dest) => { if (!cutoff) return dest; const f = V.filter('lowpass', Math.min(18000, cutoff * 1.15), 0.5); f.connect(dest); nodes.push(f); return f; };
+    V.wet = V.gain(base * def.rev * Math.sqrt(g), sendDest(this.sfxRevIn));
     V.out.connect(V.wet);
     nodes.push(V.wet);
-    V.echo = def.echo > 0 ? V.gain(base * def.echo * Math.pow(g, 0.7), this.echoIn) : null;
+    V.echo = def.echo > 0 ? V.gain(base * def.echo * Math.pow(g, 0.7), sendDest(this.echoIn)) : null;
     if (V.echo) nodes.push(V.echo);
+    // sidechain: loud weapon hits near the listener dip the music for a moment
+    if (def.pri >= 3 && base * g > 0.3 && this.combatDuck) {
+      const dk = this.combatDuck.gain, depth = Math.min(0.4, 0.2 + base * g * 0.15);
+      dk.cancelScheduledValues(t);
+      dk.setTargetAtTime(Math.min(dk.value, 1 - depth), t, 0.025);
+      dk.setTargetAtTime(1, t + 0.3, 0.8);
+    }
     let dur;
     try { dur = recipe(V); } catch (e) { for (const n of nodes) n.disconnect(); throw e; }
     const voice = { name, start: t, end: t + dur, level: base * g, pri: def.pri, V, nodes };

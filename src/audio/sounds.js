@@ -11,19 +11,19 @@ import { rand } from './synth.js';
 // radius multiplier. jp/jv: pitch / level randomisation (fractional).
 export const DEFS = {
   cannon:        { cap: 8, pri: 3, rev: 0.22, echo: 0.05, range: 1.0,  jp: 0.07, jv: 0.18, lvl: 0.87 },
-  cannonHeavy:   { cap: 6, pri: 5, rev: 0.25, echo: 0.12, range: 1.15, jp: 0.05, jv: 0.15, lvl: 0.74 },
+  cannonHeavy:   { cap: 6, pri: 5, rev: 0.25, echo: 0.26, range: 1.15, jp: 0.05, jv: 0.15, lvl: 0.74 },
   shellWhistle:  { cap: 4, pri: 2, rev: 0.15, echo: 0,    range: 0.8,  jp: 0.08, jv: 0.2,  lvl: 1.07 },
   flak:          { cap: 8, pri: 2, rev: 0.2,  echo: 0.03, range: 0.9,  jp: 0.1,  jv: 0.2,  lvl: 1.27 },
   laser:         { cap: 8, pri: 2, rev: 0.18, echo: 0,    range: 0.9,  jp: 0.05, jv: 0.15, lvl: 1.26 },
   pulse:         { cap: 8, pri: 2, rev: 0.18, echo: 0,    range: 0.9,  jp: 0.06, jv: 0.15, lvl: 1.14 },
-  rail:          { cap: 3, pri: 7, rev: 0.28, echo: 0.14, range: 1.15, jp: 0.03, jv: 0.1,  lvl: 0.88 },
+  rail:          { cap: 3, pri: 7, rev: 0.28, echo: 0.24, range: 1.15, jp: 0.03, jv: 0.1,  lvl: 1.7 },
   torpedoLaunch: { cap: 4, pri: 3, rev: 0.15, echo: 0,    range: 0.9,  jp: 0.06, jv: 0.15, lvl: 0.94 },
   torpedoRun:    { cap: 4, pri: 1, rev: 0.1,  echo: 0,    range: 0.7,  jp: 0.08, jv: 0.2,  lvl: 1.78 },
   missile:       { cap: 6, pri: 3, rev: 0.22, echo: 0.05, range: 1.0,  jp: 0.06, jv: 0.15, lvl: 1.66 },
   missileRipple: { cap: 2, pri: 5, rev: 0.22, echo: 0.06, range: 1.05, jp: 0.04, jv: 0.1,  lvl: 3.02 },
-  hypersonic:    { cap: 2, pri: 8, rev: 0.25, echo: 0.15, range: 1.25, jp: 0.03, jv: 0.08, lvl: 1.06 },
+  hypersonic:    { cap: 2, pri: 8, rev: 0.25, echo: 0.28, range: 1.25, jp: 0.03, jv: 0.08, lvl: 1.06 },
   explosion:     { cap: 6, pri: 4, rev: 0.25, echo: 0.07, range: 1.0,  jp: 0.08, jv: 0.18, lvl: 0.75 },
-  explosionBig:  { cap: 3, pri: 7, rev: 0.3,  echo: 0.15, range: 1.2,  jp: 0.05, jv: 0.1,  lvl: 0.65 },
+  explosionBig:  { cap: 3, pri: 7, rev: 0.3,  echo: 0.28, range: 1.2,  jp: 0.05, jv: 0.1,  lvl: 0.65 },
   splash:        { cap: 8, pri: 1, rev: 0.15, echo: 0,    range: 0.8,  jp: 0.12, jv: 0.25, lvl: 1.62 },
   hit:           { cap: 8, pri: 2, rev: 0.18, echo: 0,    range: 0.85, jp: 0.1,  jv: 0.2,  lvl: 0.92 },
   droneLaunch:   { cap: 4, pri: 2, rev: 0.15, echo: 0,    range: 0.85, jp: 0.08, jv: 0.15, lvl: 2.66 },
@@ -113,8 +113,13 @@ function whistle(V, t, f0, f1, dur, peak) {
 export const RECIPES = {
   cannon(V) {
     const { t, p } = V;
-    V.burst(t, { kind: 'white', type: 'highpass', f: 1900 * p, a: 0.0008, d: 0.045, peak: 0.55 });
-    V.burst(t, { kind: 'pink', type: 'bandpass', f: 190 * p, Q: 1.1, a: 0.002, d: 0.22, peak: 0.6 });
+    // round-robin: three transient shapes so a broadside never repeats one voiceprint
+    const rr = (Math.random() * 3) | 0;
+    V.burst(t, { kind: 'white', type: 'highpass', f: [1900, 2400, 1500][rr] * p, a: 0.0008, d: [0.045, 0.035, 0.06][rr], peak: 0.55 });
+    V.burst(t, { kind: 'pink', type: 'bandpass', f: [190, 160, 230][rr] * p, Q: 1.1, a: 0.002, d: 0.22, peak: 0.6 });
+    // black-powder grain ignition: a rough mid-band crackle that turret HE shells don't have
+    V.burst(t + 0.003, { kind: 'crackle', type: 'bandpass', f: 2200 * p * rand(0.85, 1.25), Q: 0.9, a: 0.001, d: rand(0.018, 0.04), peak: 0.38 });
+    if (rr === 2) V.burst(t + rand(0.01, 0.016), { kind: 'white', type: 'bandpass', f: 1700 * p, Q: 1.2, a: 0.0008, d: 0.03, peak: 0.3 }); // uneven double crack
     V.burst(t, { kind: 'pink', type: 'lowpass', f: 2600 * p, f1: 260 * p, sweep: 0.35, Q: 0.9, a: 0.002, d: 0.65, peak: 0.85, dest: [V.out, V.echo] });
     V.tone(t, { f: 96 * p, f1: 38 * p, sweep: 0.25, a: 0.002, d: 0.45, peak: 0.85 });
     V.burst(t + 0.03, { kind: 'brown', type: 'lowpass', f: 520 * p, f1: 170 * p, sweep: 1.2, a: 0.05, d: 1.4, peak: 0.3, dest: [V.out, V.wet] });
@@ -183,8 +188,9 @@ export const RECIPES = {
     V.burst(t, { kind: 'white', type: 'highpass', f: 2500 * p, a: 0.0004, d: 0.06, peak: 0.8 });
     V.burst(t, { kind: 'white', type: 'bandpass', f: 6500 * p, Q: 0.7, a: 0.0004, d: 0.12, peak: 0.35 });
     V.burst(t + 0.005, { kind: 'white', type: 'bandpass', f: 7000 * p, f1: 650 * p, sweep: 0.5, Q: 1.5, a: 0.002, d: 0.6, peak: 0.45 });
-    V.tone(t, { f: 66 * p, f1: 24 * p, sweep: 0.5, a: 0.002, d: 1.0, peak: 1.0 });
-    V.burst(t, { kind: 'pink', type: 'lowpass', f: 2200 * p, f1: 150 * p, sweep: 0.8, a: 0.002, d: 1.0, peak: 0.5, dest: [V.out, V.echo] });
+    V.tone(t, { f: 66 * p, f1: 30 * p, sweep: 0.4, a: 0.002, d: 0.45, peak: 0.22 }); // sub kept, but the electric snap leads
+    V.burst(t, { kind: 'pink', type: 'bandpass', f: 1400 * p, f1: 420 * p, sweep: 0.8, Q: 0.7, a: 0.002, d: 0.9, peak: 0.5, dest: [V.out, V.echo] });
+    V.burst(t, { kind: 'white', type: 'bandpass', f: 4200 * p, Q: 2.5, a: 0.0005, d: 0.09, peak: 0.55 }); // ionised-air zap
     // capacitor-discharge whine with electric flutter
     const wg = V.gain(0, V.out);
     const trem = V.gain(0.6, wg);
@@ -196,7 +202,7 @@ export const RECIPES = {
       const o = V.osc('sawtooth', f * p, t, 1.8, bp);
       o.frequency.exponentialRampToValueAtTime(680 * p, t + 1.5);
     });
-    envelope2(wg.gain, t, 0.006, 0.14, 1.5);
+    envelope2(wg.gain, t, 0.006, 0.34, 1.5);
     V.burst(t + 0.01, { kind: 'crackle', type: 'highpass', f: 3000, a: 0.002, d: 0.5, peak: 0.3 });
     return 2.6;
   },

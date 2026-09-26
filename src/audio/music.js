@@ -173,8 +173,10 @@ export class Music {
     const now = this.ctx.currentTime;
     if (this.next < now - 0.06) this.next = now + 0.03; // fell behind (tab throttled): skip, never pile up
     while (this.next < tEnd && this.next < this.stopAt) {
+      // tempo push: war sections drive ~12% faster (90 -> ~101 BPM); only changes on bar lines
+      if (this.step % 16 === 0) this.tempo = this.I > 0.7 ? 1.12 : this.I < 0.55 ? 1 : (this.tempo || 1);
       this._step(this.step, this.next);
-      this.next += STEP;
+      this.next += STEP / (this.tempo || 1);
       this.step++;
     }
   }
