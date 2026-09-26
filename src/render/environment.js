@@ -110,18 +110,25 @@ function treeGeometries() {
   const trunk = new THREE.CylinderGeometry(0.35, 0.55, 5, 6);
   trunk.translate(0, 2.5, 0);
   const crowns = [];
-  for (let i = 0; i < 3; i++) {
-    const c = new THREE.IcosahedronGeometry(1.65 - i * 0.3, 1); // smaller core: the lobes carry the silhouette
-    c.scale(1, 0.8, 1);
-    c.translate((i - 1) * 0.5, 5 + i * 1.7, (i % 2) * 0.4);
+  // Canopy = a small core plus flattened leaf-cluster pads on two tiers (the
+  // cloud-pruned look of hand-painted broadleaf trees): the pads, not a sphere,
+  // define the silhouette, so it reads as foliage clumps at any distance.
+  for (let i = 0; i < 2; i++) {
+    const c = new THREE.IcosahedronGeometry(1.0 - i * 0.25, 1);
+    c.scale(1, 0.75, 1);
+    c.translate(i * 0.3, 5.4 + i * 1.3, 0);
     crowns.push(c);
   }
-  // outer lobes break the silhouette so a canopy never reads as one smooth blob
-  for (let i = 0; i < 6; i++) {
-    const a = i * 1.047 + 0.4 + (i % 2) * 0.25, r = 1.55 + (i % 3) * 0.3;
-    const c = new THREE.IcosahedronGeometry(1.25 - (i % 2) * 0.3, i % 2 ? 0 : 1); // small lobes low-poly: forests are triangle-heavy
-    c.scale(1, 0.6, 1);
-    c.translate(Math.cos(a) * r, 4.9 + (i % 3) * 1.0 + (i % 2) * 0.4, Math.sin(a) * r);
+  const PADS = [ // [angle, ring radius, height, size, detail]
+    [0.3, 1.5, 4.7, 1.6, 1], [1.5, 1.7, 5.0, 1.45, 0], [2.6, 1.45, 4.6, 1.7, 1], [3.8, 1.75, 5.1, 1.4, 0], [5.0, 1.5, 4.8, 1.55, 1],
+    [0.9, 0.95, 6.2, 1.35, 1], [2.9, 1.0, 6.4, 1.25, 0], [4.7, 0.9, 6.1, 1.3, 0], [0, 0, 7.1, 1.05, 1],
+  ];
+  for (const [a, r, y, sz, det] of PADS) {
+    const c = new THREE.IcosahedronGeometry(sz, det);
+    c.scale(1, 0.42, 1);                       // flat pads, not balls
+    c.rotateZ((hash2(a, y, 3) - 0.5) * 0.5);   // tilted clusters
+    c.rotateY(a + (hash2(y, a, 9) - 0.5) * 0.5);
+    c.translate(Math.cos(a) * r, y, Math.sin(a) * r);
     crowns.push(c);
   }
   const crown = mergeGeometries(crowns.map((g) => g.index ? g.toNonIndexed() : g));
@@ -303,7 +310,7 @@ export function karstTower(r, h, seed, lean = 0) {
     const flute = fbm(cx * 2.2 + seed, sz * 2.2 + y * 1.5, seed, 4);
     const strata = Math.sin(y * h * 0.9 + fbm(a * 2, y * 4, seed + 3, 2) * 3) * 0.5 + 0.5;
     rad *= 0.78 + flute * 0.45 + strata * 0.05;
-    const yy = y * h + (y > 0.98 ? (fbm(cx * 3, sz * 3, seed + 7, 3) - 0.3) * r * 0.25 : 0);
+    const yy = y * h + (y > 0.9 && y < 0.999 ? (fbm(cx * 3, sz * 3, seed + 7, 3) - 0.3) * r * 0.12 * Math.sin((y - 0.9) / 0.099 * Math.PI) : 0); // smooth crown, no pole spike
     const bend = y * y;
     p.setXYZ(i, Math.cos(a) * rad + lx * bend * h * 0.15, yy - 2.5, Math.sin(a) * rad + lz * bend * h * 0.15);
   }
@@ -397,7 +404,7 @@ export class Environment {
           const d = k === 0 ? rngS() * 0.12 : cfg.spread * (0.55 + rngS() * 0.45);
           const r = isl.r * (cfg.r[0] + rngS() * (cfg.r[1] - cfg.r[0])) * (k === 0 ? 1.15 : 1);
           const h = (cfg.h[0] + rngS() * (cfg.h[1] - cfg.h[0])) * (k === 0 ? 1 : 0.75) * Math.min(1.2, 0.6 + isl.r / 70);
-          const kt = karstTower(r, h, isl.seed * 10 + k, rngS() * 0.6);
+          const kt = karstTower(r * (0.55 + rngS() * 0.45), h, isl.seed * 10 + k, rngS() * 0.6); // slim + stout towers mixed at every depth
           const ox = Math.cos(a) * d * isl.r, oz = Math.sin(a) * d * isl.r;
           kt.geometry.translate(ox, 0, oz);
           geos.push(kt.geometry);

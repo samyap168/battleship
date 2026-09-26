@@ -416,22 +416,29 @@ function applyClothFolds(m) {
   m.onBeforeCompile = (sh, r) => {
     if (prev) prev(sh, r);
     sh.uniforms.uClothT = CLOUD.uCloudT;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying float vClothPh;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n{ vec4 cw = modelMatrix * vec4(position, 1.0); vClothPh = dot(cw.xz, vec2(0.071, 0.113)); } // each flag on its own phase');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uClothT;')
+      .replace('#include <common>', '#include <common>\nuniform float uClothT; varying float vClothPh;')
       .replace('#include <map_fragment>', `#include <map_fragment>
 #ifdef USE_MAP
 {
   vec2 cu = vMapUv;
-  float fold = sin(cu.x * 15.0 - uClothT * 7.0 + sin(cu.y * 3.0 + uClothT) * 1.3);
-  float fold2 = sin(cu.x * 31.0 - uClothT * 11.0 + cu.y * 4.0);
-  float shade = 0.66 + 0.26 * fold + 0.08 * fold2;
+  float tt = uClothT + vClothPh * 6.2831;
+  // band-limited: folds fade out once a cycle gets close to a pixel (distant flags stay clean, no shimmer)
+  float fw = fwidth(cu.x);
+  float a1 = 1.0 - smoothstep(0.05, 0.18, fw * 6.0), a2 = 1.0 - smoothstep(0.05, 0.18, fw * 12.0);
+  float fold = sin(cu.x * 6.0 - tt * 5.0 + sin(cu.y * 2.5 + tt) * 1.1) * a1;
+  float fold2 = sin(cu.x * 12.0 - tt * 8.0 + cu.y * 3.0) * a2;
+  float shade = 0.7 + 0.24 * fold + 0.07 * fold2;
   diffuseColor.rgb *= shade * mix(1.0, 0.72, smoothstep(0.55, 1.0, cu.x));   // folds + sun-faded, sooty fly end
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), 0.18); // weathered dye
 }
 #endif`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
 #ifdef USE_MAP
-roughnessFactor = clamp(roughnessFactor - 0.25 * smoothstep(0.6, 1.0, sin(vMapUv.x * 15.0 - uClothT * 7.0)), 0.3, 1.0);
+roughnessFactor = clamp(roughnessFactor - 0.22 * smoothstep(0.6, 1.0, sin(vMapUv.x * 6.0 - (uClothT + vClothPh * 6.2831) * 5.0)), 0.3, 1.0);
 #endif`);
   };
   const key = m.customProgramCacheKey ? m.customProgramCacheKey.bind(m) : () => '';
@@ -454,7 +461,7 @@ function applySoftBeam(m) {
   float core = pow(facing, 2.2);                                   // bright centre, soft falloff to the edges
   float along = smoothstep(76.5, 52.0, vBmY) * smoothstep(40.5, 43.5, vBmY);
   diffuseColor.a *= core * along * 1.6;
-  diffuseColor.rgb *= 1.0 + (1.0 - smoothstep(40.5, 50.0, vBmY)) * 0.8; // hot base
+  diffuseColor.rgb *= 1.0 + (1.0 - smoothstep(40.5, 50.0, vBmY)) * vec3(0.45, 0.75, 0.9); // cool-white base: reads as environment, not as a foreground shield
 }`);
   };
   m.customProgramCacheKey = () => 'softbeam';
