@@ -152,7 +152,7 @@ export class Game {
       team.ageAnnounced[h.age] = true;
       if (h !== this.player) {
         const friendly = this.player ? h.team === this.player.team : h.team === 0;
-        this.ui.announce(`${team.short.toUpperCase()} ENTERS THE ${AGES[h.age - 1].name.toUpperCase()}`, `${h.name} commissions a ${HULLS[hullId].name}`, TEAMS[h.team].css, 'small');
+        this.ui.announce(`${team.short.toUpperCase()} ENTERS THE ${AGES[h.age - 1].name.toUpperCase()}`, `${h.name} commissions ${/^[AEIOU]/.test(HULLS[hullId].name) ? 'an' : 'a'} ${HULLS[hullId].name}`, TEAMS[h.team].css, 'small');
         this.audio.stinger(friendly ? 'ageUp' : 'enemyAge');
       }
     }
@@ -490,11 +490,11 @@ export class Game {
     // wake + bow spray
     u.wakeT = (u.wakeT || 0) - dt;
     if (u.wakeT <= 0 && speed01 > 0.1) {
-      u.wakeT = 0.09;
+      u.wakeT = u.kind === 'hero' ? 0.045 : 0.07;
       const fx = Math.sin(u.yaw), fz = Math.cos(u.yaw);
       const L = r.length * 0.5;
-      const wA = u.kind === 'hero' ? 0.09 + speed01 * 0.13 : 0.06 + speed01 * 0.07;
-      this.ocean.decals.add(u.x - fx * L, u.z - fz * L, r.beam * (0.7 + speed01 * 0.5), (u.kind === 'hero' ? 2.6 : 1.6) + speed01 * 1.6, 0, wA, 1.3 + speed01 * 0.6);
+      const wA = u.kind === 'hero' ? 0.06 + speed01 * 0.08 : 0.04 + speed01 * 0.05;
+      this.ocean.decals.add(u.x - fx * L + (Math.random() - 0.5) * r.beam * 0.4, u.z - fz * L + (Math.random() - 0.5) * r.beam * 0.4, r.beam * (1.1 + speed01 * 0.7), (u.kind === 'hero' ? 3.2 : 2.0) + speed01 * 1.6, 0, wA, 1.6 + speed01 * 0.8);
       // bow wave
       this.ocean.decals.add(u.x + fx * L * 0.9, u.z + fz * L * 0.9, r.beam * 0.7, 1.1, 0, 0.35 * speed01, 1.2);
       if (u.kind === 'hero' && speed01 > 0.5 && this.frame % 2 === 0) {

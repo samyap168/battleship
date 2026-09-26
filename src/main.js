@@ -305,7 +305,7 @@ function tick(dt, draw) {
 
   // cinematic grading reacting to player state
   const gu = R.grade.uniforms;
-  if (p) {
+  if (p && !params.get('photo')) {
     const hpF = p.alive ? p.hp / p.maxHp : 0;
     gu.uDamage.value += ((hpF < 0.3 && p.alive ? (0.3 - hpF) * 2.5 + Math.sin(wallTime * 6) * 0.08 : 0) - gu.uDamage.value) * Math.min(1, dt * 4);
     gu.uDesat.value += ((p.alive ? 0 : 0.85) - gu.uDesat.value) * Math.min(1, dt * 2);

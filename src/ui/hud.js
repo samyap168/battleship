@@ -192,13 +192,13 @@ export class HUD {
   }
   floatText(x, y, z, text, color = '#fff', size = 14) {
     if (this.floats.length > 80) this.floats.shift();
-    this.floats.push({ x, y, z, text, color, size, t: 0, life: 1.1, dx: (Math.random() - 0.5) * 30 });
+    this.floats.push({ x, y, z, text, color, size, t: 0, life: 1.1, dx: (Math.random() - 0.5) * 30, born: performance.now() });
   }
   /** Creep-kill gold is summed into one popup above the player's ship. */
   goldPop(hero, amount) {
     const g = this.goldAcc;
     if (g && g.t < 0.6) { g.sum += amount; g.float.text = `+${g.sum}`; g.t = 0; g.float.t = Math.min(g.float.t, 0.2); return; }
-    const float = { x: hero.x, y: (hero.rig?.height || 8) + 10, z: hero.z, text: `+${amount}`, color: '#ffd24a', size: 17, t: 0, life: 1.2, dx: 0 };
+    const float = { x: hero.x, y: (hero.rig?.height || 8) + 10, z: hero.z, text: `+${amount}`, color: '#ffd24a', size: 17, t: 0, life: 1.2, dx: 0, born: performance.now() };
     this.floats.push(float);
     this.goldAcc = { t: 0, sum: amount, float };
   }
@@ -213,7 +213,7 @@ export class HUD {
     }
     a.sum += amount;
     if (!a.float || a.float.t > 0.35) {
-      a.float = { x: target.x, y: (target.rig?.height || 8) + 4, z: target.z, text: '', color: incoming ? '#ff6a5a' : '#ffffff', size: 15, t: 0, life: 1.0, dx: (Math.random() - 0.5) * 30 };
+      a.float = { x: target.x, y: (target.rig?.height || 8) + 4, z: target.z, text: '', color: incoming ? '#ff6a5a' : '#ffffff', size: 15, t: 0, life: 1.0, dx: (Math.random() - 0.5) * 30, born: performance.now() };
       this.floats.push(a.float);
       if (this.floats.length > 60) this.floats.shift();
     }
@@ -455,7 +455,8 @@ export class HUD {
     // floating text
     for (let i = this.floats.length - 1; i >= 0; i--) {
       const f = this.floats[i];
-      f.t += dt;
+      f.t = Math.max(f.t + dt, f.born ? (performance.now() - f.born) / 1000 - 2 : 0); // never outlive wall-clock
+      if (f.born && performance.now() - f.born > 4000) f.t = f.life;
       if (f.t > f.life) { this.floats.splice(i, 1); continue; }
       const s = proj(f.x, f.y, f.z);
       if (!s) continue;
