@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { getMat, pulseMaterials } from './materials.js';
+import { patchMaterial, getMat, pulseMaterials } from './materials.js';
 
 const V3 = THREE.Vector3;
 const PI = Math.PI;
@@ -589,7 +589,7 @@ const whiteVC = new Map();
 function getWhiteVC(name) {
   let m = whiteVC.get(name);
   if (!m) {
-    m = getMat(name, -1, true).clone();
+    m = patchMaterial(getMat(name, -1, true).clone(), name);
     m.color.set(0xffffff);
     m.name = name + ':vcwhite';
     whiteVC.set(name, m);

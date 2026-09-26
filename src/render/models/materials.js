@@ -11,6 +11,8 @@
 // bake tint variations into merged meshes.
 import * as THREE from 'three';
 import { applyCloudShadow } from '../cloudShadow.js';
+import { applyWeathering } from '../weathering.js';
+const WEATHER = { steel: 1, darksteel: 0.9, iron: 1.1, paint: 0.8, white: 0.55, stealth: 0.35, stealthDark: 0.35, teamMetal: 0.6, team: 0.5 };
 import { TEAMS } from '../../core/config.js';
 
 const cache = new Map();
@@ -344,7 +346,7 @@ const DEFS = {
   flightDeck: () => ({ color: 0xffffff, map: flightDeckTex(), roughness: 0.82, metalness: 0.1 }),
   team: (t) => ({ color: teamInfo(t).color, roughness: 0.45, metalness: 0.2 }),
   teamMetal: (t) => ({ color: teamInfo(t).color, roughness: 0.3, metalness: 0.8 }),
-  teamGlow: (t) => ({ color: 0x000000, emissive: teamInfo(t).glow, emissiveIntensity: 3.2, roughness: 0.4, metalness: 0.0, toneMapped: true }),
+  teamGlow: (t) => ({ color: 0x000000, emissive: teamInfo(t).glow, emissiveIntensity: 2.3, roughness: 0.4, metalness: 0.0, toneMapped: true }),
   teamPulse: (t) => ({ color: 0x000000, emissive: teamInfo(t).glow, emissiveIntensity: 3.0, roughness: 0.4, metalness: 0.0 }),
   lantern: () => ({ color: 0x201008, emissive: 0xffa84a, emissiveIntensity: 4.5, roughness: 0.5 }),
   furnace: () => ({ color: 0x100500, emissive: 0xff4d12, emissiveIntensity: 4.0, roughness: 0.6 }),
@@ -365,6 +367,14 @@ const TEAM_DEP = new Set(['team', 'teamMetal', 'teamGlow', 'teamPulse', 'sail', 
 
 export const MATERIAL_NAMES = Object.keys(DEFS);
 
+/** Re-apply shader patches (cloud shadows, weathering) -- needed after Material.clone(). */
+export function patchMaterial(m, name) {
+  m.userData = {};
+  applyCloudShadow(m);
+  if (WEATHER[name]) applyWeathering(m, WEATHER[name]);
+  return m;
+}
+
 export function getMat(name, teamId, vertexColors = false) {
   if (!DEFS[name]) throw new Error('Unknown material ' + name);
   const t = TEAM_DEP.has(name) ? (teamId != null && teamId >= 0 ? teamId : -1) : -1;
@@ -380,6 +390,7 @@ export function getMat(name, teamId, vertexColors = false) {
   else if (physical) m = new THREE.MeshPhysicalMaterial(def);
   else m = new THREE.MeshStandardMaterial(def);
   if (!basic) applyCloudShadow(m);
+  if (!basic && WEATHER[name]) applyWeathering(m, WEATHER[name]);
   m.name = key;
   cache.set(key, m);
   return m;
