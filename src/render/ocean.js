@@ -130,7 +130,9 @@ float shoreFoam = (1.0 - smoothstep(0.0, 3.5 + n1 * 4.0, foamD));
 shoreFoam *= smoothstep(0.35, 0.75, 0.5 + 0.5 * sin(shoreD * 0.9 - uTime * 1.6 + n1 * 6.0) + n2 * 0.4);
 shoreFoam = max(shoreFoam * 0.85, (1.0 - smoothstep(0.0, 1.4, foamD)) * smoothstep(0.3, 0.6, n2 + 0.2));
 float shallow = 1.0 - smoothstep(-6.0, 30.0, shoreD);
-float crest = smoothstep(1.15, 2.2, vWaveH + n1 * 0.9) * smoothstep(0.5, 0.85, n2) * 0.7;
+// whitecaps: only the tallest crests, gathered in wind-driven clusters (sparse in calm, rife in the squall)
+float capField = smoothstep(0.38, 0.72, oFbm(vOW.xz * 0.018 + vec2(uTime * 0.01, 0.0)));
+float crest = smoothstep(1.45, 2.5, vWaveH + n1 * 0.7) * smoothstep(0.58, 0.9, n2) * 0.7 * mix(0.25, 1.0, capField);
 float foam = clamp(shoreFoam + crest * 0.8, 0.0, 1.0);
 vec3 waterAlbedo = mix(uDeep, uShallow * 0.6, shallow * 0.8);
 diffuseColor.rgb = mix(waterAlbedo, vec3(0.92, 0.95, 0.97), foam);
