@@ -37,6 +37,8 @@ URL options: `?autoplay=1` skips the menu, `?quality=low|medium|high` sets graph
 | IV · Airpower | Fast Battleship / Fleet Carrier | Radar Salvo, Flak Umbrella, Cruise Missiles · Fighter Squadron, Dive Bombers, Air Wing |
 | V · Swarm | Arsenal Cruiser / Drone Mothership | Railgun, Point-Defense Lasers, Hypersonic Strike · Micro Swarm, Aegis Drones, EMP, Hive Storm |
 
+**The Leviathan**, a colossal sea serpent, rises at 5:30. The team that slays it earns gold and the Leviathan's Blessing (+30% damage).
+
 Each team's **era** is the median age of its captains. It evolves that team's gunboats (sloop → steam gunboat → destroyer → missile boat → autonomous USV) and its fortresses.
 
 ## Tech highlights

@@ -86,14 +86,24 @@ Ability logic is per type: skillshots lead the target, barrages hit heroes or cr
 - **VFX layering:** flash → fireball → sparks/embers → debris → smoke → water column → foam ring → oil slick, plus point light, screen shockwave and camera trauma.
 - **Audio:** fully procedural WebAudio: layered cannon transients with sub, and positional voices with caps. An adaptive score (drone pad, guzheng-like ostinato, taiko that rises with combat) plus stingers for age-ups, first blood and towers.
 
-## 9. Signature moments
+## 9. The Leviathan (neutral objective)
+
+At **5:30** a colossal sea serpent erupts from its lair at (0, 108), between the mid lane and the south trade port, equidistant from both bases. It has 17,000 hp and 25% armour, and regenerates when left alone.
+- **Tail slam:** telegraphed by a cyan ring 1.1 s before impact. It deals 300+ damage and knocks ships back.
+- **Bite:** hits the nearest ship for 420+ damage.
+
+The team that lands the killing blow gets **350 gold per captain** and **the Leviathan's Blessing**: +30% damage and +1.2%/s hull regeneration for 75 s, shown as a cyan aura. Bots contest it when three or more allies are nearby and healthy, or when it is below 35%.
+
+## 10. Signature moments
 
 - **The squall** hits at a random time between 4:10 and 5:20 and lasts 55 s. The swell rises 75%, rain and lightning sweep in, visibility drops, and gun scatter widens. It is a natural moment for ambushes.
 - **Reforging:** each age-up plays a light pillar, shock rings and a screen shockwave. The new hull scales in with an overshoot, and a brass/choir stinger plays.
 - **Fortress fall:** a chain of explosions, a mega-blast, and the fort sinks into the sea while it burns.
+- **The opening shot:** a letterboxed sunrise cinematic, low on the water behind your citadel as the fleet sails out, then a crane up to the gameplay camera.
+- **The Reforging:** every age-up plays a slow-motion hero dolly around the new hull while the hex shield flares.
 - **Sinking:** a ship death plays explosions, then the ship heels and sinks with fire, smoke and an oil slick. The player's own death adds slow-motion and desaturation.
 
-## 10. Comeback and anti-snowball
+## 11. Comeback and anti-snowball
 
 - **Shutdown bounty:** +90 gold per streak level on a captain with a streak of 3 or more.
 - **Diminishing bounty:** feeders are worth 14% less per death in a row, down to a floor of 45%.
@@ -102,6 +112,6 @@ Ability logic is per type: skillshots lead the target, barrages hit heroes or cr
 - **Faster respawn** for the trailing team.
 - **Backdoor protection:** forts take 45% damage from captains unless allied gunboats are within 95 units.
 
-## 11. Controls
+## 12. Controls
 
 RMB move/attack · QWER quick-cast at cursor · T advance age · Ctrl+1–5 upgrades · Space centre camera · Y free camera · Wheel zoom · Tab scoreboard · Alt gun range · M mute.

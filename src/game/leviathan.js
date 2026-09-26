@@ -8,15 +8,15 @@ import { applyCloudShadow } from '../render/cloudShadow.js';
 // breaches the surface; attacks are telegraphed tail slams and a bite.
 export const LEVIATHAN = { x: 0, z: 108, riseAt: 330, hp: 17000, armor: 0.25, radius: 20, gold: 350, buffDur: 75 };
 
-const SEG = 26;
+const SEG = 42;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const _w = { y: 0 };
 
 function serpentMaterials() {
-  const skin = applyCloudShadow(new THREE.MeshStandardMaterial({ color: 0x1d3b3a, roughness: 0.42, metalness: 0.25 }));
-  const belly = applyCloudShadow(new THREE.MeshStandardMaterial({ color: 0x8a8a6a, roughness: 0.6 }));
+  const skin = applyCloudShadow(new THREE.MeshPhysicalMaterial({ color: 0x0c6663, roughness: 0.3, metalness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.25, iridescence: 0.6, iridescenceIOR: 1.6 }));
+  const belly = applyCloudShadow(new THREE.MeshStandardMaterial({ color: 0xc9c08a, roughness: 0.55 }));
   const spine = applyCloudShadow(new THREE.MeshStandardMaterial({ color: 0x3a2a24, roughness: 0.5, metalness: 0.2 }));
-  const glow = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x7dfff0, emissiveIntensity: 5 });
+  const glow = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x7dfff0, emissiveIntensity: 3 });
   return { skin, belly, spine, glow };
 }
 
@@ -37,12 +37,16 @@ export class Leviathan extends Unit {
     this.segs = [];
     const segGeo = new THREE.SphereGeometry(1, 20, 14);
     const spineGeo = new THREE.ConeGeometry(0.35, 1.6, 6);
+    const spotGeo = new THREE.SphereGeometry(1, 8, 6);
     for (let i = 0; i < SEG; i++) {
       const g = new THREE.Group();
       const body = new THREE.Mesh(segGeo, M.skin); body.scale.set(1, 0.92, 1.35); body.castShadow = true;
       const bel = new THREE.Mesh(segGeo, M.belly); bel.scale.set(0.82, 0.55, 1.2); bel.position.y = -0.42;
       const sp = new THREE.Mesh(spineGeo, M.spine); sp.position.set(0, 1.05, 0); sp.rotation.x = -0.5;
       g.add(body, bel, sp);
+      if (i % 2 === 0) { // bioluminescent flank spots
+        for (const sx of [-0.78, 0.78]) { const dot = new THREE.Mesh(spotGeo, M.glow); dot.position.set(sx, 0.05, 0); dot.scale.setScalar(0.16); g.add(dot); }
+      }
       root.add(g);
       this.segs.push(g);
     }
@@ -55,7 +59,11 @@ export class Leviathan extends Unit {
     const eyeGeo = new THREE.SphereGeometry(0.26, 10, 8);
     const eyeL = new THREE.Mesh(eyeGeo, M.glow); eyeL.position.set(0.72, 0.42, 0.7);
     const eyeR = eyeL.clone(); eyeR.position.x = -0.72;
-    head.add(skull, jaw, finL, finR, eyeL, eyeR);
+    const hornGeo = new THREE.ConeGeometry(0.28, 2.6, 7);
+    const hornL = new THREE.Mesh(hornGeo, M.spine); hornL.position.set(0.6, 1.1, 0.9); hornL.rotation.set(-1.1, 0, -0.35);
+    const hornR = hornL.clone(); hornR.position.x = -0.6; hornR.rotation.z = 0.35;
+    const maw = new THREE.Mesh(new THREE.SphereGeometry(0.6, 10, 8), M.glow); maw.position.set(0, -0.35, 1.2); maw.scale.set(0.9, 0.35, 1.2);
+    head.add(skull, jaw, finL, finR, eyeL, eyeR, hornL, hornR, maw);
     this.jaw = jaw;
     root.add(head);
     this.head = head;
@@ -68,11 +76,13 @@ export class Leviathan extends Unit {
 
   /** Spline of the serpent: arches breaching the sea around the lair. */
   spine(u, t, out) {
-    const ang = u * 5.2 + t * 0.35;
-    const R = 16 + u * 30;
-    const breach = Math.sin(u * Math.PI * 3.2 - t * 1.4) * 9 * (1 - u * 0.5) + (1 - u) * 10;
+    // three great humps breaching and diving as the body coils around the lair
+    const ang = u * 3.3 + t * 0.22;
+    const R = 20 + u * 16;
+    const humps = Math.sin(u * Math.PI * 3.6 - t * 1.1) * 13.5 * (1 - u * 0.35);
+    const neck = (1 - THREE.MathUtils.smoothstep(u, 0, 0.18)) * 11;
     const rise = this.rise;
-    out.set(this.x + Math.cos(ang) * R, (breach - 6) * rise - (1 - rise) * 18, this.z + Math.sin(ang) * R * 0.75);
+    out.set(this.x + Math.cos(ang) * R, (humps + neck - 3.5) * rise - (1 - rise) * 22, this.z + Math.sin(ang) * R * 0.8);
     return out;
   }
 
@@ -151,7 +161,7 @@ export class Leviathan extends Unit {
       const g = this.segs[i];
       g.position.copy(p);
       g.lookAt(q);
-      const s = 3.8 * (1 - u * 0.72) + 0.6;
+      const s = 4.3 * (1 - u * 0.6) + 0.9;
       g.scale.setScalar(s);
       // churn where the body cuts the surface
       const wy = sampleWaves(p.x, p.z, t, _w).y;
