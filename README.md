@@ -51,10 +51,17 @@ Each team's **era** is the median age of its captains. It evolves that team's gu
 
 ## Tech highlights
 
-- **Ocean:** Gerstner waves shared by GPU and CPU, so hulls pitch and roll on the exact rendered surface. Also per-pixel detail ripples, subsurface scattering, crest/shore foam, and wave-riding foam decals for wakes, rings and oil slicks.
+- **Ocean:** Gerstner waves shared by GPU and CPU, so hulls pitch and roll on the exact rendered surface. Also per-pixel detail ripples, subsurface scattering, clustered whitecaps, shore surf, cellular-foam wakes, and wave-riding decals for foam rings, rain rings and oil slicks.
+- **Planar reflections (Ultra):** a mirror camera renders the sky, islands, forts, captains and VFX at one-third resolution. The water blends it in by Fresnel with a slight wave wobble. It is shed automatically under load.
 - **Lighting:** an art-directed analytic sky with fbm clouds, captured into a PMREM for PBR reflections. The match runs **dawn → dusk** and the grade shifts with it. ACES tonemapping, bloom, SMAA, and a custom grade pass with lift/gain, vignette, grain, chromatic aberration, screen-space shockwaves and damage vignette.
-- **Weather:** a mid-match squall darkens the sky and raises the swell (the GPU ocean and CPU buoyancy share the same waves). It brings rain sheets, forked lightning with thunder, rain and gale ambience, and reduced gunnery accuracy.
+- **Weather:** a mid-match squall darkens the sky and raises the swell (the GPU ocean and CPU buoyancy share the same waves). It brings GPU-instanced rain streaks with sea impact rings, forked lightning with thunder, rain and gale ambience, and reduced gunnery accuracy.
 - **Cloud shadows:** drifting cloud shadows cross the sea, islands and ships.
+- **Procedural surface detail (no textures):**
+  - GTAO ambient occlusion.
+  - Hull weathering: panel seams, rust streaks, a waterline algae band, grime and funnel soot.
+  - Leaf-clump foliage with backlit translucency.
+  - Terrain strata and grass mottling.
+  - Ember-cracked splinter debris.
 - **God rays:** a screen-space pass casts volumetric light shafts from the sun. Dynamic resolution holds the frame rate.
 - **VFX:** layered explosions (flash → fireball → embers → debris → smoke → water column → foam ring → oil slick), with pooled point lights and camera trauma.
 - **Swarms:** hundreds of boids-style drones, fighters and bombers in one instanced draw call per type.
