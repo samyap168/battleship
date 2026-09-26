@@ -45,7 +45,7 @@ if (vLeaf > 0.5) {
   lfGap = 1.0 - smoothstep(0.0, 0.5, c.y - c.x);          // soft crevices between clumps
   lfDome = 1.0 - smoothstep(0.0, 0.9, c.x);               // clumps are lit domes
   float tint = c.z;
-  diffuseColor.rgb *= mix(0.84, 1.14, tint) * (0.7 + 0.42 * lfDome) * (1.0 - lfGap * 0.22) * (0.78 + fine.x * 0.4);
+  diffuseColor.rgb *= mix(0.84, 1.14, tint) * (0.55 + 0.6 * lfDome) * (1.0 - lfGap * 0.35) * (0.74 + fine.x * 0.48);
   diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.25, 1.12, 0.6), smoothstep(0.82, 1.0, tint) * 0.6); // sun-scorched clumps
 } else {
   // bark: its own brown (instance tint is for the leaves), with vertical fibre streaks

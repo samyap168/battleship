@@ -316,6 +316,8 @@ const AGE_GRADE = {
   5: { gain: [0.96, 1.0, 1.07], lift: [0.0, 0.012, 0.03], sat: 1.18, con: 1.15, ca: 0.0013 },
 };
 const gradeCur = { gain: new THREE.Vector3(1, 1, 1), lift: new THREE.Vector3(), sat: 1.1, con: 1.08, ca: 0.0007 };
+const _px = new Uint8Array(4);
+function syncGPU() { const g = R.gl.getContext(); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, _px); }
 window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, refl, weather, get fps() { return fps; } };
 
 function frame() {
@@ -408,6 +410,7 @@ function tick(dt, draw) {
   if (refl && refl.uniforms.uReflOn.value) refl.update();
   if (G && mode === 'play') hud.update(G, R.camera, gdt, cameraDir.focus, cameraDir.view);
   R.render(dt, wallTime);
+  if (navigator.webdriver) syncGPU(); // captures: never screenshot a half-rasterised software frame
 }
 
 await step(92, 'Mustering the fleets');

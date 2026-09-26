@@ -61,9 +61,10 @@ export class Wakes {
           // young foam is dense; with age it erodes to a breaking web, then to scattered patches
           float erode = age * 0.95;
           float dense = 1.0 - smoothstep(0.0, 0.35, age);
-          float lace = max(w1 * 0.85, w2 * 0.55) * smoothstep(erode - 0.1, erode + 0.25, big + w1 * 0.25);
+          float fpatch = smoothstep(0.3, 0.75, nz(q * 0.33 - uTime * 0.07));        // foam gathers in drifting clumps
+          float lace = (w1 * 0.55 + w2 * 0.3 + fpatch * 0.35) * mix(0.35, 1.0, fpatch) * smoothstep(erode - 0.1, erode + 0.25, big + w1 * 0.2);
           float foam = cover * mix(lace, 0.85 + big * 0.15, dense * churn);
-          float a = foam * (1.0 - age) * str * smoothstep(0.0, 0.04, age) * 0.9;
+          float a = foam * (1.0 - age) * str * smoothstep(0.0, 0.04, age) * 0.75;
           // aerated water under the foam: a faint turquoise glow in the fresh wash
           vec3 glow = vec3(0.25, 0.62, 0.6) * churn * str * (1.0 - age) * 0.22;
           gl_FragColor = vec4(vec3(0.92, 0.96, 0.98) * a + glow, min(1.0, a * 0.9));

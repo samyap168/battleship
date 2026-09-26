@@ -40,11 +40,11 @@ export function applyWeathering(mat, amount = 1) {
   // large-scale grime mottling
   float grime = wxN(p * 0.9) * 0.6 + wxN(p * 3.1) * 0.4;
   vec3 c = diffuseColor.rgb;
-  c *= 1.0 - seam * 0.32 * uWx;
+  c *= 1.0 - seam * 0.4 * uWx;
   c *= mix(1.0, 0.62 + grime * 0.55, 0.8 * uWx);
-  c = mix(c, vec3(0.3, 0.14, 0.06), rustMask * 0.6 * uWx);
+  c = mix(c, vec3(0.34, 0.14, 0.05), min(1.0, rustMask * 0.85 * uWx));
   c = mix(c, vec3(0.05), soot * 0.35 * uWx);
-  c = mix(c, vec3(0.16, 0.2, 0.14), wl * 0.45 * uWx);
+  c = mix(c, vec3(0.1, 0.13, 0.08), wl * 0.6 * uWx);
   diffuseColor.rgb = c;
 }`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>

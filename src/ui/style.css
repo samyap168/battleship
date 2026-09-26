@@ -244,3 +244,14 @@ body.cinematic #announce { top: 36%; }
 
 .ab .cd { background: conic-gradient(from 0deg, rgba(0,0,0,.74) 0 var(--p, 0%), rgba(255,214,140,.85) var(--p, 0%) calc(var(--p, 0%) + 1.2%), transparent calc(var(--p, 0%) + 1.2%)); }
 .ab.ready .cd { background: none; }
+/* cooldown readability: the whole icon sinks while recharging, the timer sits on its own dark disc */
+.ab:not(.ready) svg { filter: grayscale(.6) brightness(.72); transition: filter .15s; }
+.ab .cdt:not(:empty) { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle, rgba(6,8,12,.72) 45%, rgba(6,8,12,0) 70%); font-size: 21px; z-index: 2; }
+.ab .cd { background: conic-gradient(from 0deg, rgba(0,0,0,.62) 0 var(--p, 0%), rgba(255,214,140,.9) var(--p, 0%) calc(var(--p, 0%) + .8%), rgba(255,214,140,.12) calc(var(--p, 0%) + .8%) calc(var(--p, 0%) + 6%), transparent calc(var(--p, 0%) + 6%)); }
+.ab.ready .cd { background: none; }
+/* forged-brass trim: double hairline + corner rivets (SVG border-image drawn over the 1px border), bevel and top sheen */
+#portrait, #abilities, #goldbox, #shop, #topbar, #minimap {
+  border-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='30' height='30'><defs><radialGradient id='r' cx='40%25' cy='35%25' r='65%25'><stop offset='0' stop-color='%23fff1c8'/><stop offset='.45' stop-color='%23c9a15a'/><stop offset='1' stop-color='%233a2a12'/></radialGradient></defs><rect x='.5' y='.5' width='29' height='29' fill='none' stroke='%23d8b36a' stroke-opacity='.75'/><rect x='2.5' y='2.5' width='25' height='25' fill='none' stroke='%23000' stroke-opacity='.7'/><rect x='3.5' y='3.5' width='23' height='23' fill='none' stroke='%23e8c47a' stroke-opacity='.22'/><g fill='url(%23r)'><circle cx='7' cy='7' r='2'/><circle cx='23' cy='7' r='2'/><circle cx='7' cy='23' r='2'/><circle cx='23' cy='23' r='2'/></g></svg>") 10 / 10px / 0 stretch;
+  box-shadow: 0 12px 40px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,232,190,.14), inset 0 -2px 3px rgba(0,0,0,.55), inset 0 0 26px rgba(0,0,0,.55), inset 0 18px 24px -18px rgba(255,236,200,.10);
+}
