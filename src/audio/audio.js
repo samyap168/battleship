@@ -324,6 +324,7 @@ class AudioSystem {
       this.eng.music.setIntensity(this._intensity);
       if (this._swarm) this.eng.swarm.set(this._swarm);
       if (this._wantAmb) this.eng.ambience.start();
+      if (this._storm) this.eng.ambience.setStorm(this._storm);
       if (this._wantMusic) this.eng.music.start();
       this._resume();
       // keep trying to unlock on later gestures (autoplay policies, iOS interruptions)
@@ -373,6 +374,11 @@ class AudioSystem {
     this._safe((e) => e.swarm.set(this._swarm));
   }
 
+  /** Storm ambience (rain + gale), 0..1. Remembered before init(). */
+  setStorm(v) {
+    this._storm = v;
+    this._safe((e) => e.ambience.setStorm(v));
+  }
   stinger(name) { return this._safe((e) => e.stinger(name), false); }
 
   setVolume(v = {}) {

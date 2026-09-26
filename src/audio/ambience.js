@@ -50,7 +50,23 @@ export class Ambience {
     this._loop('white', this.whistleBP);
     this.nextWind = t;
     this.nextGull = t + rand(10, 25);
+    // storm layers: rain hiss (two bands) + a low gale roar, silent until setStorm()
+    this.rainG = k.gain(0, this.out);
+    this._loop('white', k.filter('highpass', 2200, 0.5, k.gain(0.1, this.rainG)));
+    this._loop('pink', k.filter('bandpass', 5200, 0.7, k.gain(0.12, this.rainG)), 1.3);
+    this.galeG = k.gain(0, this.windBus);
+    this._loop('brown', k.filter('lowpass', 420, 0.9, k.gain(0.5, this.galeG)), 0.9);
+    this.setStorm(this.storm || 0);
     this.setZoom(this.eng.listener.zoom);
+  }
+
+  /** 0..1 storm intensity: rain + gale. */
+  setStorm(v) {
+    this.storm = clamp(v);
+    if (!this.on) return;
+    const t = this.ctx.currentTime;
+    this.rainG.gain.setTargetAtTime(this.storm * 0.9, t, 1.5);
+    this.galeG.gain.setTargetAtTime(this.storm * 0.6, t, 2.5);
   }
 
   stop(fade = 2) {

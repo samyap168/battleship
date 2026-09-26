@@ -468,6 +468,18 @@ export class Game {
       if (this.frame % 5 === 0) this.ocean.decals.add(u.x, u.z, r.beam * 1.5, 12, 2, 0.35, 0.4); // oil slick
     }
     syncShipVisual(u, dt, t, u.kind === 'hero' ? 0.8 : 1);
+    if (u.kind === 'hero' && u.reforgeT < 1) {
+      // reforge: ease-out-back scale-in with a molten emissive sparkle
+      u.reforgeT = Math.min(1, u.reforgeT + dt / 0.75);
+      const k = u.reforgeT, c1 = 1.9, c3 = c1 + 1;
+      const e = 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2);
+      r.root.scale.setScalar(0.6 + 0.4 * e);
+      if (this.frame % 2 === 0) {
+        const a = Math.random() * 6.283, rr = Math.random() * r.length * 0.5;
+        const c = new THREE.Color(TEAMS[u.team].glow);
+        this.fx.p.add.emit({ x: u.x + Math.cos(a) * rr, y: Math.random() * r.height, z: u.z + Math.sin(a) * rr, vy: 12, life: 0.6, s0: 1.4, s1: 0.1, r: c.r * 3, g: c.g * 3, b: c.b * 3, a0: 1, a1: 0, kind: 2 });
+      }
+    } else if (u.kind === 'hero' && r.root.scale.x !== 1) r.root.scale.setScalar(1);
     if (u.kind === 'hero') {
       if (!u.ring) { u.ring = heroRing(u.isPlayer ? 0xffd27a : TEAMS[u.team].glow, u.isPlayer); this.scene.add(u.ring); }
       u.ring.visible = u.alive;

@@ -21,11 +21,11 @@ URL options: `?autoplay=1` skips the menu, `?quality=low|medium|high` sets graph
 | Input | Action |
 |---|---|
 | Right mouse | Sail to / attack target |
-| Q W E R | Cast ability at cursor |
+| Q W E R | Hold to aim (range + AoE / skillshot preview), release to fire. Self-cast abilities fire instantly |
 | T | Advance to the next age (choose a hull at ages III-V) |
 | Ctrl + 1-5 | Buy armory upgrades |
 | Space / Y | Centre camera / toggle free camera (arrows + edge pan) |
-| Wheel · Tab · Alt · M | Zoom · Scoreboard · Gun range · Mute |
+| Wheel · Tab · Alt · M · F3 | Zoom · Scoreboard · Gun range · Mute · Performance overlay |
 
 ## The five ages
 
@@ -43,6 +43,9 @@ Each team's **era** is the median age of its captains. It evolves that team's gu
 
 - **Ocean:** Gerstner waves shared by GPU and CPU, so hulls pitch and roll on the exact rendered surface. Also per-pixel detail ripples, subsurface scattering, crest/shore foam, and wave-riding foam decals for wakes, rings and oil slicks.
 - **Lighting:** an art-directed analytic sky with fbm clouds, captured into a PMREM for PBR reflections. The match runs **dawn → dusk** and the grade shifts with it. ACES tonemapping, bloom, SMAA, and a custom grade pass with lift/gain, vignette, grain, chromatic aberration, screen-space shockwaves and damage vignette.
+- **Weather:** a mid-match squall darkens the sky and raises the swell (the GPU ocean and CPU buoyancy share the same waves). It brings rain sheets, forked lightning with thunder, rain and gale ambience, and reduced gunnery accuracy.
+- **Cloud shadows:** drifting cloud shadows cross the sea, islands and ships.
+- **God rays:** a screen-space pass casts volumetric light shafts from the sun. Dynamic resolution holds the frame rate.
 - **VFX:** layered explosions (flash → fireball → embers → debris → smoke → water column → foam ring → oil slick), with pooled point lights and camera trauma.
 - **Swarms:** hundreds of boids-style drones, fighters and bombers in one instanced draw call per type.
 - **Audio:** fully procedural WebAudio. Positional SFX with voice management, an adaptive score (guzheng-like ostinato, taiko, brass swells) and cinematic stingers.

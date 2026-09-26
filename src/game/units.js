@@ -171,6 +171,7 @@ export class Hero extends Unit {
     this.G.scene.add(this.rig.root);
     if (old) this.G.scene.remove(old.root);
     this.shieldMesh = null;
+    this.reforgeT = initial ? 1 : 0; // age-up scale-in animation
   }
 
   refreshStats() {
