@@ -99,10 +99,16 @@ function startGame(spectate) {
   });
   if (spectate) {
     // menu backdrop: skip ahead so the seas are already busy
-    G.time = 60;
+    // showreel: jump to the late game so the backdrop shows airpower, swarms and the Leviathan
+    G.time = 329.5;
     G.nextWave = 0;
-    for (const h of G.heroes) h.gold += 700;
-    cameraDir.orbit = { a: 0, r: 210, h: 95, cx: -120, cz: 40, follow: () => hotspot(G) };
+    G.stormAt = 9999;
+    for (const h of G.heroes) {
+      h.gold += 6000 + Math.random() * 3000; h.level = 8; h.refreshStats(); h.hp = h.maxHp;
+      h.x = (h.team === 0 ? -1 : 1) * (150 + Math.random() * 80); h.z = 60 + (h.slot - 2) * 40; // already deployed near the lair
+    }
+    for (const t of G.teams) t.ageAnnounced = { 1: true, 2: true, 3: true, 4: true, 5: true };
+    cameraDir.orbit = { a: 0, r: 200, h: 90, cx: 0, cz: 108, follow: () => (G.boss && G.boss.alive ? G.boss : hotspot(G)) };
   } else {
     cameraDir.orbit = null;
     const p = G.player;
