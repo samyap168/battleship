@@ -10,7 +10,7 @@
 // color by the geometry's `color` attribute; the procedural models use this to
 // bake tint variations into merged meshes.
 import * as THREE from 'three';
-import { applyCloudShadow } from '../cloudShadow.js';
+import { applyCloudShadow, CLOUD } from '../cloudShadow.js';
 import { applyWeathering } from '../weathering.js';
 const WEATHER = { steel: 1, darksteel: 0.9, iron: 1.1, paint: 0.8, white: 0.55, stealth: 0.35, stealthDark: 0.35, teamMetal: 0.6, team: 0.5 };
 import { TEAMS } from '../../core/config.js';
@@ -391,6 +391,8 @@ export function getMat(name, teamId, vertexColors = false) {
   else m = new THREE.MeshStandardMaterial(def);
   if (!basic) applyCloudShadow(m);
   if (!basic && WEATHER[name]) applyWeathering(m, WEATHER[name]);
+  if (name === 'flag' || name === 'flagNeutral') applyClothFolds(m);
+  if (name === 'teamBeam') applySoftBeam(m);
   m.name = key;
   cache.set(key, m);
   return m;
@@ -404,4 +406,57 @@ export function pulseMaterials(time) {
   lastPulse = time;
   const k = 2.4 + 1.6 * (0.5 + 0.5 * Math.sin(time * 3.1));
   for (const [key, m] of cache) if (key.startsWith('teamPulse:')) m.emissiveIntensity = k;
+}
+
+// Cloth folds for flags/pennants: morph-target flutter doesn't update normals, so
+// without this the cloth shades as one flat painted plank. Travelling fold bands
+// (in step with the flutter), soft sheen on the crests, a darker weathered fly end.
+function applyClothFolds(m) {
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => {
+    if (prev) prev(sh, r);
+    sh.uniforms.uClothT = CLOUD.uCloudT;
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform float uClothT;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+#ifdef USE_MAP
+{
+  vec2 cu = vMapUv;
+  float fold = sin(cu.x * 15.0 - uClothT * 7.0 + sin(cu.y * 3.0 + uClothT) * 1.3);
+  float fold2 = sin(cu.x * 31.0 - uClothT * 11.0 + cu.y * 4.0);
+  float shade = 0.66 + 0.26 * fold + 0.08 * fold2;
+  diffuseColor.rgb *= shade * mix(1.0, 0.72, smoothstep(0.55, 1.0, cu.x));   // folds + sun-faded, sooty fly end
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), 0.18); // weathered dye
+}
+#endif`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+#ifdef USE_MAP
+roughnessFactor = clamp(roughnessFactor - 0.25 * smoothstep(0.6, 1.0, sin(vMapUv.x * 15.0 - uClothT * 7.0)), 0.3, 1.0);
+#endif`);
+  };
+  const key = m.customProgramCacheKey ? m.customProgramCacheKey.bind(m) : () => '';
+  m.customProgramCacheKey = () => key() + '|cloth';
+  m.needsUpdate = true;
+}
+
+// Volumetric-looking light column: edges fade with the view angle (no hard quad
+// silhouette), the shaft thins out toward the sky and blooms at its base.
+function applySoftBeam(m) {
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vBmN; varying vec3 vBmV; varying float vBmY;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvBmN = normalize(normalMatrix * normal); vBmV = -mvPosition.xyz; vBmY = position.y;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vBmN; varying vec3 vBmV; varying float vBmY;')
+      .replace('#include <alphamap_fragment>', `#include <alphamap_fragment>
+{
+  float facing = abs(dot(normalize(vBmN), normalize(vBmV)));
+  float core = pow(facing, 2.2);                                   // bright centre, soft falloff to the edges
+  float along = smoothstep(76.5, 52.0, vBmY) * smoothstep(40.5, 43.5, vBmY);
+  diffuseColor.a *= core * along * 1.6;
+  diffuseColor.rgb *= 1.0 + (1.0 - smoothstep(40.5, 50.0, vBmY)) * 0.8; // hot base
+}`);
+  };
+  m.customProgramCacheKey = () => 'softbeam';
+  m.needsUpdate = true;
 }

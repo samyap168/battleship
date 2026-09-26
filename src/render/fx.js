@@ -108,7 +108,7 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
 {
   float cr = dbH(vDbP) * 0.6 + dbH(vDbP * 2.3 + 1.7) * 0.4;
   float ember = smoothstep(0.45, 0.9, cr) * vHeat;
-  totalEmissiveRadiance += vec3(3.2, 1.0, 0.22) * ember * 1.6 + vec3(0.9, 0.25, 0.05) * vHeat * 0.35 + vec3(0.5, 0.16, 0.04) * smoothstep(0.55, 0.95, cr) * step(0.01, vHeat); // smouldering edges even far from fire
+  totalEmissiveRadiance += vec3(3.2, 1.0, 0.22) * ember * 1.6 + vec3(0.9, 0.25, 0.05) * vHeat * 0.35 + vec3(0.7, 0.22, 0.05) * smoothstep(0.45, 0.95, cr) * step(0.01, vHeat); // smouldering edges even far from fire
   diffuseColor.rgb *= 1.0 - vHeat * 0.45; // charred
 }`);
     };
@@ -241,7 +241,7 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
       const a = Math.random() * 6.283, sp = rnd(2, 6) * S;
       const c = rnd(0.07, 0.14);
       P.alpha.emit({ x: pos.x + rnd(-2, 2) * S, y: pos.y + rnd(2, 5) * S, z: pos.z + rnd(-2, 2) * S, vx: Math.cos(a) * sp, vy: rnd(3, 8) * S, vz: Math.sin(a) * sp,
-        life: rnd(2.6, 4.6) * Math.sqrt(S), s0: 4 * S, s1: rnd(15, 22) * S, r: c, g: c * 0.95, b: c * 0.9, a0: 0.82, a1: 0, kind: 1, drag: 1.1 });
+        life: rnd(2.6, 4.6) * Math.sqrt(S), s0: 4 * S, s1: rnd(15, 22) * S, r: c + 0.42, g: c * 0.95 + 0.16, b: c * 0.9 + 0.04, r1: c, g1: c * 0.97, b1: c * 0.95, a0: 0.82, a1: 0, kind: 1, drag: 1.1 }); // fire-lit from inside, cooling to soot
     }
     // 6. debris
     const nd = Math.round(4 * Math.min(scale, 2.5));

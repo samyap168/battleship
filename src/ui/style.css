@@ -257,11 +257,11 @@ body.cinematic #announce { top: 36%; }
 }
 /* baked plate material + a static specular sheen band across each panel body */
 #abilities, #topbar, #minimap {
-  background-image: linear-gradient(112deg, transparent 28%, rgba(255,238,205,.075) 42%, rgba(255,238,205,.02) 50%, transparent 62%), var(--plate), linear-gradient(180deg, #19202a, #0a0e14);
+  background-image: linear-gradient(112deg, transparent 28%, rgba(255,238,205,.14) 42%, rgba(255,238,205,.04) 50%, transparent 62%), var(--plate), linear-gradient(180deg, #19202a, #0a0e14);
   background-blend-mode: screen, overlay, normal; background-size: 100% 100%, 256px 256px, 100% 100%;
 }
 #portrait, #goldbox, #shop {
-  background-image: linear-gradient(112deg, transparent 28%, rgba(255,230,190,.08) 42%, rgba(255,230,190,.02) 50%, transparent 62%), var(--plate), linear-gradient(160deg, #2c2418 0%, #17120c 55%, #221a10 100%);
+  background-image: linear-gradient(112deg, transparent 28%, rgba(255,230,190,.14) 42%, rgba(255,230,190,.04) 50%, transparent 62%), var(--plate), linear-gradient(160deg, #2c2418 0%, #17120c 55%, #221a10 100%);
   background-blend-mode: screen, overlay, normal; background-size: 100% 100%, 256px 256px, 100% 100%;
 }
 /* the sheen band sweeps slowly across the plate, like light catching brushed metal */
