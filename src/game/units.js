@@ -84,7 +84,10 @@ export function separateShips(list, dt) {
       const b = list[j];
       if (!b.alive) continue;
       const dx = b.x - a.x, dz = b.z - a.z;
-      const r = (a.radius + b.radius) * 0.85;
+      // long hulls: separate on ~40% of hull length so ships never clip through each other
+      const ra = a.rig ? Math.max(a.radius, a.rig.length * 0.4) : a.radius;
+      const rb = b.rig ? Math.max(b.radius, b.rig.length * 0.4) : b.radius;
+      const r = (ra + rb) * 0.9;
       const d2 = dx * dx + dz * dz;
       if (d2 < r * r && d2 > 1e-6) {
         const d = Math.sqrt(d2), push = (r - d) * 0.5;
