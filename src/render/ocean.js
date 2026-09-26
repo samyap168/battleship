@@ -159,6 +159,7 @@ gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(1.35)); // tame sun-glint fireflie
     this.mesh = new THREE.Mesh(buildOceanGeometry(quality === 'low' ? 170 : quality === 'medium' ? 240 : 300), mat);
     this.mesh.receiveShadow = true;
     this.mesh.frustumCulled = false;
+    this.mesh.userData.noAO = true;
     this.mesh.renderOrder = -1;
     scene.add(this.mesh);
 

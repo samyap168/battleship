@@ -5,6 +5,21 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+
+// Ground-truth AO restricted to solid geometry: the displaced ocean, sky and all
+// transparent / shader-driven effects are excluded from the G-buffer.
+class SolidGTAOPass extends GTAOPass {
+  _overrideVisibility() {
+    super._overrideVisibility();
+    const cache = this._visibilityCache;
+    this.scene.traverse((o) => {
+      if (!o.visible || !o.isMesh) return;
+      const m = o.material;
+      if (o.userData.noAO || (m && (m.transparent || m.isShaderMaterial || m.blending === THREE.AdditiveBlending))) { o.visible = false; cache.push(o); }
+    });
+  }
+}
 
 // Final cinematic pass (runs on display-referred colour after tonemapping):
 // shockwave distortion, chromatic aberration, colour grade, vignette,
@@ -93,7 +108,7 @@ const GodRayShader = {
 };
 
 export const QUALITY = {
-  high: { pixelRatio: 1.5, shadows: 2048, bloom: true, smaa: true },
+  high: { pixelRatio: 1.5, shadows: 2048, bloom: true, smaa: true, ao: true },
   medium: { pixelRatio: 1.0, shadows: 1024, bloom: true, smaa: true },
   low: { pixelRatio: 0.85, shadows: 0, bloom: false, smaa: false },
 };
@@ -118,6 +133,13 @@ export class Renderer {
 
     const composer = new EffectComposer(r);
     composer.addPass(new RenderPass(this.scene, this.camera));
+    if (this.q.ao) {
+      this.ao = new SolidGTAOPass(this.scene, this.camera, Math.round(window.innerWidth / 2), Math.round(window.innerHeight / 2));
+      this.ao.updateGtaoMaterial({ radius: 5.5, distanceExponent: 1.4, thickness: 3, scale: 1.25, samples: 12, distanceFallOff: 1 });
+      this.ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
+      this.ao.blendIntensity = 0.9;
+      composer.addPass(this.ao);
+    }
     this.bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.42, 0.5, 1.0);
     this.bloom.enabled = this.q.bloom;
     this.bloom.highPassUniforms.smoothWidth.value = 0.45; // soft knee: highlights roll into bloom instead of clipping
@@ -146,7 +168,10 @@ export class Renderer {
     const maxPR = Math.min(window.devicePixelRatio || 1, this.q.pixelRatio);
     const cur = this.gl.getPixelRatio();
     let next = cur;
-    if (this.ftAvg > 1 / 48) next = Math.max(0.5, cur * 0.85);
+    if (this.ftAvg > 1 / 48) {
+      next = Math.max(0.5, cur * 0.85);
+      if (cur <= 0.75 && this.ao && this.ao.enabled) { this.ao.enabled = false; next = cur; } // shed AO before going blurrier
+    }
     else if (this.ftAvg < 1 / 58 && cur < maxPR) next = Math.min(maxPR, cur * 1.08);
     if (Math.abs(next - cur) > 0.02) { this.gl.setPixelRatio(next); this.resize(); }
   }
@@ -156,6 +181,7 @@ export class Renderer {
     this.gl.setSize(w, h);
     this.composer.setPixelRatio && this.composer.setPixelRatio(this.gl.getPixelRatio());
     this.composer.setSize(w, h);
+    if (this.ao) this.ao.setSize(Math.round(w / 2), Math.round(h / 2));
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.grade.uniforms.uRes.value.set(w, h);
