@@ -241,6 +241,7 @@ export class Music {
     this.lastPat = pat;
     this.pat = PATS[pat];
     this.shifts = [0, pick([-1, 0, 1, 2]), 0, pick([-1, 1, 2])];
+    if (theme) { const lift = [0, 2, 4][(this.warSecs >> 1) % 3]; this.shifts = this.shifts.map((v) => v + lift); } // each return of the theme climbs
     this.breath = sec % 4 === 3 && I < 0.7;
     this.plan = null;
     if (!this.opening) {

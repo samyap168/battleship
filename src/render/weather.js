@@ -142,7 +142,7 @@ export class Weather {
       const b = this.bolts[i];
       b.t += dt;
       if (b.t > 0.08 && !b.second) { b.second = true; this.R.grade.uniforms.uFlash.value = Math.max(this.R.grade.uniforms.uFlash.value, 0.18); }
-      if (b.t > 1.4) { this.bolts.splice(i, 1); this.audio.play('explosionBig', { x: b.x, z: b.z, vol: 0.9, pitch: 0.45 }); }
+      if (b.t > 1.4) { this.bolts.splice(i, 1); this.audio.play('thunder', { x: b.x, z: b.z, vol: 1 }); }
     }
   }
 

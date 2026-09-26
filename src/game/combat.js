@@ -251,7 +251,7 @@ export class Combat {
         this.ballistic(hero, g.kind, _p.clone(), x1, z1, g.speed, dmg, { crit, hitR: 2.5 });
         G.fx.muzzle(_p, _dir, g.kind === 'ball' ? 1.1 : g.kind === 'flak' ? 0.7 : 1.3, g.kind);
         if (hero.isPlayer && g.kind !== 'flak') G.fx.shake(0.05 + hero.age * 0.012, hero.x, hero.z);
-        G.audio.play(VIS[g.kind].snd, { x: _p.x, z: _p.z, vol: 0.55 });
+        G.audio.play(VIS[g.kind].snd, { x: _p.x, z: _p.z, vol: 0.55, era: hero.age });
       });
     }
   }
@@ -272,7 +272,7 @@ export class Combat {
     this.ballistic(c, c.gunKind === 'ball' ? 'ball' : c.gunKind === 'pulse' ? 'pulse' : 'shell', _p.clone(),
       target.x + (target.vx || 0) * T * 0.7 + rnd(-2, 2), target.z + (target.vz || 0) * T * 0.7 + rnd(-2, 2), speed, c.dmg, { hitR: 2.5, splashScale: 0.6 });
     G.fx.muzzle(_p, _dir, 0.6, c.gunKind);
-    if (Math.random() < 0.35) G.audio.play(c.gunKind === 'ball' ? 'cannon' : 'cannonHeavy', { x: c.x, z: c.z, vol: 0.3 });
+    if (Math.random() < 0.35) G.audio.play(c.gunKind === 'ball' ? 'cannon' : 'cannonHeavy', { x: c.x, z: c.z, vol: 0.3, era: c.era });
   }
 
   fireStructure(s, target) {

@@ -88,7 +88,12 @@ export class Engine {
     }
     // SFX
     this.sfxVol = k.gain(0.9, this.preMaster);
-    this.sfxIn = k.gain(0.55, this.sfxVol);
+    // low-end guard: a lowshelf that dips the sub when many heavy voices stack (no mud in teamfights)
+    this.sfxShelf = ctx.createBiquadFilter(); this.sfxShelf.type = 'lowshelf'; this.sfxShelf.frequency.value = 150; this.sfxShelf.gain.value = 0;
+    this.sfxShelf.connect(this.sfxVol);
+    this.uiDuck = k.gain(1, this.sfxShelf); // UI clicks briefly carve space in the battle bed
+    this.sfxIn = k.gain(0.55, this.uiDuck);
+    this.uiIn = k.gain(0.55, this.sfxShelf);
     this.ambIn = k.gain(0.8, this.sfxVol);
     this.stingerIn = k.gain(0.55, this.sfxVol);
     const sea = ctx.createConvolver();
@@ -184,7 +189,14 @@ export class Engine {
     const nodes = [V.out, dry];
     if (cutoff) { const lp = V.filter('lowpass', cutoff, 0.5); head.connect(lp); head = lp; nodes.push(lp); }
     if (positional) { const p = V.pan(pan); head.connect(p); head = p; nodes.push(p); }
-    head.connect(this.sfxIn);
+    const isUI = name.startsWith('ui');
+    head.connect(isUI ? this.uiIn : this.sfxIn);
+    if (isUI) { const ud = this.uiDuck.gain; ud.cancelScheduledValues(t); ud.setTargetAtTime(0.6, t, 0.008); ud.setTargetAtTime(1, t + 0.09, 0.08); }
+    if (def.pri >= 4) {
+      let heavy = 0; for (const v of this.voices) if (v.pri >= 4 && t - v.start < 0.9) heavy++;
+      const sg = this.sfxShelf.gain; sg.cancelScheduledValues(t);
+      sg.setTargetAtTime(-Math.min(7, Math.max(0, heavy - 2) * 1.4), t, 0.05); sg.setTargetAtTime(0, t + 0.9, 0.6);
+    }
     // sends are darkened by distance too (gentler than the dry path), so far shots
     // sound muffled instead of their reverb tail staying bright
     const sendDest = (dest) => { if (!cutoff) return dest; const f = V.filter('lowpass', Math.min(18000, cutoff * 1.15), 0.5); f.connect(dest); nodes.push(f); return f; };
@@ -195,9 +207,10 @@ export class Engine {
     if (V.echo) nodes.push(V.echo);
     // sidechain: loud weapon hits near the listener dip the music for a moment
     if (def.pri >= 3 && base * g > 0.3 && this.combatDuck) {
-      const dk = this.combatDuck.gain, depth = Math.min(0.4, 0.2 + base * g * 0.15);
+      // depth accumulates across overlapping hits (focus fire buries the score), floor 0.42
+      const dk = this.combatDuck.gain, depth = Math.min(0.4, 0.2 + base * g * 0.15) * (def.pri >= 5 ? 1.2 : 1);
       dk.cancelScheduledValues(t);
-      dk.setTargetAtTime(Math.min(dk.value, 1 - depth), t, 0.025);
+      dk.setTargetAtTime(Math.max(0.42, Math.min(dk.value, 1) * (1 - depth * 0.65)), t, 0.025);
       dk.setTargetAtTime(1, t + 0.3, 0.8);
     }
     let dur;
