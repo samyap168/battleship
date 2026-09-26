@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { applyCloudShadow } from './cloudShadow.js';
+import { applyFoliage, applyTerrainDetail } from './foliage.js';
 import { WAVES_GLSL, WAVE_UNIFORMS } from './waves.js';
 
 // Procedural archipelago: sculpted islands with vertex-coloured strata,
@@ -366,6 +367,8 @@ export class Environment {
     const roofMat = new THREE.MeshStandardMaterial({ color: 0x3f7a6c, roughness: 0.45, metalness: 0.35 }); // weathered bronze-patina tiles
     const lampMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xffa040, emissiveIntensity: 4 });
     [islandMat, trunkMat, leafMat, stoneMat, roofMat].forEach(applyCloudShadow);
+    applyFoliage(leafMat);
+    applyTerrainDetail(islandMat);
 
     const { trunk, crown } = treeGeometries();
     const trees = [];
@@ -488,7 +491,8 @@ export class Environment {
     }
     const c = new THREE.Color();
     const conifer = coniferGeometries(), palm = palmGeometries();
-    const leafDS = leafMat.clone(); leafDS.side = THREE.DoubleSide; applyCloudShadow(leafDS);
+    // fresh material, not clone(): clones keep the patched flags but drop onBeforeCompile
+    const leafDS = applyFoliage(applyCloudShadow(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.78, vertexColors: true, side: THREE.DoubleSide })), 2.2);
     const TYPES = {
       broad: { trunk, crown, mat: leafMat, hue: [0.21, 0.1], sat: [0.55, 0.2], lig: [0.13, 0.12] },
       conifer: { trunk: conifer.trunk, crown: conifer.crown, mat: leafMat, hue: [0.28, 0.06], sat: [0.45, 0.15], lig: [0.09, 0.07] },
@@ -507,7 +511,7 @@ export class Environment {
       const cg = crownG.index ? crownG.toNonIndexed() : crownG.clone();
       for (const g of [tg, cg]) { if (g.attributes.uv) g.deleteAttribute('uv'); }
       const tc = new Float32Array(tg.attributes.position.count * 3);
-      for (let i = 0; i < tc.length; i += 3) { tc[i] = 1.3; tc[i + 1] = 0.75; tc[i + 2] = 0.55; } // bark (x instance tint)
+      for (let i = 0; i < tc.length; i += 3) { tc[i] = 0.95; tc[i + 1] = 0.6; tc[i + 2] = 0.42; } // bark (x instance tint)
       tg.setAttribute('color', new THREE.BufferAttribute(tc, 3));
       if (!tg.attributes.normal) tg.computeVertexNormals();
       return mergeGeometries([tg, cg]);

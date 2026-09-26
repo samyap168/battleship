@@ -316,7 +316,7 @@ const AGE_GRADE = {
   5: { gain: [0.96, 1.0, 1.07], lift: [0.0, 0.012, 0.03], sat: 1.18, con: 1.15, ca: 0.0013 },
 };
 const gradeCur = { gain: new THREE.Vector3(1, 1, 1), lift: new THREE.Vector3(), sat: 1.1, con: 1.08, ca: 0.0007 };
-window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, refl, get fps() { return fps; } };
+window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, refl, weather, get fps() { return fps; } };
 
 function frame() {
   requestAnimationFrame(frame);

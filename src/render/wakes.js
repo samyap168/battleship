@@ -37,19 +37,36 @@ export class Wakes {
       fragmentShader: /* glsl */ `
         uniform float uTime; varying vec4 vW; varying vec2 vXZ;
         float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+        vec2 h2(vec2 p){ return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
         float nz(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
           return mix(mix(h(i), h(i + vec2(1, 0)), u.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), u.x), u.y); }
+        // cellular foam: F2-F1 is small along the bubble walls -> lacy web
+        float web(vec2 p) {
+          vec2 i = floor(p), f = fract(p); float f1 = 8.0, f2 = 8.0;
+          for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+            vec2 o = vec2(float(x), float(y)); vec2 r = o + h2(i + o) - f; float d = dot(r, r);
+            if (d < f1) { f2 = f1; f1 = d; } else if (d < f2) f2 = d;
+          }
+          return 1.0 - smoothstep(0.0, 0.22, sqrt(f2) - sqrt(f1));
+        }
         void main() {
           float x = abs(vW.x), age = vW.y, str = vW.w;
           if (str <= 0.001) discard;
-          float n = nz(vXZ * 0.45 + uTime * 0.3) * 0.55 + nz(vXZ * 1.3 - uTime * 0.5) * 0.45;
-          float arms = smoothstep(0.55, 0.95, x) * smoothstep(1.0, 0.9, x);          // bright V-arm edges
-          float churn = (1.0 - smoothstep(0.0, 0.5, x)) * (1.0 - smoothstep(0.0, 0.55, age)); // prop wash
-          float lace = smoothstep(0.45, 0.8, n) * (1.0 - x * 0.6);
-          float a = (arms * 0.8 + churn * 0.9 + lace * 0.45) * (0.5 + n * 0.7);
-          a *= (1.0 - age) * (1.0 - age * 0.4) * str * smoothstep(0.0, 0.04, age);
-          a *= 0.72;
-          gl_FragColor = vec4(vec3(0.9, 0.95, 0.97) * a, a * 0.85);
+          vec2 q = vXZ + vec2(nz(vXZ * 0.2 + uTime * 0.05), nz(vXZ * 0.2 - 7.0)) * 3.0; // warped: no grid feel
+          float big = nz(q * 0.16 + uTime * 0.04) * 0.6 + nz(q * 0.5 - uTime * 0.12) * 0.4;
+          float w1 = web(q * 0.85 + vec2(uTime * 0.15, 0.0)), w2 = web(q * 2.3 - uTime * 0.2);
+          float arms = smoothstep(0.55, 0.95, x) * smoothstep(1.0, 0.88, x);            // bright V-arm edges
+          float churn = (1.0 - smoothstep(0.0, 0.55, x)) * (1.0 - smoothstep(0.0, 0.6, age)); // prop wash
+          float cover = arms * 0.9 + churn + (1.0 - x * 0.7) * 0.35;
+          // young foam is dense; with age it erodes to a breaking web, then to scattered patches
+          float erode = age * 0.95;
+          float dense = 1.0 - smoothstep(0.0, 0.35, age);
+          float lace = max(w1 * 0.85, w2 * 0.55) * smoothstep(erode - 0.1, erode + 0.25, big + w1 * 0.25);
+          float foam = cover * mix(lace, 0.85 + big * 0.15, dense * churn);
+          float a = foam * (1.0 - age) * str * smoothstep(0.0, 0.04, age) * 0.9;
+          // aerated water under the foam: a faint turquoise glow in the fresh wash
+          vec3 glow = vec3(0.25, 0.62, 0.6) * churn * str * (1.0 - age) * 0.22;
+          gl_FragColor = vec4(vec3(0.92, 0.96, 0.98) * a + glow, min(1.0, a * 0.9));
         }`,
       transparent: true, depthWrite: false, side: THREE.DoubleSide,
       blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
