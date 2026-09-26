@@ -41,6 +41,14 @@ URL options: `?autoplay=1` skips the menu, `?quality=low|medium|high` sets graph
 
 Each team's **era** is the median age of its captains. It evolves that team's gunboats (sloop → steam gunboat → destroyer → missile boat → autonomous USV) and its fortresses.
 
+## Signature moments
+
+- **Opening shot:** a letterboxed sunrise cinematic, low on the water behind your citadel as the fleet sails out, before the camera cranes up to play.
+- **The Reforging:** every age-up plays a slow-motion hero dolly, a pillar of light, shock rings racing across the sea and a hex-shield flare as the new hull materialises.
+- **The squall:** mid-match rain sheets, forked lightning, a heavier swell and reduced accuracy.
+- **The Leviathan:** a 42-segment sea serpent breaches in great humps, roars and slams ships. The team that slays it earns the Blessing.
+- **Menu showreel:** the menu backdrop is a live late-game battle at golden hour.
+
 ## Tech highlights
 
 - **Ocean:** Gerstner waves shared by GPU and CPU, so hulls pitch and roll on the exact rendered surface. Also per-pixel detail ripples, subsurface scattering, crest/shore foam, and wave-riding foam decals for wakes, rings and oil slicks.
