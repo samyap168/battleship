@@ -310,6 +310,7 @@ export class Game {
     const team = killer && killer.team !== undefined && killer.team < 2 ? killer.team : null;
     for (let i = 0; i < 8; i++) this.combat.after(i * 0.3, () => this.fx.explosion(new THREE.Vector3(u.x + rnd(-30, 30), 4, u.z + rnd(-22, 22)), 2.2, { color: [0.8, 2.2, 2.0] }));
     this.combat.after(0.5, () => this.fx.megaExplosion(new THREE.Vector3(u.x, 4, u.z), 50));
+    this.audio.play('roar', { x: u.x, z: u.z, vol: 1.3, pitch: 0.75 });
     this.audio.play('death', { x: u.x, z: u.z, vol: 1.4, pitch: 0.5 });
     u.sinkT = 0;
     if (team === null) return;

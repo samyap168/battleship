@@ -45,6 +45,7 @@ export const DEFS = {
   capture:       { cap: 2, pri: 8, rev: 0.3,  echo: 0.12, range: 1.3,  jp: 0.02, jv: 0.08, lvl: 2.57 },
   death:         { cap: 4, pri: 8, rev: 0.28, echo: 0.12, range: 1.2,  jp: 0.05, jv: 0.1,  lvl: 0.84 },
   towerDown:     { cap: 2, pri: 8, rev: 0.3,  echo: 0.15, range: 1.3,  jp: 0.04, jv: 0.08, lvl: 0.80 },
+  roar:          { cap: 2, pri: 9, rev: 0.4,  echo: 0.2,  range: 1.6,  jp: 0.06, jv: 0.08, lvl: 0.9 },
   sailFlap:      { cap: 4, pri: 1, rev: 0.12, echo: 0,    range: 0.7,  jp: 0.1,  jv: 0.25, lvl: 4.68 },
 };
 
@@ -549,6 +550,29 @@ export const RECIPES = {
     envelope2(gg.gain, t + 0.8, 0.5, 0.25, 1.5, 1.0);
     bubbles(V, t + 1.0, 8, 2.5, 250, 700, 0.06);
     return 4.2;
+  },
+
+  // Leviathan roar: throat growl through sweeping vocal formants, breath, sub.
+  roar(V) {
+    const { t, p } = V;
+    const dur = 2.6;
+    const out = V.gain(0, V.out);
+    envelope2(out.gain, t, 0.35, 1.0, 1.4, 0.9);
+    const vox = V.gain(1, out);
+    // formants sweep "aah" -> "ooh" as the jaw closes
+    const f1 = V.filter('bandpass', 720, 5, vox), f2 = V.filter('bandpass', 1150, 6, vox), f3 = V.filter('bandpass', 2600, 8, V.gain(0.35, vox));
+    for (const [f, a] of [[f1, 380], [f2, 760], [f3, 2200]]) f.frequency.exponentialRampToValueAtTime(a, t + dur);
+    for (const [det, lvl] of [[1, 0.6], [1.007, 0.45], [0.5, 0.5]]) {
+      const o = V.osc('sawtooth', 58 * p * det, t, dur + 0.2, V.gain(lvl, f1));
+      o.connect(f2); o.connect(f3);
+      o.frequency.linearRampToValueAtTime(74 * p * det, t + 0.5);
+      o.frequency.exponentialRampToValueAtTime(40 * p * det, t + dur);
+      V.lfo(27, 9 * p, o.frequency, t, dur, 'triangle'); // guttural flutter
+    }
+    V.noise('pink', t, dur, 0.8, V.filter('bandpass', 900, 1.2, V.gain(0.35, out))); // breath
+    V.tone(t, { f: 42 * p, f1: 28 * p, sweep: dur, a: 0.3, d: dur, peak: 0.8 }); // sub
+    V.burst(t + 0.1, { kind: 'white', type: 'highpass', f: 2500, a: 0.2, d: 1.8, peak: 0.18, dest: [V.out, V.wet] }); // spray
+    return dur + 1.5;
   },
 
   towerDown(V) {

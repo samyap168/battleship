@@ -90,7 +90,7 @@ export class Leviathan extends Unit {
     const G = this.G;
     this.risen = true; this.alive = true; this.rig.root.visible = true;
     G.ui.announce('THE LEVIATHAN RISES', 'Slay it for gold and the Leviathan\'s Blessing', '#7dfff0');
-    G.audio.play('hypersonic', { x: this.x, z: this.z, vol: 1, pitch: 0.5 });
+    G.audio.play('roar', { x: this.x, z: this.z, vol: 1.2 });
     G.audio.play('explosionBig', { x: this.x, z: this.z, vol: 1.2, pitch: 0.4 });
     G.audio.stinger('warning');
     for (let i = 0; i < 6; i++) G.combat.after(i * 0.25, () => G.fx.splash(this.x + rnd(-30, 30), this.z + rnd(-22, 22), 3.2));
@@ -144,6 +144,7 @@ export class Leviathan extends Unit {
         G.combat.damage(t, 420 + G.time * 0.5, this);
         G.fx.explosion(new THREE.Vector3(t.x, 3, t.z), 1.1, { color: [0.8, 2.2, 2.0] });
         G.audio.play('ram', { x: t.x, z: t.z, pitch: 0.6 });
+        if (Math.random() < 0.4) G.audio.play('roar', { x: this.x, z: this.z, vol: 0.7, pitch: 1.15 });
         this.biteAt = this.t;
       }
     }
