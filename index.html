@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Armada Ascension</title>
+  <meta name="description" content="A 3D naval MOBA: evolve your warship from the Age of Sail to drone swarms in 10-minute 5v5 battles." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><path d='M6 30h36l-6 10H12z' fill='%23e8c47a'/><path d='M22 6v22H10z' fill='%23fff'/><path d='M24 10v18h12z' fill='%23ddd'/></svg>" />
+  <script type="module" crossorigin src="./assets/index-B5X-9mXX.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-Cae8Dc7D.css">
+</head>
+<body>
+  <div id="app"></div>
+  <canvas id="overlay"></canvas>
+  <div id="ui"></div>
+
+  <div id="menu" class="hidden">
+    <h1 class="title">ARMADA<br />ASCENSION</h1>
+    <div class="tag">From sail to swarm · 5v5 naval warfare</div>
+    <div class="row"><div class="lbl">Fleet</div><div class="seg" id="segTeam"><button data-v="0">Azure Dominion</button><button data-v="1">Crimson Hegemony</button></div></div>
+    <div class="row"><div class="lbl">Enemy</div><div class="seg" id="segDiff"><button data-v="easy">Recruit</button><button data-v="normal">Captain</button><button data-v="hard">Admiral</button></div></div>
+    <div class="row"><div class="lbl">Graphics</div><div class="seg" id="segQual"><button data-v="low">Low</button><button data-v="medium">Medium</button><button data-v="high">Ultra</button></div></div>
+    <button class="btn-primary" id="playBtn">SET SAIL</button>
+    <button class="btn-ghost" id="helpBtn">How to command</button>
+    <div class="foot">10-minute matches · 4 allied and 5 enemy AI captains · procedurally generated art and audio</div>
+  </div>
+
+  <div id="help" class="panel ornate hidden" style="z-index:4">
+    <h3>COMMAND</h3>
+    <div><kbd>RMB</kbd> sail to / attack target</div>
+    <div><kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> fire abilities at the cursor</div>
+    <div><kbd>T</kbd> advance to the next age</div>
+    <div><kbd>Ctrl</kbd>+<kbd>1-5</kbd> buy armory upgrades</div>
+    <div><kbd>Space</kbd> center camera · <kbd>Y</kbd> free camera</div>
+    <div><kbd>Wheel</kbd> zoom · <kbd>Tab</kbd> scoreboard · <kbd>Alt</kbd> gun range</div>
+    <div><kbd>S</kbd> stop · <kbd>M</kbd> mute</div>
+    <div class="ages">Earn gold from gunboats, captains, forts and trade ports. Each age reforges your hull:
+      <b>Sail → Steam → Dreadnought → Airpower → Swarm</b>. Ages III-V offer a choice of two warships. Break two lanes (outer then inner fort) to expose the enemy citadel. The team with the most at dusk (10:00) wins.</div>
+  </div>
+
+  <div id="loading"><div class="t">ARMADA ASCENSION</div><div class="p"><i></i></div><div class="s">Loading</div></div>
+</body>
+</html>
