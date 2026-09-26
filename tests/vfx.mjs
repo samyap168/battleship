@@ -11,7 +11,7 @@ page.on('pageerror', (e) => console.log('ERR', e.message));
 await page.goto('http://localhost:5173/?autoplay=1&photo=1');
 await page.waitForFunction(() => window.__aa && window.__aa.G && window.__aa.G.player, null, { timeout: 90000 });
 await page.evaluate((effect) => {
-  const A = window.__aa; A.paused = true; A.cameraDir.intro = 0;
+  const A = window.__aa; A.paused = true; A.cameraDir.intro = 0; A.cameraDir.cine = null;
   const G = A.G, V = A.G.player.rig.root.position.constructor;
   A.cameraDir.locked = false; A.cameraDir.goal.set(-200, 0, 0); A.cameraDir.focus.set(-200, 0, 0); A.cameraDir.distGoal = A.cameraDir.dist = 110;
   A.step(4, 1 / 30);

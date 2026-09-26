@@ -4,7 +4,7 @@
 
 export const CLOUD = {
   uCloudT: { value: 0 },
-  uCloudAmt: { value: 0.5 },   // shadow strength (0 = off)
+  uCloudAmt: { value: 0.6 },   // shadow strength (0 = off)
 };
 
 export const CLOUD_GLSL = /* glsl */ `

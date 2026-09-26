@@ -13,7 +13,7 @@ await page.goto('http://localhost:5173/?autoplay=1');
 await page.waitForFunction(() => window.__aa && window.__aa.G && window.__aa.G.player, null, { timeout: 90000 });
 await page.evaluate(async ([hull, d]) => {
   const A = window.__aa; A.paused = true; const G = A.G; const p = G.player;
-  A.cameraDir.intro = 0;
+  A.cameraDir.intro = 0; A.cameraDir.cine = null;
   for (let i = 0; i < 400; i++) G.update(0.05); // 20s: waves spawn
   const HULLS = { frigate: 1, ironclad: 2, dreadnought: 3, torpedo: 3, battleship: 4, carrier: 4, arsenal: 5, mothership: 5 };
   const target = HULLS[hull];

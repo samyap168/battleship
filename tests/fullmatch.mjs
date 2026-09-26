@@ -19,7 +19,7 @@ const res = await page.evaluate(async () => {
     try { for (let i = 0; i < 100; i++) G.update(0.05); } catch (e) { errors.push(e.stack); break; }
     await new Promise((r) => setTimeout(r, 0));
   }
-  A.cameraDir.intro = 0;
+  A.cameraDir.intro = 0; A.cameraDir.cine = null;
   for (let k = 0; k < 6; k++) A.step(15, 1 / 30); // let the end screen appear
   return { time: G.time.toFixed(0), winner: G.winner, kills: G.teams.map((t) => t.kills), towers: G.teams.map((t) => t.towersLost), ages: G.heroes.map((h) => h.age).join(''), errors, endShown: !!document.querySelector('#end') };
 });

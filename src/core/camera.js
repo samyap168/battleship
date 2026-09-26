@@ -27,6 +27,12 @@ export class CameraDirector {
 
   zoom(delta) { this.distGoal = THREE.MathUtils.clamp(this.distGoal * (1 + delta * 0.0012), 85, 290); }
 
+  /** Keyframed cinematic: [{ t, pos: Vector3, look: Vector3 }], ends at the gameplay pose. */
+  startCinematic(keys, end, opts = {}) {
+    this.cine = { keys, end, t: 0, dur: keys[keys.length - 1].t, letterbox: opts.letterbox !== false, follow: opts.follow };
+    this.intro = 0;
+  }
+
   startIntro(from, to) {
     this.intro = 4.2;
     this.introFrom = from.clone();
@@ -51,6 +57,23 @@ export class CameraDirector {
       cam.position.set(x, o.h + Math.sin(this.t * 0.2) * 6, z);
       cam.lookAt(o.cx, 4, o.cz);
       this.focus.set(o.cx, 0, o.cz);
+      return;
+    }
+    if (this.cine) {
+      const C = this.cine;
+      C.t += dt;
+      const k = C.keys;
+      let i = 0;
+      while (i < k.length - 2 && C.t > k[i + 1].t) i++;
+      const a = k[i], b = k[i + 1];
+      const u = THREE.MathUtils.clamp((C.t - a.t) / (b.t - a.t), 0, 1);
+      const e = u * u * (3 - 2 * u);
+      cam.position.lerpVectors(a.pos, b.pos, e);
+      this._look = (this._look || new THREE.Vector3()).lerpVectors(a.look, b.look, e);
+      if (C.follow) { const f = C.follow(); cam.position.x += f.x; cam.position.z += f.z; this._look.x += f.x; this._look.z += f.z; }
+      cam.lookAt(this._look);
+      this.focus.set(this._look.x, 0, this._look.z);
+      if (C.t >= C.dur) { this.cine = null; const e2 = C.follow ? C.follow() : C.end; this.snapTo(e2.x, e2.z); }
       return;
     }
     if (this.intro > 0) {

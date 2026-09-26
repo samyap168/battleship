@@ -20,7 +20,7 @@ for (const [i, ts] of times.split(',').entries()) {
     const A = window.__aa;
     // pure simulation for the bulk, then ~1s of full ticks so VFX/decals are live
     while (A.G.time < target - 1 && !A.G.over) { for (let i = 0; i < 100 && A.G.time < target - 1; i++) A.G.update(0.05); await new Promise((r) => setTimeout(r, 0)); }
-    A.cameraDir.intro = 0;
+    A.cameraDir.intro = 0; A.cameraDir.cine = null;
     for (let k = 0; k < 4 && (A.G.time < target || A.G.over); k++) A.step(8, 1 / 30);
     A.step(1, 1 / 30);
   }, +ts);

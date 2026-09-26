@@ -254,7 +254,12 @@ export class HUD {
     const sub = winner < 0 ? 'The seas remain contested' : reason === 'citadel' ? `${TEAMS[winner].name} razed the enemy citadel` : `${TEAMS[winner].name} controls the seas at dusk`;
     this.$('hintRoot').innerHTML = ''; this.$('deathRoot').innerHTML = '';
     const r = this.$('modalRoot');
-    r.innerHTML = `<div id="end"><h1 class="${won ? 'win' : 'lose'}">${title}</h1><div class="sub">${sub}</div>
+    const pool = G.heroes.filter((h) => winner < 0 || h.team === winner);
+    const mvp = pool.slice().sort((a, b) => (b.kills + b.assists * 0.5 + b.dmgDealt / 8000) - (a.kills + a.assists * 0.5 + a.dmgDealt / 8000))[0];
+    const mins = Math.floor(G.time / 60), secs = String(Math.floor(G.time % 60)).padStart(2, '0');
+    r.innerHTML = `<div id="end"><h1 class="${won ? 'win' : 'lose'}">${title}</h1><div class="sub">${sub} · ${mins}:${secs}</div>
+      ${mvp ? `<div class="mvp panel ornate"><div class="lbl">MVP</div><div class="nm" style="color:${TEAMS[mvp.team].css}">${esc(mvp.name)}</div>
+        <div class="st">${HULLS[mvp.hullId].name} · ${mvp.kills} / ${mvp.deaths} / ${mvp.assists} · ${Math.round(mvp.dmgDealt / 100) / 10}k damage</div></div>` : ''}
       <div class="panel ornate">${this.scoreboardHTML(G)}</div>
       <button class="btn-primary" id="again">SAIL AGAIN</button><button class="btn-ghost" id="tomenu">Main menu</button></div>`;
     r.querySelector('#again').onclick = () => this.handlers.again && this.handlers.again();

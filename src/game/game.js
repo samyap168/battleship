@@ -171,6 +171,7 @@ export class Game {
     h.setHull(hullId);
     syncShipVisual(h, 0.016, this.time);
     this.fx.ageUp(new THREE.Vector3(h.x, 0, h.z), this.teamGlow(h.team));
+    this.events.emit('reforge', h);
     const team = this.teams[h.team];
     if (h === this.player) { this.audio.stinger('ageUp'); this.ui.announce(AGES[h.age - 1].name.toUpperCase(), HULLS[hullId].name, TEAMS[h.team].css); }
     else this.audio.play('levelUp', { x: h.x, z: h.z });
@@ -515,7 +516,8 @@ export class Game {
       u.ring.scale.setScalar(r.length * 0.5 + 3 + Math.sin(t * 3) * (u.isPlayer ? 0.3 : 0));
     }
     if (u.kind === 'hero') {
-      const want = u.alive && u.shield > 0 ? 1 : 0;
+      u.reforgeFlash = Math.max(0, (u.reforgeFlash || 0) - dt * 1.1);
+      const want = u.alive ? Math.max(u.shield > 0 ? 1 : 0, Math.min(1.6, u.reforgeFlash || 0)) : 0;
       if (want && !u.shieldFx) { u.shieldFx = shieldMesh(TEAMS[u.team].glow); this.scene.add(u.shieldFx); }
       if (u.shieldFx) {
         const mu = u.shieldFx.material.uniforms;

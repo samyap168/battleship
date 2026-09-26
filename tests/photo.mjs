@@ -11,7 +11,7 @@ await page.goto(`http://localhost:5173/?autoplay=1${query}`);
 await page.waitForFunction(() => window.__aa && window.__aa.G && window.__aa.G.player, null, { timeout: 90000 });
 await page.evaluate(async ([x, z, d, sim]) => {
   const A = window.__aa; A.paused = true;
-  A.cameraDir.intro = 0;
+  A.cameraDir.intro = 0; A.cameraDir.cine = null;
   while (A.G.time < sim - 1 && !A.G.over) { for (let i = 0; i < 100; i++) A.G.update(0.05); await new Promise((r) => setTimeout(r, 0)); }
   const follow = Number.isNaN(x);
   A.cameraDir.locked = follow;

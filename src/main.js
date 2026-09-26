@@ -27,6 +27,15 @@ function localGet(k) { try { return localStorage.getItem(k); } catch { return nu
 function localSet(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } }
 
 const $ = (s) => document.querySelector(s);
+const TIPS = [
+  '<b>Shells have travel time.</b> Keep your ship turning and enemy salvos will splash harmlessly behind you.',
+  '<b>Forts shrug off captains.</b> Siege alongside your gunboats, or your guns barely scratch the stone.',
+  '<b>Trade ports</b> pay every captain on the owning team. Hold both and your fleet out-ages the enemy.',
+  '<b>The squall</b> widens gun scatter. It is the perfect cover for an ambush.',
+  '<b>Ages III to V</b> offer two warships. Mix artillery, carriers and swarms to cover each other.',
+  '<b>Shutdown bounties</b> reward sinking a captain on a rampage. Hunt the enemy ace.',
+];
+{ const t = document.getElementById('tip0'); if (t) t.innerHTML = TIPS[Math.floor(Math.random() * TIPS.length)]; }
 const loadBar = $('#loading .p i'), loadTxt = $('#loading .s');
 const step = async (pct, txt) => { loadBar.style.width = pct + '%'; loadTxt.textContent = txt; await new Promise((r) => setTimeout(r, 16)); };
 
@@ -66,6 +75,22 @@ function startGame(spectate) {
     difficulty: settings.difficulty, playerTeam: settings.team, spectate, playerName: 'You', autopilot: !!params.get('autopilot'),
   });
   hud.mount(G);
+  G.events.on('reforge', (h) => {
+    if (h !== G.player) return;
+    // The Reforging: slow-mo dolly to a hero angle around the new hull, then back to play.
+    const cam = R.camera.position, V3 = THREE.Vector3;
+    const pitch = THREE.MathUtils.degToRad(56), d = cameraDir.dist;
+    const side = Math.sin(h.yaw) > 0 ? -1 : 1;
+    cameraDir.startCinematic([
+      { t: 0, pos: new V3(cam.x - h.x, cam.y, cam.z - h.z), look: new V3(0, 0, 0) },
+      { t: 0.55, pos: new V3(side * 38, 22, 44), look: new V3(0, 6, 0) },
+      { t: 1.05, pos: new V3(side * 30, 26, 52), look: new V3(0, 7, 0) },
+      { t: 1.65, pos: new V3(0, Math.sin(pitch) * d, Math.cos(pitch) * d), look: new V3(0, 0, 0) },
+    ], null, { letterbox: false, follow: () => ({ x: h.x, z: h.z }) });
+    G.slowmo = 1.1;
+    h.reforgeFlash = 1.4;
+    R.grade.uniforms.uFlash.value = 0.22;
+  });
   if (spectate) {
     // menu backdrop: skip ahead so the seas are already busy
     G.time = 60;
@@ -76,7 +101,16 @@ function startGame(spectate) {
     cameraDir.orbit = null;
     const p = G.player;
     cameraDir.snapTo(p.x, p.z);
-    cameraDir.startIntro(new THREE.Vector3(0, 0, 0), new THREE.Vector3(p.x, 0, p.z));
+    // Opening shot: low on the water behind our citadel, into the sunrise, then crane up to play.
+    const sx = p.team === 0 ? -1 : 1, V3 = THREE.Vector3;
+    const pitch = THREE.MathUtils.degToRad(56), d = 165;
+    const endPos = new V3(p.x, Math.sin(pitch) * d, p.z + Math.cos(pitch) * d);
+    cameraDir.startCinematic([
+      { t: 0, pos: new V3(sx * 790, 9, 70), look: new V3(sx * 560, 14, -10) },
+      { t: 2.6, pos: new V3(sx * 735, 24, 105), look: new V3(sx * 600, 30, -20) },
+      { t: 4.4, pos: new V3(sx * 690, 70, 150), look: new V3(sx * 640, 6, 0) },
+      { t: 6.2, pos: endPos, look: new V3(p.x, 0, p.z) },
+    ], { x: p.x, z: p.z });
     cameraDir.locked = true;
     cameraDir.distGoal = cameraDir.dist = 165;
     audio.stinger('matchStart');
@@ -344,6 +378,8 @@ function tick(dt, draw) {
     audio.setIntensity(mode === 'menu' ? 0.35 : G.combatHeat);
   }
 
+  document.body.classList.toggle('cinematic', !!cameraDir.cine && cameraDir.cine.letterbox && mode === 'play');
+  if (cameraDir.cine) R.gl.toneMappingExposure *= 0.9;
   if (!draw) return;
   if (G && mode === 'play') hud.update(G, R.camera, gdt, cameraDir.focus, cameraDir.view);
   R.render(dt, wallTime);

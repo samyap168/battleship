@@ -56,7 +56,7 @@ export class Weather {
     const k = this.k;
     WAVE_UNIFORMS.uWaveAmp.value = 1 + k * 0.75;
     if (Math.abs((this.lastAudioK ?? -1) - k) > 0.02) { this.lastAudioK = k; this.audio.setStorm(k); }
-    CLOUD.uCloudAmt.value = 0.5 + k * 0.35;
+    CLOUD.uCloudAmt.value = 0.6 + k * 0.3;
     // rain
     this.rainMat.opacity = k * 0.42;
     this.rain.visible = k > 0.01;
