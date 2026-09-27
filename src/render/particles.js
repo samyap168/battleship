@@ -12,6 +12,9 @@ void main() {
   vColor = aColor; vKind = aSK.y; vSeed = fract(position.x * 0.137 + position.z * 0.311);
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   gl_PointSize = clamp(aSK.x * uScale / -mv.z, 0.0, 512.0);
+  // soft glows (kind 0) are camera-facing discs as wide as they are bright: pull them toward the
+  // camera by their radius so the sea surface cannot slice a hard line through a big flash
+  if (aSK.y < 0.5) { float d = length(mv.xyz); mv.xyz *= max(d - aSK.x * 0.5, min(d, 2.0)) / max(d, 1e-3); }
   gl_Position = projectionMatrix * mv;
 }`;
 
