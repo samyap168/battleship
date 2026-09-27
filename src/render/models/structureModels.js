@@ -167,6 +167,49 @@ function roundTower(P, x, z, r, y0, y1, { roofH = 0, roofMat = 'team', crenel = 
   }
 }
 
+// Eastern (Crimson Hegemony) architecture: concave pagoda roofs, white plaster, red lacquer.
+const LACQUER = 0x8e2418, PLASTER = 0xe6ddcc, TILE = 0x2e343a;
+function pagodaRoof(P, w, y, h, cx = 0, cz = 0) {
+  const e = chamferRect(w, w, 0.3, cx, cz), m = scalePoly(e, 0.72, 0.72, cx, cz), t = scalePoly(e, 0.26, 0.26, cx, cz);
+  P.add('paint', prism(e, y, m, y + h * 0.24, { base: true, uvScale: 0.3 }), TILE);     // flat flared eave
+  P.add('paint', prism(m, y + h * 0.24, t, y + h, { uvScale: 0.3 }), TILE);             // steep upper roof
+  P.add('team', prism(t, y + h, scalePoly(t, 0.55, 0.55, cx, cz), y + h + 0.3), 0xffffff); // ridge cap in the fleet's colour
+  const r = w / 2 - 0.25;                                                                // gilded upswept corner horns
+  for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) P.rod('brass', 0.13, 0.05, [cx + sx * r * 0.92, y + 0.12, cz + sz * r * 0.92], [cx + sx * (r + 0.75), y + 0.95, cz + sz * (r + 0.75)], 0xd9b25a, 5);
+}
+function pagodaTower(P, x, z, w, y1) {
+  P.add('stone', prism(chamferRect(w + 1.0, w + 1.0, 0.3, x, z), 0.4, chamferRect(w, w, 0.3, x, z), y1 - 3.2, { uvScale: 0.14 }), STONE_DARK); // battered base
+  const body = chamferRect(w * 0.84, w * 0.84, 0.2, x, z);
+  P.add('paint', prism(body, y1 - 3.2, body, y1, { uvScale: 0.2 }), PLASTER);
+  for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) P.box('paint', 0.3, 3.2, 0.3, x + dx * w * 0.42, y1 - 1.6, z + dz * w * 0.42, LACQUER);
+  for (const a of [0, PI / 2, PI, -PI / 2]) P.box('lantern', 0.7, 0.8, 0.1, x + Math.sin(a) * (w * 0.42 + 0.03), y1 - 1.6, z + Math.cos(a) * (w * 0.42 + 0.03), 0xffffff, 0, a); // one lit window per face
+  pagodaRoof(P, w * 1.5, y1, 2.6, x, z);
+}
+function easternKeep(P) {
+  const b0 = chamferRect(17, 17, 0.6);
+  P.add('stone', prism(b0, 1.6, scalePoly(b0, 0.82), 10, { uvScale: 0.12 }), STONE_DARK); // battered stone base (ishigaki)
+  P.add('stone', prism(scalePoly(b0, 0.82), 10, scalePoly(b0, 0.84), 10.4, { uvScale: 0.12 }), STONE_TOP);
+  // [body width, y0, y1, roof width, roof height]: four stacked storeys, each under its own flared roof
+  const tiers = [[12.6, 10.4, 14.4, 17.4, 4.4], [9.4, 16.0, 19.6, 13.4, 3.6], [6.8, 21.2, 24.4, 10.0, 3.0], [4.6, 25.6, 28.6, 7.4, 3.6]];
+  for (const [w, y0, y1, rw, rh] of tiers) {
+    const body = chamferRect(w, w, 0.25);
+    P.add('paint', prism(body, y0, body, y1, { uvScale: 0.2 }), PLASTER);
+    const hw = w / 2;
+    for (const [px, pz] of [[hw, hw], [hw, -hw], [-hw, hw], [-hw, -hw], [0, hw], [0, -hw], [hw, 0], [-hw, 0]]) P.box('paint', 0.38, y1 - y0, 0.38, px, (y0 + y1) / 2, pz, LACQUER);
+    P.add('paint', prism(scalePoly(body, 1.04), y1 - 0.55, scalePoly(body, 1.04), y1, {}), LACQUER); // lacquered band under the eaves
+    for (const a of [0, PI / 2, PI, -PI / 2]) for (const dx of (w > 8 ? [-w * 0.24, w * 0.24] : [0])) {
+      const c = Math.cos(a), sn = Math.sin(a);
+      P.box('lantern', w > 8 ? 1.1 : 0.8, (y1 - y0) * 0.34, 0.1, sn * (hw + 0.03) + c * dx, (y0 + y1) / 2, c * (hw + 0.03) - sn * dx, 0xffffff, 0, a);
+    }
+    pagodaRoof(P, rw, y1, rh);
+  }
+  // hanging war banners on the first storey
+  for (const a of [0, PI / 2, PI, -PI / 2]) P.add('team', new THREE.BoxGeometry(2.2, 3.4, 0.08), 0xffffff, M(Math.sin(a) * 6.42, 12.2, Math.cos(a) * 6.42, 0, a, 0));
+  // lacquered gun terrace for the battery (pivot at y 24.5, z 4.3)
+  P.box('paint', 5.6, 0.45, 3.6, 0, 24.2, 4.6, LACQUER);
+  for (const x of [-2.4, 2.4]) P.box('paint', 0.4, 3.4, 0.4, x, 22.5, 6.1, LACQUER);
+}
+
 function lampPost(P, x, y, z, h = 2.2) {
   P.rod('iron', 0.07, 0.05, [x, y, z], [x, y + h, z], 0x2a2c30, 6);
   P.add('lantern', new THREE.OctahedronGeometry(0.22, 0), 0xffffff, M(x, y + h + 0.2, z, 0, 0, 0, 1, 1.4, 1));
@@ -402,7 +445,8 @@ function buildCitadel(ctx) {
   for (let i = 0; i < NB; i++) {
     const [x, z] = bast[i];
     const isGate = i === 1 || i === 2; // flank +Z
-    roundTower(P, x, z, 3.0, 0.4, isGate ? 12.5 : 10.5, { roofH: 4.2, seg: 12 });
+    if (ctx.team === 1) pagodaTower(P, x, z, 5.4, isGate ? 12.5 : 10.5);
+    else roundTower(P, x, z, 3.0, 0.4, isGate ? 12.5 : 10.5, { roofH: 4.2, seg: 12 });
     lampPost(P, x * 0.86, 8.05, z * 0.86, 1.3);
   }
   // gatehouse (+Z)
@@ -425,27 +469,30 @@ function buildCitadel(ctx) {
     P.add('stone', block(3.2, 4.4, 1.8, 3.9, 0.05, 0, 0, 0, { uvScale: 0.14 }), i % 2 ? STONE : STONE_DARK, M(x, 0, z, 0, ry));
     roof(P, 3.6, 4.6, 1.8, x, 3.9, z, ry, i % 3 ? SLATE : TERRACOTTA);
   });
-  // tiered keep
-  const t1 = chamferRect(16, 16, 1.2);
-  P.add('stone', prism(t1, 1.8, scalePoly(t1, 0.94), 14, { uvScale: 0.12 }), STONE);
-  P.add('stone', prism(scalePoly(t1, 0.94), 14, scalePoly(t1, 0.98), 14.6, { uvScale: 0.12 }), STONE_DARK);
-  merlons(P, scalePoly(t1, 0.98), 14.6, { w: 0.8, gap: 0.8, h: 0.8 });
-  for (const [x, z] of [[7.4, 7.4], [-7.4, 7.4], [7.4, -7.4], [-7.4, -7.4]]) roundTower(P, x, z, 1.8, 13, 19.5, { roofH: 3.2 });
-  const t2 = chamferRect(11, 11, 0.9);
-  P.add('stone', prism(t2, 14.5, scalePoly(t2, 0.95), 24, { uvScale: 0.12 }), STONE);
-  P.add('stone', prism(scalePoly(t2, 0.95), 24, scalePoly(t2, 1.0), 24.5, { uvScale: 0.12 }), STONE_DARK);
-  merlons(P, scalePoly(t2, 1.0), 24.5, { w: 0.7, gap: 0.7, h: 0.7 });
-  const t3 = chamferRect(7, 7, 0.7);
-  P.add('stone', prism(t3, 24.4, scalePoly(t3, 0.94), 32, { uvScale: 0.12 }), STONE);
-  P.add('stone', prism(scalePoly(t3, 0.94), 32, scalePoly(t3, 1.05), 32.6, { uvScale: 0.12 }), STONE_DARK);
-  // big team banners on tier 1 + 2
-  for (const [r, y, h, w] of [[8.0, 9.5, 6, 2.6], [5.5, 20, 5, 2.0]]) for (const a of [0, PI / 2, PI, -PI / 2]) {
-    P.add('team', new THREE.BoxGeometry(w, h, 0.08), 0xffffff, M(Math.sin(a) * r * 0.985, y, Math.cos(a) * r * 0.985, -0.03, a, 0));
-  }
-  // windows (warm)
-  for (const a of [0, PI / 2, PI, -PI / 2]) for (const dx of [-2.2, 2.2]) {
-    const c = Math.cos(a), s = Math.sin(a);
-    P.box('lantern', 0.5, 1.3, 0.1, s * 3.35 + c * dx * 0.7, 28, c * 3.35 - s * dx * 0.7, 0xffffff, 0, a);
+  if (ctx.team === 1) easternKeep(P);
+  else {
+    // tiered keep
+    const t1 = chamferRect(16, 16, 1.2);
+    P.add('stone', prism(t1, 1.8, scalePoly(t1, 0.94), 14, { uvScale: 0.12 }), STONE);
+    P.add('stone', prism(scalePoly(t1, 0.94), 14, scalePoly(t1, 0.98), 14.6, { uvScale: 0.12 }), STONE_DARK);
+    merlons(P, scalePoly(t1, 0.98), 14.6, { w: 0.8, gap: 0.8, h: 0.8 });
+    for (const [x, z] of [[7.4, 7.4], [-7.4, 7.4], [7.4, -7.4], [-7.4, -7.4]]) roundTower(P, x, z, 1.8, 13, 19.5, { roofH: 3.2 });
+    const t2 = chamferRect(11, 11, 0.9);
+    P.add('stone', prism(t2, 14.5, scalePoly(t2, 0.95), 24, { uvScale: 0.12 }), STONE);
+    P.add('stone', prism(scalePoly(t2, 0.95), 24, scalePoly(t2, 1.0), 24.5, { uvScale: 0.12 }), STONE_DARK);
+    merlons(P, scalePoly(t2, 1.0), 24.5, { w: 0.7, gap: 0.7, h: 0.7 });
+    const t3 = chamferRect(7, 7, 0.7);
+    P.add('stone', prism(t3, 24.4, scalePoly(t3, 0.94), 32, { uvScale: 0.12 }), STONE);
+    P.add('stone', prism(scalePoly(t3, 0.94), 32, scalePoly(t3, 1.05), 32.6, { uvScale: 0.12 }), STONE_DARK);
+    // big team banners on tier 1 + 2
+    for (const [r, y, h, w] of [[8.0, 9.5, 6, 2.6], [5.5, 20, 5, 2.0]]) for (const a of [0, PI / 2, PI, -PI / 2]) {
+      P.add('team', new THREE.BoxGeometry(w, h, 0.08), 0xffffff, M(Math.sin(a) * r * 0.985, y, Math.cos(a) * r * 0.985, -0.03, a, 0));
+    }
+    // windows (warm)
+    for (const a of [0, PI / 2, PI, -PI / 2]) for (const dx of [-2.2, 2.2]) {
+      const c = Math.cos(a), s = Math.sin(a);
+      P.box('lantern', 0.5, 1.3, 0.1, s * 3.35 + c * dx * 0.7, 28, c * 3.35 - s * dx * 0.7, 0xffffff, 0, a);
+    }
   }
   // crystal pedestal
   P.add('stone', prism(ngon(8, 2.8, 0, 0, PI / 8), 32.6, ngon(8, 1.8, 0, 0, PI / 8), 35, { uvScale: 0.14 }), STONE_DARK);
@@ -499,7 +546,8 @@ const STRUCT_BUILDERS = { outer: buildOuter, inner: buildInner, citadel: buildCi
 
 export function buildStructure(kind = 'outer', teamId = 0) {
   const fn = STRUCT_BUILDERS[kind] || buildOuter;
-  const t = template('struct:' + kind, fn);
+  // citadels are per-faction architecture (Azure: European keep; Crimson: pagoda castle)
+  const t = kind === 'citadel' ? template('struct:citadel:' + teamId, (ctx) => { ctx.team = teamId; return fn(ctx); }) : template('struct:' + kind, fn);
   const parts = assemble(t, teamId);
   const muzzles = [];
   const turretRig = { pivot: parts.pivot, muzzles };
