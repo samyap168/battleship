@@ -312,13 +312,15 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
   /** Transformation moment: a pillar of light, rising rings, sparks. */
   ageUp(pos, color) {
     const c = new THREE.Color(color);
-    const b = this.beam(new THREE.Vector3(pos.x, -2, pos.z), new THREE.Vector3(pos.x, 130, pos.z), color, 8, 1.5);
+    // ascension light is warm gold: it must read apart from the team-blue hex dome it rises through
+    const gold = 0xffc766, gc = new THREE.Color(gold);
+    const b = this.beam(new THREE.Vector3(pos.x, -2, pos.z), new THREE.Vector3(pos.x, 130, pos.z), gold, 5.5, 1.5);
     b.userData.pillar = true;
     for (let i = 0; i < 3; i++) this.ring(pos.x, pos.z, 3, 40 + i * 25, color, 1.0 + i * 0.35, 0.06);
     for (let i = 0; i < 80; i++) {
       const a = Math.random() * 6.283, r = rnd(4, 20);
       this.p.add.emit({ x: pos.x + Math.cos(a) * r, y: rnd(0, 6), z: pos.z + Math.sin(a) * r, vx: Math.cos(a) * 3, vy: rnd(15, 45), vz: Math.sin(a) * 3,
-        life: rnd(0.8, 1.8), s0: rnd(0.8, 1.8), s1: 0.1, r: c.r * 3, g: c.g * 3, b: c.b * 3, a0: 1, a1: 0, kind: 2, drag: 0.5 });
+        life: rnd(0.8, 1.8), s0: rnd(0.8, 1.8), s1: 0.1, r: (i % 3 ? c.r : gc.r) * 3, g: (i % 3 ? c.g : gc.g) * 3, b: (i % 3 ? c.b : gc.b) * 3, a0: 1, a1: 0, kind: 2, drag: 0.5 });
     }
     this.light(pos, color, 80, 120, 1.2);
     this.renderer.shockwave(pos, 1.4, 0.8);
