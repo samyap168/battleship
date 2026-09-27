@@ -329,7 +329,7 @@ export function karstTower(r, h, seed, lean = 0) {
   const col = new Float32Array(p.count * 3);
   const c = new THREE.Color();
   const warm = Math.sin(seed * 3.1) * 0.5 + 0.5, lum = 0.9 + 0.2 * (Math.sin(seed * 5.3) * 0.5 + 0.5);
-  const tintR = lum * (0.96 + warm * 0.1), tintG = lum * (0.99 + warm * 0.02), tintB = lum * (1.05 - warm * 0.1);
+  const tintR = lum * (0.9 + warm * 0.24), tintG = lum * (0.97 + warm * 0.05), tintB = lum * (1.14 - warm * 0.28); // iron-red to cool grey limestone
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
     const t = (y + 2.5) / h;
