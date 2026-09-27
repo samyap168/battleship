@@ -85,7 +85,7 @@ export class FX {
     // Debris chunks
     this.debrisMax = 400;
     // splintered planks: a subdivided box with jagged, torn vertices
-    const dGeo = new THREE.BoxGeometry(1, 0.35, 0.6, 3, 1, 2);
+    const dGeo = new THREE.BoxGeometry(1.5, 0.22, 0.42, 4, 1, 2); // long thin splinters, not blocks
     { const dp = dGeo.attributes.position;
       for (let i = 0; i < dp.count; i++) {
         const x = dp.getX(i), h = Math.sin(x * 91.7 + dp.getZ(i) * 37.3) * 0.5 + 0.5;
@@ -108,7 +108,7 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
 {
   float cr = dbH(vDbP) * 0.6 + dbH(vDbP * 2.3 + 1.7) * 0.4;
   float ember = smoothstep(0.45, 0.9, cr) * vHeat;
-  totalEmissiveRadiance += vec3(3.2, 1.0, 0.22) * ember * 1.6 + vec3(0.9, 0.25, 0.05) * vHeat * 0.35 + vec3(0.75, 0.24, 0.05) * smoothstep(0.25, 0.9, cr) * step(0.01, vHeat); // smouldering edges even far from fire
+  totalEmissiveRadiance += vec3(3.2, 1.0, 0.22) * ember * 1.6 + vec3(0.75, 0.24, 0.05) * smoothstep(0.62, 0.95, cr) * vHeat * 0.6; // ember cracks only: the rest is charred timber / steel
   diffuseColor.rgb *= 1.0 - vHeat * 0.45; // charred
 }`);
     };
@@ -291,7 +291,8 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
     d.r = new THREE.Vector3(rnd(0, 6), rnd(0, 6), rnd(0, 6));
     d.w = new THREE.Vector3(rnd(-8, 8), rnd(-8, 8), rnd(-8, 8));
     d.s = rnd(0.66, 1.62) * Math.min(1.7, Math.sqrt(scale)); // chunkier splinters: embers must read at gameplay zoom
-    d.alive = true; d.smoke = Math.random() < 0.5; d.heat = d.smoke ? rnd(0.7, 1) : rnd(0.25, 0.5);
+    const cold = Math.random() < 0.4; // plenty of pieces fly off unburnt: dark wood and steel against the fire
+    d.alive = true; d.smoke = !cold && Math.random() < 0.6; d.heat = cold ? 0 : d.smoke ? rnd(0.7, 1) : rnd(0.25, 0.5);
   }
 
   emp(x, z, radius) {
