@@ -225,7 +225,7 @@ export class HUD {
     // the banner's final box from layout sizes (offset* ignore the scale-in transform), available at once
     const br = box.getBoundingClientRect(), bw = el.offsetWidth, bh = el.offsetHeight;
     const l = br.left + (br.width - bw) / 2, t = br.top + el.offsetTop;
-    this.annRect = { l: l - 20, r: l + bw + 20, t: t - 14, b: t + bh + 14 };
+    this.annRect = { l: l - 20, r: l + bw + 20, t: t - 14, b: t + bh + 34 }; // names draw ~10 px above their bar
     setTimeout(() => el.classList.add('out'), a.size ? 2000 : 2600);
     setTimeout(() => { this.annRect = null; this.nextAnnounce(); }, a.size ? 2500 : 3100);
   }
