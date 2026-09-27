@@ -8,8 +8,8 @@ import { TEAMS } from '../core/config.js';
 export const TEAM_RIM = [0, 1].map((t) => ({ value: new THREE.Color(TEAMS[t].color).multiplyScalar(0.5) }));
 const twins = new Map();
 
-function twin(m, team) {
-  const key = m.uuid + ':' + team;
+function twin(m, team, gain = 1) {
+  const key = m.uuid + ':' + team + ':' + gain;
   let t = twins.get(key);
   if (t) return t;
   t = m.clone();
@@ -23,21 +23,22 @@ function twin(m, team) {
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
 {
   float fr = 1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
-  totalEmissiveRadiance += uTeamRim * (fr * fr) * 1.5;
+  totalEmissiveRadiance += uTeamRim * (fr * fr) * ${(1.5 * gain).toFixed(2)};
 }`);
   };
-  t.customProgramCacheKey = () => prevKey() + '|rim';
+  t.customProgramCacheKey = () => prevKey() + '|rim' + gain;
   twins.set(key, t);
   return t;
 }
 
-export function applyTeamRim(root, team) {
+/** gain > 1 for small hulls (gunboats), whose silhouettes need a stronger edge to read at all. */
+export function applyTeamRim(root, team, gain = 1) {
   if (!TEAM_RIM[team]) return root;
   root.traverse((o) => {
     if (!o.isMesh || !o.material || Array.isArray(o.material)) return;
     const m = o.material;
     if (!m.isMeshStandardMaterial || m.transparent || m.side === THREE.DoubleSide || m.blending !== THREE.NormalBlending) return;
-    o.material = twin(m, team);
+    o.material = twin(m, team, gain);
   });
   return root;
 }
