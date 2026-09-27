@@ -284,6 +284,7 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (k === 't' || k === 'u') playerAgeUp();
+  else if (k === 'g') G.callRally && G.callRally(G.player, mouse.ground.x, mouse.ground.z);
   else if (k === 's') G.player && G.player.stop();
   else if (k === ' ') { cameraDir.locked = true; e.preventDefault(); }
   else if (k === 'y') cameraDir.locked = !cameraDir.locked;

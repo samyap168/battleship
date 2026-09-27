@@ -383,6 +383,17 @@ export class Game {
     }
   }
 
+  /** Rally call: nearby allied captains break off and converge on the point for 25 s. */
+  callRally(caller, x, z) {
+    if (!caller || this.over || this.time - (this.rallyT?.[caller.team] ?? -99) < 6) return false;
+    (this.rallyT ||= {})[caller.team] = this.time;
+    (this.rally ||= {})[caller.team] = { x, z, until: this.time + 25, caller };
+    this.fx.ring(x, z, 4, 34, 0xffd76a, 1.2, 0.08);
+    this.ui.ping(x, z, '#ffd76a');
+    if (caller === this.player) { this.ui.feed('<b style="color:#ffd76a">You</b> call the fleet to rally'); this.audio.play('capture', { vol: 0.6, pitch: 1.3 }); }
+    return true;
+  }
+
   // ---------------------------------------------------------------- update
   update(rawDt) {
     let dt = Math.min(rawDt, 1 / 20);
@@ -462,6 +473,24 @@ export class Game {
         const ours = c.team === pl.team;
         this.ui.announce(ours ? 'OUR CITADEL IS EXPOSED' : 'ENEMY CITADEL EXPOSED', ours ? 'Defend it: both inner forts have fallen' : 'Push with your gunboats to win', ours ? '#ff6a5a' : '#ffd76a');
         this.audio.stinger(ours ? 'warning' : 'towerDown');
+      }
+    }
+    // bot shot-calling: every ~30 s a team's captains rally on the objective that matters now
+    if (!this.over) for (const tm of [0, 1]) {
+      this.shotT ||= [rnd(20, 40), rnd(20, 40)];
+      this.shotT[tm] -= dt;
+      if (this.shotT[tm] > 0 || (this.rally && this.rally[tm] && this.rally[tm].until > this.time)) continue;
+      this.shotT[tm] = rnd(26, 36);
+      let target = null, why = '';
+      const boss = this.boss;
+      if (boss && boss.risen && boss.alive) { target = boss; why = 'the Leviathan'; }
+      else if (this.duskTide) {
+        const forts = this.structures.filter((st) => st.alive && st.team !== tm && !st.invulnerable).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
+        if (forts[0]) { target = forts[0]; why = `the ${forts[0].kind === 'citadel' ? 'enemy citadel' : forts[0].lane + ' fort'}`; }
+      }
+      const caller = this.heroes.filter((h) => h.team === tm && h.alive && h !== this.player).sort((a, b) => b.level - a.level)[0];
+      if (target && caller && this.callRally(caller, target.x, target.z) && this.player && tm === this.player.team) {
+        this.ui.feed(`<b style="color:${TEAMS[tm].css}">${caller.name}</b> calls a rally at ${why} <span class="dim">(press G to call your own)</span>`);
       }
     }
     // ports

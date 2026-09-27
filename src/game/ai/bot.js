@@ -1,4 +1,4 @@
-import { AGE_HULLS, UPGRADES, ABILITIES, COUNTERS } from '../../core/config.js';
+import { AGE_HULLS, UPGRADES, ABILITIES, COUNTERS, TEAMS } from '../../core/config.js';
 import { laneFor, fountain } from '../map.js';
 import { cast, canCast } from '../abilities.js';
 
@@ -47,11 +47,19 @@ export class BotBrain {
         return;
       }
     }
+    // ---- rally: answer a teammate's rally call (unless badly hurt or already brawling nearby)
+    const rally = G.rally && G.rally[h.team];
+    if (rally && rally.until > G.time && rally.caller !== h && hpF > 0.4 && h.dist(rally) > 35 && h.dist(rally) < 520 && !(enemies.length && h.dist(enemies[0]) < 70)) {
+      if (!this.ackRally || this.ackRally !== rally) { this.ackRally = rally; if (G.player && rally.caller === G.player && Math.random() < 0.5) G.ui.feed(`<b style="color:${TEAMS[h.team].css}">${h.name}</b>: on my way`); }
+      this.go(rally.x + rnd(-15, 15), rally.z + rnd(-15, 15));
+      this.tryAbilities(enemies, null, tookDmg);
+      return;
+    }
     // ---- retreat
     const outnumbered = enemyPower > allyPower * 1.35;
     if (this.state === 'retreat') {
       if (hpF > 0.92) this.state = 'lane';
-    } else if (hpF < 0.28 || (hpF < 0.45 && outnumbered) || (hpF < 0.6 && this.inEnemyTowerRange() && tookDmg > 0 && !this.creepsTanking())) {
+    } else if (hpF < 0.28 || (hpF < 0.45 && outnumbered) || (hpF < 0.5 && outnumbered && G.teams[1 - h.team].kills - G.teams[h.team].kills >= 8) || (hpF < 0.6 && this.inEnemyTowerRange() && tookDmg > 0 && !this.creepsTanking())) {
       this.state = 'retreat';
     }
 
@@ -75,8 +83,12 @@ export class BotBrain {
       if (underTower && eF > 0.2) s -= 2;
       if (s > preyScore) { preyScore = s; prey = e; }
     }
-    const aggressive = this.d.aggression + (allyPower > enemyPower ? 0.2 : -0.2);
-    const engage = prey && (preyScore > 1.2 - aggressive || prey.hp / prey.maxHp < 0.3) && hpF > 0.4;
+    // a team that is well behind plays for picks under its own forts instead of feeding
+    const deficit = G.teams[1 - h.team].kills - G.teams[h.team].kills;
+    const cautious = deficit >= 8 && !this.enemyTowerCovers(h.x, h.z) && !G.duskTide;
+    const aggressive = this.d.aggression + (allyPower > enemyPower ? 0.2 : -0.2) - (cautious ? 0.35 : 0);
+    const engage = prey && (preyScore > 1.2 - aggressive || prey.hp / prey.maxHp < 0.3) && hpF > (cautious ? 0.55 : 0.4)
+      && !(cautious && enemyPower > allyPower * 1.1);
     this.tryAbilities(enemies, prey, tookDmg);
 
     if (engage) {

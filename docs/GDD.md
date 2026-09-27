@@ -132,10 +132,14 @@ Age branches form one directed counter graph (`COUNTERS` in `config.js`). Bots c
 
 The top-left **Admiral's orders** panel shows what's coming and what to do: squall and Leviathan countdowns, the squall and boss while they are live, age-up progress ("Press T" when affordable), and when the enemy citadel is exposed.
 
-## 13. Faction readability
+## 13. Rallies and shot-calling
+
+Press **G** to call a rally at the cursor. Allied captains within ~500 units who are healthy (over 40% hull) and not already in a close fight converge on it for 25 s, and some acknowledge in the feed. Bots call rallies themselves every ~30 s: on the Leviathan while it is alive, and during the Dusk Tide on the weakest open enemy fort. A team trailing by 8+ kills plays for picks under its own forts instead of taking even fights.
+
+## 14. Faction readability
 
 Every captain's hull carries a Fresnel rim light in team colour, so friend and foe read by silhouette through smoke and at fleet zoom.
 
-## 14. Controls
+## 15. Controls
 
-RMB move/attack · QWER quick-cast at cursor · T advance age · Ctrl+1–5 upgrades · Space centre camera · Y free camera · Wheel zoom (all the way in swings to a low cinematic angle) · Tab scoreboard · Alt gun range · M mute.
+RMB move/attack · QWER quick-cast at cursor · T advance age · G rally · Ctrl+1–5 upgrades · Space centre camera · Y free camera · Wheel zoom (all the way in swings to a low cinematic angle) · Tab scoreboard · Alt gun range · M mute.
