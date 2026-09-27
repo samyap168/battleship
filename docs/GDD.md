@@ -31,7 +31,7 @@ sail lane → sink gunboats / trade fire (gold + XP) → buy upgrades or save
 - **~5:30** **Age of Airpower** (2200 g): Fast Battleship or Fleet Carrier.
 - **5:30** Bots start grouping to push the weakest enemy lane.
 - **~7:30** **Age of Swarms** (3000 g): Arsenal Cruiser or Drone Mothership.
-- **8:00** **The Dusk Tide.** Siege waves carry two heavy gunboats, every fortress takes +70% damage, and backdoor protection lifts. Endgame pushes become decisive.
+- **8:00** **The Dusk Tide.** Siege waves carry two heavy gunboats, every fortress takes +70% damage (rising to +140% by 9:30), backdoor protection lifts, and a single breached lane exposes the citadel. Endgame pushes become decisive.
 - **10:00** Dusk. If no citadel has fallen, score = 5 × structures destroyed + kills + citadel damage/1000.
 
 ## 4. The five ages

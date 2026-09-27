@@ -58,6 +58,9 @@ export class Combat {
       return 0;
     }
     let dmg = amount * (1 - (target.armor || 0));
+    // a freshly exposed citadel raises its harbour chains: 25% damage rising to full over 8 s, so an
+    // exposure (and the Dusk Tide's one-lane breach) is a moment the defenders can answer, not an instant loss
+    if (target.kind === 'citadel') { target.exposedAt ??= G.time; dmg *= 0.25 + 0.75 * Math.min(1, (G.time - target.exposedAt) / 8); }
     if (target.buffs) for (const b of target.buffs) if (b.dmgTaken) dmg *= b.dmgTaken;
     if (source && (source.kind === 'tower' || source.kind === 'citadel')) {
       // towers scale with match time so late ships still respect them; they shred gunboats

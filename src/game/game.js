@@ -154,8 +154,9 @@ export class Game {
     if (s.tier === 'outer') return false;
     const mine = this.structures.filter((o) => o.team === s.team);
     if (s.tier === 'inner') return mine.some((o) => o.alive && o.tier === 'outer' && o.lane === s.lane);
-    // citadel: vulnerable once two lanes are broken (two inner towers down)
-    return mine.filter((o) => !o.alive && o.tier === 'inner').length < 2;
+    // citadel: vulnerable once two lanes are broken (two inner towers down); under the Dusk Tide one
+    // breached lane is enough, so late stalemates end at a burning citadel instead of on the clock
+    return mine.filter((o) => !o.alive && o.tier === 'inner').length < (this.duskTide ? 1 : 2);
   }
 
   weakestEnemyLane(team) {
@@ -425,7 +426,7 @@ export class Game {
         this.ui.announce('THE DUSK TIDE', 'Siege waves grow · every fortress crumbles, captains may siege alone', '#ffb35a');
         this.audio.stinger('enemyAge');
         if (this.audio.setFinale) this.audio.setFinale(true);
-        this.ui.feed('<b style="color:#ffb35a">The Dusk Tide rises:</b> <span class="dim">heavier gunboat waves, forts take +70% damage and no longer need gunboat escort to be sieged.</span>');
+        this.ui.feed('<b style="color:#ffb35a">The Dusk Tide rises:</b> <span class="dim">heavier gunboat waves, forts take +70% damage and no longer need gunboat escort to be sieged. One breached lane now exposes a citadel.</span>');
       }
       // mid-match squall
       const inStorm = t > this.stormAt && t < this.stormAt + this.stormDur;
