@@ -305,7 +305,10 @@ export class Game {
     this.shareXp(u, REWARDS.heroXp + REWARDS.heroXpPerLevel * u.level, killer && killer.kind === 'hero' ? killer : null);
     if (this.player && u.team === this.player.team && u !== this.player) this.ui.ping(u.x, u.z, '#ffb24a');
     this.ui.feed(`${killerName} sank <b style="color:${TEAMS[u.team].css}">${u.name}</b>${assisters.length ? ` <span class="dim">+${assisters.length}</span>` : ''}`);
-    if (u === this.player) { this.ui.death(u.respawn, killer); this.audio.stinger('warning'); this.slowmo = 0.7; this.fx.shake(0.6, u.x, u.z); }
+    if (u === this.player) {
+      this.ui.death(u.respawn, killer); this.audio.stinger('warning'); this.slowmo = 0.7; this.fx.shake(0.6, u.x, u.z);
+      if (!(this.coached ||= {}).death) { this.coached.death = true; setTimeout(() => this.ui.hint('Sunk ships recommission at your citadel · fight near your gunboats and forts, and <b>retreat below a third of your hull</b>', 8000), 2500); }
+    }
   }
 
   bossDeath(u, killer) {
@@ -430,6 +433,21 @@ export class Game {
       (pl.hintedAge ||= {})[pl.age] = true;
       this.ui.hint(`<b>${AGES[pl.age].name}</b> is within reach · press <kbd>T</kbd> to reforge your ship`, 6000);
       this.audio.play('levelUp', { vol: 0.5 });
+    }
+    // contextual coaching: each tip fires once, the first time its situation arises
+    if (pl && !this.over && !pl.isBot && (this.coachT = (this.coachT || 0) + dt) > 0.5) {
+      this.coachT = 0;
+      const seen = (this.coached ||= {});
+      const tip = (k, cond, msg, ms = 6500) => { if (!seen[k] && cond()) { seen[k] = true; this.ui.hint(msg, ms); return true; } return false; };
+      const near = (arr, r) => arr.find((u) => u.alive && u.team !== pl.team && (u.x - pl.x) ** 2 + (u.z - pl.z) ** 2 < r * r);
+      void (
+        tip('lowhp', () => pl.alive && pl.hp / pl.maxHp < 0.35, '<b>Hull critical</b> · sail back toward your citadel, ships repair fast in the harbour') ||
+        tip('enemycap', () => pl.alive && near(this.heroes, (pl.hull && pl.hull.guns ? pl.hull.guns.range : 80) * 1.1), '<b>Enemy captain in range</b> · <kbd>Right-click</kbd> them to focus fire, keep turning to dodge their shells') ||
+        tip('ult', () => pl.abilities && pl.abilities[3] && pl.level >= (pl.abilities[3].minLevel || 1) && pl.level >= 3, '<b>Ultimate ready</b> · <kbd>R</kbd> is unlocked: save it for a team fight or a fleeing captain') ||
+        tip('fortsolo', () => pl.alive && near(this.structures, 70) && !this.creeps.some((c) => c.alive && c.team === pl.team && (c.x - pl.x) ** 2 + (c.z - pl.z) ** 2 < 110 * 110), 'Forts shrug off captains who siege alone · <b>wait for your gunboats</b> to tank before you push') ||
+        tip('storm', () => this.storm > 0, '<b>Squall</b> · every gun loses its aim, including forts: dive a weakened fort or ambush from the rain') ||
+        tip('boss', () => this.boss && this.boss.risen && this.boss.alive, '<b>The Leviathan</b> has risen south of mid · slay it with your team for gold and a +30% damage blessing')
+      );
     }
     // ports
     for (const p of this.ports) this.updatePort(p, dt);
