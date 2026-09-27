@@ -172,6 +172,7 @@ function hotspot(g) {
 
 function toMenu() {
   mode = 'menu';
+  $('#howtoBtn').classList.add('hidden'); howtoPending = false;
   $('#menu').classList.remove('hidden');
   $('#ui').classList.add('menuMode');
   startGame(true);
@@ -186,6 +187,8 @@ function play() {
   $('#menu').classList.add('hidden');
   $('#ui').classList.remove('menuMode');
   startGame(false);
+  $('#howtoBtn').classList.remove('hidden');
+  howtoPending = !automated && localGet('aa.howto') !== '1';
 }
 
 // ---------------------------------------------------------------------------
@@ -208,7 +211,21 @@ seg('#segDiff', 'aa.diff', settings.difficulty, (v) => (settings.difficulty = v)
 seg('#segTeam', 'aa.team', settings.team, (v) => (settings.team = +v));
 seg('#segQual', 'aa.quality', settings.quality, (v) => { settings.quality = v; location.search = `?quality=${v}`; });
 $('#playBtn').onclick = () => { audio.init(); audio.play('uiClick'); play(); };
-$('#helpBtn').onclick = () => { audio.init(); audio.play('uiClick'); $('#help').classList.toggle('hidden'); };
+// Quick-start card: shown once before your first match (after the opening shot), any time with H.
+// The battle holds still while it is open.
+let howtoOpen = false, howtoPending = false;
+const automated = !!navigator.webdriver || !!params.get('autoplay') || !!params.get('photo');
+function showHowTo(on) {
+  howtoOpen = on;
+  $('#howto').classList.toggle('hidden', !on);
+  if (!on) { $('#help').classList.add('hidden'); localSet('aa.howto', '1'); }
+  if (on) { hud.aiming = -1; audio.play('uiClick'); }
+}
+$('#helpBtn').onclick = () => { audio.init(); showHowTo(true); };
+$('#howtoGo').onclick = (e) => { e.stopPropagation(); audio.init(); audio.play('uiClick'); showHowTo(false); if (mode === 'menu') play(); };
+$('#howtoMore').onclick = (e) => { e.stopPropagation(); audio.play('uiClick'); $('#help').classList.toggle('hidden'); };
+$('#howto').addEventListener('pointerdown', (e) => { if (e.target === $('#howto')) showHowTo(false); }); // click outside the card closes it
+$('#howtoBtn').onclick = () => { audio.init(); showHowTo(!howtoOpen); };
 hud.on('again', () => play());
 hud.on('menu', () => { hud.closeModal(); toMenu(); });
 
@@ -265,6 +282,25 @@ canvas.addEventListener('pointermove', (e) => {
   cameraDir.mouse.x = e.clientX / window.innerWidth; cameraDir.mouse.y = e.clientY / window.innerHeight; cameraDir.mouse.inside = true;
 });
 document.addEventListener('pointerleave', () => (cameraDir.mouse.inside = false));
+// Orbit: middle-drag (or Shift + left-drag on a trackpad) swings the camera around the focus.
+let orbitDrag = null;
+canvas.addEventListener('pointerdown', (e) => {
+  if (mode === 'play' && (e.button === 1 || (e.button === 0 && e.shiftKey))) {
+    orbitDrag = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (!orbitHinted) { orbitHinted = true; hud.hint('Orbiting · press <kbd>C</kbd> to reset the view', 3500); }
+  }
+}, true);
+let orbitHinted = false;
+window.addEventListener('pointermove', (e) => {
+  if (!orbitDrag) return;
+  cameraDir.orbitBy(e.clientX - orbitDrag.x, e.clientY - orbitDrag.y);
+  orbitDrag.x = e.clientX; orbitDrag.y = e.clientY;
+});
+window.addEventListener('pointerup', () => { orbitDrag = null; });
+canvas.addEventListener('auxclick', (e) => e.preventDefault());
+canvas.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); }); // no browser autoscroll on middle-drag
 canvas.addEventListener('pointerdown', (e) => {
   audio.init();
   if (mode !== 'play' || !G || !G.player || G.over) return;
@@ -283,8 +319,13 @@ canvas.addEventListener('pointerdown', (e) => {
 canvas.addEventListener('wheel', (e) => { cameraDir.zoom(e.deltaY); e.preventDefault(); }, { passive: false });
 
 window.addEventListener('keydown', (e) => {
+  if (howtoOpen) { // any key starts (H toggles, Tab/Alt ignored so alt-tab does not dismiss it)
+    if (e.key === 'Tab' || e.key === 'Alt' || e.key === 'Shift' || e.key === 'Control' || e.key === 'Meta') return;
+    e.preventDefault(); if (!e.repeat) showHowTo(false); return;
+  }
   cameraDir.keys[e.key] = true;
   if (mode !== 'play' || !G) return;
+  if (e.key.toLowerCase() === 'h' || e.key === 'F1') { e.preventDefault(); showHowTo(true); return; }
   const k = e.key.toLowerCase();
   if (e.ctrlKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); hud.handlers.buy(UPGRADES[+e.key - 1].id); return; }
   if (hud.modalOpen && k === 'escape') { hud.closeModal(); return; }
@@ -303,6 +344,8 @@ window.addEventListener('keydown', (e) => {
   else if (k === 's') G.player && G.player.stop();
   else if (k === ' ') { cameraDir.locked = true; e.preventDefault(); }
   else if (k === 'y') cameraDir.locked = !cameraDir.locked;
+  else if (k === 'c') { cameraDir.resetOrbit(); cameraDir.locked = true; }
+  else if (k === 'z' || k === 'x') cameraDir.orbitBy(k === 'z' ? 60 : -60, 0);
   else if (k === 'tab') { e.preventDefault(); hud.toggleScoreboard(true); }
   else if (k === 'alt') { hud.showRange = true; e.preventDefault(); }
   else if (k === 'm') audio.muted = !audio.muted;
@@ -336,7 +379,7 @@ const AGE_GRADE = {
 const gradeCur = { gain: new THREE.Vector3(1, 1, 1), lift: new THREE.Vector3(), sat: 1.1, con: 1.08, ca: 0.0007 };
 const _px = new Uint8Array(4);
 function syncGPU() { const g = R.gl.getContext(); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, _px); }
-window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, refl, weather, TEAM_RIM, get fps() { return fps; } };
+window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, refl, weather, TEAM_RIM, get fps() { return fps; }, howto: (on) => showHowTo(on) };
 
 function frame() {
   requestAnimationFrame(frame);
@@ -358,7 +401,8 @@ function tick(dt, draw) {
   wallTime += dt;
   fpsAcc += dt; fpsN++;
   if (fpsAcc > 1) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; if (!fpsEl.classList.contains('hidden')) fpsEl.textContent = `${fps.toFixed(0)} fps · ${(R.gl.getPixelRatio() * 100).toFixed(0)}% res · ${R.gl.info.render.calls} draws`; }
-  if (G) G.update(dt);
+  if (howtoPending && mode === 'play' && !cameraDir.cine && G && G.time > 1) { howtoPending = false; showHowTo(true); }
+  if (G && !howtoOpen) G.update(dt);
   const gdt = G ? G.dt : dt;
   const t = G ? G.time : wallTime;
 

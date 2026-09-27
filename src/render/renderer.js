@@ -143,16 +143,32 @@ export class Renderer {
       this.ao.blendIntensity = 0.9;
       composer.addPass(this.ao);
     }
-    // NaN/Inf guard: one bad pixel (undefined math on some GPU drivers) must never poison the
-    // bloom mip chain, which would smear it across the whole frame
-    composer.addPass(new ShaderPass({
-      uniforms: { tDiffuse: { value: null } },
+    // NaN/Inf guard: one bad pixel (undefined math on some GPU drivers) must never reach the
+    // bloom mip chain, which smears it across the whole frame as a milky veil. isnan()/isinf()
+    // are NOT reliable here: D3D shader compilers (Chrome/Edge on Windows via ANGLE) optimise
+    // them away and HLSL min(NaN, x) returns x, turning each NaN into a blinding hotspot. So
+    // test the exponent bits directly, which no compiler can fold, and heal bad pixels from
+    // their valid neighbours instead of leaving black specks.
+    this.nanGuard = new ShaderPass({
+      uniforms: { tDiffuse: { value: null }, uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 1024) } },
       vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
-        void main() { vec4 c = texture2D(tDiffuse, vUv);
-          bool bad = any(isnan(c)) || any(isinf(c));
-          gl_FragColor = bad ? vec4(0.0, 0.0, 0.0, 1.0) : vec4(min(c.rgb, vec3(64.0)), c.a); }`,
-    }));
+      fragmentShader: /* glsl */ `uniform sampler2D tDiffuse; uniform vec2 uTexel; varying vec2 vUv;
+        bool badF(float x) { return (floatBitsToUint(x) & 0x7f800000u) == 0x7f800000u; }
+        bool bad(vec3 c) { return badF(c.r) || badF(c.g) || badF(c.b); }
+        vec3 safeC(vec3 c) { return clamp(c, vec3(0.0), vec3(32.0)); }
+        void main() {
+          vec4 c = texture2D(tDiffuse, vUv);
+          if (!bad(c.rgb)) { gl_FragColor = vec4(safeC(c.rgb), 1.0); return; }
+          vec3 acc = vec3(0.0); float n = 0.0;
+          for (int i = 0; i < 4; i++) {
+            vec2 o = vec2(i == 0 ? 1.0 : i == 1 ? -1.0 : 0.0, i == 2 ? 1.0 : i == 3 ? -1.0 : 0.0) * uTexel * 2.0;
+            vec3 q = texture2D(tDiffuse, vUv + o).rgb;
+            if (!bad(q)) { acc += safeC(q); n += 1.0; }
+          }
+          gl_FragColor = vec4(n > 0.0 ? acc / n : vec3(0.0), 1.0);
+        }`,
+    });
+    composer.addPass(this.nanGuard);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.42, 0.5, 1.0);
     this.bloom.enabled = this.q.bloom;
     this.bloom.highPassUniforms.smoothWidth.value = 0.45; // soft knee: highlights roll into bloom instead of clipping
@@ -196,6 +212,7 @@ export class Renderer {
     this.composer.setPixelRatio && this.composer.setPixelRatio(this.gl.getPixelRatio());
     this.composer.setSize(w, h);
     if (this.ao) this.ao.setSize(Math.round(w / 2), Math.round(h / 2));
+    if (this.nanGuard) { const pr = this.gl.getPixelRatio(); this.nanGuard.uniforms.uTexel.value.set(1 / (w * pr), 1 / (h * pr)); }
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.grade.uniforms.uRes.value.set(w, h);

@@ -25,6 +25,8 @@ URL options: `?autoplay=1` skips the menu, `?quality=low|medium|high` sets graph
 | T | Advance to the next age (choose a hull at ages III-V) |
 | Ctrl + 1-5 | Buy armory upgrades |
 | Space / Y | Centre camera / toggle free camera (arrows + edge pan) |
+| Middle-drag · Shift+drag · Z / X · C | Orbit the camera around your fleet · rotate in steps · reset the view |
+| H / F1 | Quick-start card (shown before your first match; the battle pauses while it is open) |
 | G | Rally allied captains to the cursor |
 | Wheel · Tab · Alt · M · F3 | Zoom (zoom all the way in for a low cinematic angle) · Scoreboard · Gun range · Mute · Performance overlay |
 

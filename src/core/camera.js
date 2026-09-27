@@ -16,7 +16,8 @@ export class CameraDirector {
     this.orbit = null; // menu orbit
     this.keys = {};
     this.mouse = { x: 0.5, y: 0.5, inside: false };
-    this.yaw = 0;
+    this.yaw = 0; this.yawGoal = 0;   // player orbit around the focus (middle-drag / shift-drag)
+    this.tilt = 0; this.tiltGoal = 0; // pitch offset in degrees
   }
 
   addTrauma(a, x, z) {
@@ -24,6 +25,13 @@ export class CameraDirector {
     const fall = Math.max(0, 1 - d / 260);
     this.trauma = Math.min(1, this.trauma + a * fall * fall);
   }
+
+  /** Orbit the gameplay camera: dx/dy in screen pixels. */
+  orbitBy(dx, dy) {
+    this.yawGoal -= dx * 0.006;
+    this.tiltGoal = THREE.MathUtils.clamp(this.tiltGoal + dy * 0.18, -30, 22);
+  }
+  resetOrbit() { this.yawGoal = Math.round(this.yaw / (Math.PI * 2)) * Math.PI * 2; this.tiltGoal = 0; }
 
   zoom(delta) { this.distGoal = THREE.MathUtils.clamp(this.distGoal * (1 + delta * 0.0012), 45, 290); }
 
@@ -98,10 +106,14 @@ export class CameraDirector {
       if (this.mouse.x < m) px -= 1; if (this.mouse.x > 1 - m) px += 1;
       if (this.mouse.y < m) pz -= 1; if (this.mouse.y > 1 - m) pz += 1;
     }
-    if (px || pz) { this.locked = false; this.goal.x += px * pan; this.goal.z += pz * pan; }
+    if (px || pz) {
+      // pan in screen space: rotate by the orbit so 'up' is always away from the camera
+      const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
+      this.locked = false; this.goal.x += (px * cy + pz * sy) * pan; this.goal.z += (-px * sy + pz * cy) * pan;
+    }
     else if (this.locked && target) {
       // lead the camera slightly in the direction of travel
-      this.goal.set(target.x + (target.vx || 0) * 0.35, 0, target.z + (target.vz || 0) * 0.35 - 6);
+      this.goal.set(target.x + (target.vx || 0) * 0.35 - Math.sin(this.yaw) * 6, 0, target.z + (target.vz || 0) * 0.35 - Math.cos(this.yaw) * 6);
     }
     this.goal.x = THREE.MathUtils.clamp(this.goal.x, -BOUNDS.x - 60, BOUNDS.x + 60);
     this.goal.z = THREE.MathUtils.clamp(this.goal.z, -BOUNDS.z - 40, BOUNDS.z + 60);
@@ -112,9 +124,13 @@ export class CameraDirector {
     // low 'photo' angle just above the swell, looking toward the horizon
     const zoomK = (this.dist - 85) / (290 - 85);
     const lowK = THREE.MathUtils.smoothstep(85 - this.dist, 0, 40);
-    const pitch = THREE.MathUtils.degToRad(zoomK >= 0 ? smooth(44, 62, zoomK) : smooth(44, 16, lowK));
+    const ko = 1 - Math.exp(-dt * 10);
+    this.yaw = smooth(this.yaw, this.yawGoal, ko); this.tilt = smooth(this.tilt, this.tiltGoal, ko);
+    const basePitch = zoomK >= 0 ? smooth(44, 62, zoomK) : smooth(44, 16, lowK);
+    const pitch = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(basePitch + this.tilt, 12, 84));
     const lookY = lowK * 9;
-    let x = this.focus.x, y = Math.sin(pitch) * this.dist, z = this.focus.z + Math.cos(pitch) * this.dist;
+    const hor = Math.cos(pitch) * this.dist;
+    let x = this.focus.x + Math.sin(this.yaw) * hor, y = Math.sin(pitch) * this.dist, z = this.focus.z + Math.cos(this.yaw) * hor;
     // trauma shake (squared for a punchy falloff)
     this.trauma = Math.max(0, this.trauma - dt * 1.6);
     const s = this.trauma * this.trauma;

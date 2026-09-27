@@ -23,7 +23,7 @@
     <div class="row"><div class="lbl">Enemy</div><div class="seg" id="segDiff"><button data-v="easy">Recruit</button><button data-v="normal">Captain</button><button data-v="hard">Admiral</button></div></div>
     <div class="row"><div class="lbl">Graphics</div><div class="seg" id="segQual"><button data-v="low">Low</button><button data-v="medium">Medium</button><button data-v="high">Ultra</button></div></div>
     <button class="btn-primary" id="playBtn">SET SAIL</button>
-    <button class="btn-ghost" id="helpBtn">How to command</button>
+    <button class="btn-ghost" id="helpBtn">How to play</button>
     <div class="foot">10-minute matches · 4 allied and 5 enemy AI captains · procedurally generated art and audio</div>
   </div>
 
@@ -34,12 +34,49 @@
     <div><b>Orange rings</b> on the water are incoming enemy salvos and strikes: sail out of them</div>
     <div><kbd>T</kbd> advance to the next age · <kbd>G</kbd> rally allies to the cursor</div>
     <div><kbd>Ctrl</kbd>+<kbd>1-5</kbd> buy armory upgrades</div>
-    <div><kbd>Space</kbd> center camera · <kbd>Y</kbd> free camera</div>
-    <div><kbd>Wheel</kbd> zoom · <kbd>Tab</kbd> scoreboard · <kbd>Alt</kbd> gun range</div>
+    <div><kbd>Space</kbd> center camera · <kbd>Y</kbd> free camera · <kbd>C</kbd> reset orbit</div>
+    <div><kbd>Wheel</kbd> zoom · <kbd>Middle-drag</kbd> / <kbd>Shift</kbd>+drag / <kbd>Z</kbd><kbd>X</kbd> orbit</div>
+    <div><kbd>Tab</kbd> scoreboard · <kbd>Alt</kbd> gun range · <kbd>H</kbd> how to play</div>
     <div><kbd>S</kbd> stop · <kbd>M</kbd> mute · <kbd>F3</kbd> performance</div>
     <div class="ages">Earn gold from gunboats, captains, forts and trade ports. Each age reforges your hull:
       <b>Sail → Steam → Dreadnought → Airpower → Swarm</b>. Ages III-V offer a choice of two warships. Break two lanes (outer then inner fort) to expose the enemy citadel. At dusk (10:00) the team with the most forts destroyed, kills and citadel damage wins. Counters: Torpedo beats Dreadnought, Battleship and Arsenal; Carrier beats Dreadnought and Torpedo; Battleship beats Carrier and Mothership; Arsenal beats Carrier, Mothership and Battleship; Mothership beats Dreadnought and Torpedo.</div>
   </div>
+
+  <div id="howto" class="hidden" role="dialog" aria-label="How to play">
+    <div class="ht-box panel ornate">
+      <div class="ht-title">HOW TO PLAY</div>
+      <div class="ht-sub">Four things, thirty seconds</div>
+      <div class="ht-steps">
+        <div class="ht-step">
+          <svg viewBox="0 0 48 48"><path d="M8 30h32l-5 8H13z" /><path d="M23 8v20H12z" class="f" /><path d="M25 12v16h10z" class="f" /><circle cx="38" cy="12" r="4" class="o" /></svg>
+          <div class="n">1 · SAIL</div>
+          <div class="d"><kbd>Click</kbd> the sea to sail there. <kbd>Click</kbd> an enemy to attack. Your guns fire on their own.</div>
+        </div>
+        <div class="ht-step">
+          <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="15" class="o" /><circle cx="24" cy="24" r="6" class="o" /><path d="M24 4v8M24 36v8M4 24h8M36 24h8" class="o" /></svg>
+          <div class="n">2 · FIGHT</div>
+          <div class="d"><b>Hold</b> <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> to aim, <b>release</b> to fire. Sail out of <span class="warn">red rings</span>: incoming shells.</div>
+        </div>
+        <div class="ht-step">
+          <svg viewBox="0 0 48 48"><path d="M10 38l8-10 7 5 13-17" class="o" /><path d="M32 16h6v6" class="o" /><circle cx="12" cy="12" r="5" class="f" /></svg>
+          <div class="n">3 · GROW</div>
+          <div class="d">Sink gunboats and captains for <span class="gold">gold</span>. Press <kbd>T</kbd> to advance an age: <b>Sail → Swarm</b>.</div>
+        </div>
+        <div class="ht-step">
+          <svg viewBox="0 0 48 48"><path d="M10 40V20l6-4 6 4V10l4-3 4 3v10l6-4 6 4v20z" class="o" /><path d="M20 40v-8h8v8" class="o" /></svg>
+          <div class="n">4 · WIN</div>
+          <div class="d">Push with your gunboats. Break <b>two forts</b> in a lane to expose the enemy <b>citadel</b>, then sink it.</div>
+        </div>
+      </div>
+      <div class="ht-cam"><span>CAMERA</span> <kbd>Wheel</kbd> zoom · <kbd>Middle-drag</kbd> or <kbd>Shift</kbd>+drag orbit · <kbd>Z</kbd><kbd>X</kbd> rotate · <kbd>C</kbd> reset · <kbd>Space</kbd> centre on ship</div>
+      <div class="ht-foot">
+        <button class="btn-primary" id="howtoGo">SET SAIL</button>
+        <button class="btn-ghost" id="howtoMore">All controls</button>
+      </div>
+      <div class="ht-tip">Press <kbd>H</kbd> any time to see this again</div>
+    </div>
+  </div>
+  <button id="howtoBtn" class="hidden" title="How to play (H)">?</button>
 
   <div id="loading"><div class="t">ARMADA ASCENSION</div><div class="p"><i></i></div><div class="s">Loading</div><div class="tip" id="tip0"></div></div>
   <script type="module" src="/src/main.js"></script>

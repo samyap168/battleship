@@ -161,7 +161,7 @@ if (uReflOn > 0.5) {
   // planar reflection (islands, forts, ships, explosions, sky) replaces the env-map reflection
   vec4 rc = uReflMat * vec4(vOW.x, 0.0, vOW.z, 1.0);
   vec2 ruv = rc.xy / max(abs(rc.w), 1e-4) + wN.xz * 0.022 * mix(0.4, 1.0, clamp(V.y * 1.6, 0.0, 1.0)); // mild wobble, calmer at grazing angles so hulls mirror crisply
-  if (any(isnan(ruv)) || any(isinf(ruv))) ruv = vec2(0.5); // behind the mirror camera: never feed NaN to the sampler
+  if ((floatBitsToUint(ruv.x) & 0x7f800000u) == 0x7f800000u || (floatBitsToUint(ruv.y) & 0x7f800000u) == 0x7f800000u) ruv = vec2(0.5); // behind the mirror camera: never feed NaN to the sampler (bit test: D3D folds isnan away)
   vec3 refl = texture2D(tReflect, clamp(ruv, 0.001, 0.999)).rgb;
   float F = (0.03 + 0.97 * pow(max(1.0 - max(dot(wN, V), 0.0), 0.0), 4.0)) * (1.0 - foam);
   reflectedLight.indirectSpecular = refl * F * 1.3;
