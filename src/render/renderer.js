@@ -179,7 +179,7 @@ export class Renderer {
     composer.addPass(new OutputPass());
     this.grade = new ShaderPass(GradeShader);
     composer.addPass(this.grade);
-    if (this.q.smaa) composer.addPass(new SMAAPass());
+    if (this.q.smaa) { this.smaa = new SMAAPass(); composer.addPass(this.smaa); }
     this.composer = composer;
 
     this.shocks = []; // {x,y (ndc 0..1), t, life, str}
@@ -201,6 +201,10 @@ export class Renderer {
       next = Math.max(0.5, cur * 0.85);
       if (cur <= 0.75 && this.ao && this.ao.enabled) { this.ao.enabled = false; next = cur; } // shed AO before going blurrier
       else if (cur <= 0.75 && this.refl && this.refl.uniforms.uReflOn.value) { this.refl.uniforms.uReflOn.value = 0; next = cur; } // then reflections
+      else if (cur <= 0.75 && this.sun && this.sun.shadow.mapSize.x > 1024) { // then a quarter of the shadow-map fill
+        this.sun.shadow.mapSize.set(1024, 1024); if (this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; } next = cur;
+      } else if (cur <= 0.75 && this.smaa && this.smaa.enabled) { this.smaa.enabled = false; next = cur; } // then anti-aliasing
+      else if (cur <= 0.55 && !this.strained) { this.strained = true; if (this.onStrain) this.onStrain(); } // nothing left to shed: tell the player
     }
     else if (this.ftAvg < 1 / 58 && cur < maxPR) next = Math.min(maxPR, cur * 1.08);
     if (Math.abs(next - cur) > 0.02) { this.gl.setPixelRatio(next); this.resize(); }

@@ -59,6 +59,7 @@ R.gl.debug.onShaderError = (gl, program, vs, fs) => {
   if (!el) { el = document.createElement('div'); el.id = 'gpuerr'; el.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:50;max-width:620px;padding:8px 12px;background:rgba(60,8,8,.92);color:#ffd2c8;font:12px/1.4 monospace;border:1px solid #ff6a5a;pointer-events:auto'; document.body.appendChild(el); }
   el.innerHTML = '<b>GPU shader error</b> (please screenshot this for the developer):<br>' + gpuErrs.slice(-4).map((e) => e.replace(/</g, '&lt;')).join('<br>');
 };
+R.onStrain = () => { try { if (settings.quality !== 'low') hud.hint('Your GPU is working hard · for a smoother battle choose <b>' + (settings.quality === 'high' ? 'Medium' : 'Low') + '</b> graphics in the menu', 8000); } catch (e) { /* hud not ready */ } };
 R.onSafeMode = () => { try { hud.hint('Graphics compatibility mode enabled for your GPU (post effects off) · choose <b>Low</b> graphics in the menu if it persists', 9000); } catch (e) { /* hud not ready */ } };
 // GPUs without float render targets can't run the HDR post chain: start in safe mode
 if (!(R.gl.extensions.has('EXT_color_buffer_float') || R.gl.extensions.has('EXT_color_buffer_half_float'))) R.safeMode = true;
@@ -66,6 +67,7 @@ if (params.get('safe') === '1') R.safeMode = true; // automated captures: keep f
 const scene = R.scene;
 await step(22, 'Painting the sky');
 const sky = new Sky(R.gl, scene);
+R.sun = sky.sun; // adaptive quality can halve the shadow map on a struggling GPU
 sky.setTime(MENU_TIME, 0);
 sky.updateEnv(0, true);
 await step(40, 'Raising the tides');
@@ -413,7 +415,8 @@ window.__aa.step = (n = 1, dt = 1 / 30) => { for (let i = 0; i < n; i++) tick(dt
 function tick(dt, draw) {
   wallTime += dt;
   fpsAcc += dt; fpsN++;
-  if (fpsAcc > 1) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; if (!fpsEl.classList.contains('hidden')) fpsEl.textContent = `${fps.toFixed(0)} fps · ${(R.gl.getPixelRatio() * 100).toFixed(0)}% res · ${R.gl.info.render.calls} draws`; }
+  if (fpsAcc > 1) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; if (!fpsEl.classList.contains('hidden')) { const off = [R.ao && !R.ao.enabled && 'AO', R.refl && !R.refl.uniforms.uReflOn.value && 'reflections', R.sun && R.sun.shadow.mapSize.x < 2048 && R.q.shadows >= 2048 && 'shadow detail', R.smaa && !R.smaa.enabled && 'AA', R.safeMode && 'post FX'].filter(Boolean);
+    fpsEl.textContent = `${fps.toFixed(0)} fps · ${(R.gl.getPixelRatio() * 100).toFixed(0)}% res · ${R.gl.info.render.calls} draws${off.length ? ' · off: ' + off.join(', ') : ''}`; } }
   if (howtoPending && mode === 'play' && !cameraDir.cine && G && G.time > 1) { howtoPending = false; showHowTo(true); }
   if (G && !howtoOpen) G.update(dt);
   const gdt = G ? G.dt : dt;
