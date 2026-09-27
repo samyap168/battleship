@@ -48,6 +48,17 @@ await step(8, 'Kindling the forge');
 const R = new Renderer($('#app'), settings.quality);
 if (settings.quality === 'low') R.rays.enabled = false;
 if (navigator.webdriver) R.fixedRes = true;
+// GPU diagnostics: surface shader compile/link failures on screen (real drivers are stricter than test rasterisers)
+const gpuErrs = [];
+R.gl.debug.onShaderError = (gl, program, vs, fs) => {
+  const log = (sh) => (gl.getShaderInfoLog(sh) || '').trim();
+  const msg = (gl.getProgramInfoLog(program) || '').trim() || log(fs) || log(vs) || 'unknown';
+  gpuErrs.push(msg.split('\n').slice(0, 3).join(' | ').slice(0, 260));
+  console.error('[gpu] shader failed:', msg);
+  let el = document.getElementById('gpuerr');
+  if (!el) { el = document.createElement('div'); el.id = 'gpuerr'; el.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:50;max-width:620px;padding:8px 12px;background:rgba(60,8,8,.92);color:#ffd2c8;font:12px/1.4 monospace;border:1px solid #ff6a5a;pointer-events:auto'; document.body.appendChild(el); }
+  el.innerHTML = '<b>GPU shader error</b> (please screenshot this for the developer):<br>' + gpuErrs.slice(-4).map((e) => e.replace(/</g, '&lt;')).join('<br>');
+};
 R.onSafeMode = () => { try { hud.hint('Graphics compatibility mode enabled for your GPU (post effects off) · choose <b>Low</b> graphics in the menu if it persists', 9000); } catch (e) { /* hud not ready */ } };
 // GPUs without float render targets can't run the HDR post chain: start in safe mode
 if (!(R.gl.extensions.has('EXT_color_buffer_float') || R.gl.extensions.has('EXT_color_buffer_half_float'))) R.safeMode = true;
