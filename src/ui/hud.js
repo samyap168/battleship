@@ -222,8 +222,10 @@ export class HUD {
     box.innerHTML = `<div class="a ${a.size}" style="--c:${a.color}"><h1>${esc(a.title)}</h1><div class="bar"></div><p>${esc(a.sub)}</p></div>`;
     const el = box.firstChild;
     // the banner's screen band: world nameplates under it fade so the two texts never interleave
-    this.annRect = null;
-    setTimeout(() => { if (!el.isConnected) return; const r = el.getBoundingClientRect(); this.annRect = { l: r.left - 20, r: r.right + 20, t: r.top - 14, b: r.bottom + 14 }; }, 650); // measured once the scale-in settles
+    // the banner's final box from layout sizes (offset* ignore the scale-in transform), available at once
+    const br = box.getBoundingClientRect(), bw = el.offsetWidth, bh = el.offsetHeight;
+    const l = br.left + (br.width - bw) / 2, t = br.top + el.offsetTop;
+    this.annRect = { l: l - 20, r: l + bw + 20, t: t - 14, b: t + bh + 14 };
     setTimeout(() => el.classList.add('out'), a.size ? 2000 : 2600);
     setTimeout(() => { this.annRect = null; this.nextAnnounce(); }, a.size ? 2500 : 3100);
   }
@@ -306,12 +308,12 @@ export class HUD {
     }
     a.sum += amount;
     if (!a.float || a.float.t > 0.35) {
-      a.float = { x: target.x, y: (target.rig?.height || 8) + 4, z: target.z, text: '', color: incoming ? '#ff6a5a' : '#ffffff', size: 15, t: 0, life: 1.0, dx: (Math.random() - 0.5) * 30, born: performance.now() };
+      a.float = { x: target.x, y: (target.rig?.height || 8) + 4, z: target.z, text: '', color: incoming ? '#ff6a5a' : '#ffffff', size: 15, t: 0, life: 1.0, dx: (Math.random() - 0.5) * 30, born: performance.now(), side: incoming };
       this.floats.push(a.float);
       if (this.floats.length > 60) this.floats.shift();
     }
     a.float.text = String(Math.round(a.sum));
-    a.float.size = Math.min(26, 13 + Math.sqrt(a.sum) * 0.35);
+    a.float.size = incoming ? Math.min(17, 12 + Math.sqrt(a.sum) * 0.2) : Math.min(26, 13 + Math.sqrt(a.sum) * 0.35); // your hull bar already tells the story
   }
   death(respawn, killer) {
     const r = this.$('deathRoot');
@@ -636,7 +638,8 @@ export class HUD {
       c.globalAlpha = k > 0.6 ? 1 - (k - 0.6) / 0.4 : 1;
       c.font = `700 ${f.size * pop}px Rajdhani, sans-serif`;
       c.lineWidth = 4; c.strokeStyle = 'rgba(0,0,0,.85)';
-      const x = s.x + f.dx * k, y = s.y - 40 * k;
+      // start above the nameplate row; damage you take drifts off to the right of your own bar
+      const x = f.side ? s.x + 58 + f.dx * 0.3 * k : s.x + f.dx * k, y = s.y - (f.side ? 18 : 26) - 40 * k;
       c.strokeText(f.text, x, y);
       c.fillStyle = f.color; c.fillText(f.text, x, y);
       c.globalAlpha = 1;

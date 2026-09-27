@@ -99,7 +99,12 @@ float tdN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
   vec3 g = diffuseColor.rgb * (0.78 + m1 * 0.3) * (0.85 + m2 * 0.25) * (0.88 + sp * 0.2);
   g = mix(g, g * vec3(1.18, 1.1, 0.7), smoothstep(0.62, 0.8, m1) * 0.5);
   // cliffs: wavy strata bands + grain
-  float band = sin(p.y * 1.7 + tdN(p * 0.25) * 5.0);
+  // each outcrop gets its own dip and bed spacing (low-frequency noise over the map), so strata never
+  // line up at the same heights across towers like a tiled texture
+  vec2 cell = p.xz * 0.006;
+  float dipA = tdN(vec3(cell, 3.1)) * 6.283, dip = 0.08 + tdN(vec3(cell, 7.7)) * 0.3;
+  float freq = 1.25 + tdN(vec3(cell, 11.3)) * 1.1;
+  float band = sin((p.y + dot(p.xz, vec2(cos(dipA), sin(dipA))) * dip) * freq + tdN(p * 0.25) * 5.0 + tdN(vec3(cell, 5.3)) * 40.0);
   vec3 c = diffuseColor.rgb * (0.82 + 0.18 * smoothstep(-0.2, 0.9, band)) * (0.82 + m2 * 0.2 + sp * 0.14);
   c *= 1.0 - smoothstep(0.93, 1.0, abs(band)) * 0.18 * step(band, 0.0);
   diffuseColor.rgb = mix(c, g, tFlat);
