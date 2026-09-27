@@ -259,7 +259,7 @@ canvas.addEventListener('pointerdown', (e) => {
     if (e.button === 0) playerCast(i);
     return;
   }
-  if (e.button === 2 && p.alive) {
+  if ((e.button === 2 || e.button === 0) && p.alive) { // left or right click: sail / attack
     const u = pickUnit(mouse.ground.x, mouse.ground.z, p.team);
     if (u) { p.commandAttack(u); moveMarker(u.x, u.z, true); }
     else { p.commandMove(mouse.ground.x, mouse.ground.z); moveMarker(mouse.ground.x, mouse.ground.z); }

@@ -55,7 +55,7 @@ export class Wakes {
           vec2 q = vXZ + vec2(nz(vXZ * 0.2 + uTime * 0.05), nz(vXZ * 0.2 - 7.0)) * 3.0; // warped: no grid feel
           float big = nz(q * 0.16 + uTime * 0.04) * 0.6 + nz(q * 0.5 - uTime * 0.12) * 0.4;
           float w1 = web(q * 0.85 + vec2(uTime * 0.15, 0.0)), w2 = web(q * 2.3 - uTime * 0.2);
-          float arms = smoothstep(0.55, 0.95, x) * smoothstep(1.0, 0.88, x);            // bright V-arm edges
+          float arms = smoothstep(0.55, 0.95, x) * (1.0 - smoothstep(0.88, 1.0, x));            // bright V-arm edges
           float churn = (1.0 - smoothstep(0.0, 0.55, x)) * (1.0 - smoothstep(0.0, 0.6, age)); // prop wash
           float cover = arms * 0.9 + churn + (1.0 - x * 0.7) * 0.35;
           // young foam is dense; with age it erodes to a breaking web, then to scattered patches

@@ -20,7 +20,7 @@ const ringMat = (color) => new THREE.ShaderMaterial({
   fragmentShader: `uniform vec3 uColor; uniform float uK, uAlpha, uWidth; varying vec2 vUv;
     void main(){ float r = length(vUv * 2.0 - 1.0);
       float ring = 1.0 - smoothstep(0.0, uWidth, abs(r - 0.92));
-      float fill = smoothstep(0.92, 0.0, r) * 0.12;
+      float fill = (1.0 - smoothstep(0.0, 0.92, r)) * 0.12;
       float a = (ring + fill) * uAlpha * (1.0 - uK);
       if (r > 1.0) discard;
       gl_FragColor = vec4(uColor * a, a); }`,
@@ -32,7 +32,7 @@ const beamMat = () => new THREE.ShaderMaterial({
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
   fragmentShader: `uniform vec3 uColor; uniform float uAlpha; varying vec2 vUv;
     void main(){ float d = abs(vUv.x - 0.5) * 2.0; float core = pow(1.0 - d, 6.0) * 3.0 + pow(1.0 - d, 1.5) * 0.6;
-      float ends = smoothstep(0.0, 0.02, vUv.y) * smoothstep(1.0, 0.97, vUv.y);
+      float ends = smoothstep(0.0, 0.02, vUv.y) * (1.0 - smoothstep(0.97, 1.0, vUv.y));
       float a = core * uAlpha * ends; gl_FragColor = vec4(uColor * a + vec3(a * 0.35) * pow(1.0-d, 12.0), a); }`,
   transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
 });

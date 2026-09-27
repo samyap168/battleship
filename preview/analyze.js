@@ -5,6 +5,7 @@
 import { Engine } from '../src/audio/audio.js';
 import { Kit, getResources } from '../src/audio/synth.js';
 import { RECIPES } from '../src/audio/sounds.js';
+import { Music } from '../src/audio/music.js';
 
 async function renderBuf(script, { seconds = 3, sampleRate = 44100, raw = false } = {}) {
   const OAC = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
@@ -254,4 +255,131 @@ export async function directRecipe(name, opts = {}, seconds = 4) {
   return { buf, sr: 44100 };
 }
 
-window.Analyze = { renderBuf, spectralBalance, attackAndTail, stereoWidth, variation, distanceCompare, fullAnalyze, isolatedVariation, bandRms, directRecipe };
+// Ship-voice probe (Round 4, change #1): builds a live Engine+Ambience, steps
+// real OfflineAudioContext time forward with ctx.suspend()/ctx.resume() (a
+// plain currentTime read before startRendering() never advances — same
+// lesson as Round 3's combatDuck probe), calling setShip(age,speed) then
+// sampling each propulsion-layer gain node's *actual automated* .value once
+// the setTargetAtTime has had time to settle.
+export async function shipVoiceProbe(cases, settleSec = 2.5, seconds = 3) {
+  const OAC = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
+  const ctx = new OAC(2, Math.ceil(seconds * cases.length * 44100), 44100);
+  const eng = new Engine(ctx, { offline: true });
+  eng.ambience.start();
+  const out = [];
+  const rendering = ctx.startRendering();
+  for (let i = 0; i < cases.length; i++) {
+    const at = i * seconds + 0.05;
+    await ctx.suspend(at).then(() => {
+      const { age, speed } = cases[i];
+      eng.ambience.setShip(age, speed);
+    });
+    ctx.resume();
+    await ctx.suspend(at + settleSec).then(() => {
+      const { age, speed } = cases[i];
+      out.push({
+        age, speed,
+        wash: +eng.ambience.washG.gain.value.toFixed(4),
+        creak: +eng.ambience.creakG.gain.value.toFixed(4),
+        chuff: +eng.ambience.chuffG.gain.value.toFixed(4),
+        chuffHz: +eng.ambience.chuffLfo.frequency.value.toFixed(3),
+        turb: +eng.ambience.turbG.gain.value.toFixed(4),
+        hum: +eng.ambience.humG.gain.value.toFixed(4),
+      });
+    });
+    ctx.resume();
+  }
+  await rendering;
+  return out;
+}
+
+// Full-match music-arc instrumentation (Round 4): drives Music through a
+// scripted 10-minute calm->war->finale intensity curve purely via repeated
+// setIntensity()+scheduleUntil() calls (the same functions the real _tick()
+// loop calls every 25ms) — no audio is ever rendered, so this is fast and
+// exact: it exercises the identical section/pattern/theme decision code the
+// live game runs, just without needing 10 real minutes or ctx.suspend
+// stepping (that trick is for reading live *audio-graph automation*, not for
+// driving this pre-render scheduling logic, which only depends on the
+// scheduler's own internal clock and never touches ctx.currentTime meaningfully
+// until startRendering() is called, which we skip entirely here).
+export async function musicArc(totalSec = 600, stepSec = 8, finaleAt = 480, intensityFn) {
+  const OAC = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
+  const ctx = new OAC(2, 44100, 44100); // tiny buffer: we never render it
+  const eng = new Engine(ctx, { offline: true });
+  const music = eng.music;
+  const log = [];
+  const origSection = music._section.bind(music);
+  music._section = (sec, t) => {
+    const preI = music.I, preWarSecs = music.warSecs || 0; // pool/theme both key off this pre-call I
+    origSection(sec, t);
+    const pool = music.finale ? 'FINALE' : preI > 0.5 ? 'WAR' : 'CALM';
+    // reconstruct the exact boolean `theme` fired inside _section by diffing warSecs
+    // (it only increments when I>0.85 && !opening, and fires the theme override on %3===1)
+    const eligible = (music.warSecs || 0) > preWarSecs;
+    const theme = eligible && (music.warSecs % 3 === 1);
+    log.push({
+      sec, t: +t.toFixed(2), I: +music.I.toFixed(3), finale: !!music.finale, pool,
+      progIdx: music.lastProg, prog: music.prog.join('-'), patIdx: music.lastPat,
+      theme, eligible, warSecs: music.warSecs || 0,
+      drumLvl: Math.max(music.finale ? 3 : 0, music.I < 0.14 ? 0 : music.I < 0.4 ? 1 : music.I < 0.65 ? 2 : music.I < 0.85 ? 3 : 4),
+      tempo: +(music.tempo || 1).toFixed(3), plan: music.plan ? music.plan.kind : null,
+    });
+  };
+  const defaultCurve = (t) => {
+    if (t < 60) return 0.15; // calm open
+    if (t < 420) return 0.15 + 0.75 * Math.min(1, (t - 60) / 200); // ramp into war, hold ~0.9
+    if (t < finaleAt) return 0.9;
+    return 0.95; // dusk tide finale
+  };
+  const curve = intensityFn || defaultCurve;
+  music.start();
+  const steps = Math.ceil(totalSec / stepSec);
+  for (let i = 0; i <= steps; i++) {
+    const at = Math.min(totalSec, i * stepSec);
+    music.setIntensity(curve(at));
+    if (!music.finale && at >= finaleAt) music.setFinale(true);
+    music.scheduleUntil(at + stepSec);
+  }
+  return log;
+}
+
+// Actual rendered loudness arc for the full match: schedules the same
+// calm->war->finale curve as musicArc() but this time really renders the
+// audio through the full mix chain (duck/fade/glue-comp/limiter), then
+// reports windowed RMS dBFS so we can see the arc's shape and whether the
+// finale actually lands louder, not just busier-on-paper.
+export async function musicLoudness(totalSec = 600, stepSec = 8, finaleAt = 480, intensityFn, winSec = 10) {
+  const OAC = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
+  const sr = 44100;
+  const ctx = new OAC(2, Math.ceil((totalSec + 3) * sr), sr);
+  const eng = new Engine(ctx, { offline: true });
+  const music = eng.music;
+  const defaultCurve = (t) => {
+    if (t < 60) return 0.15;
+    if (t < 420) return 0.15 + 0.75 * Math.min(1, (t - 60) / 200);
+    if (t < finaleAt) return 0.9;
+    return 0.95;
+  };
+  const curve = intensityFn || defaultCurve;
+  music.start();
+  const steps = Math.ceil(totalSec / stepSec);
+  for (let i = 0; i <= steps; i++) {
+    const at = Math.min(totalSec, i * stepSec);
+    music.setIntensity(curve(at));
+    if (!music.finale && at >= finaleAt) music.setFinale(true);
+    music.scheduleUntil(at + stepSec);
+  }
+  const buf = await ctx.startRendering();
+  const L = buf.getChannelData(0), R = buf.getChannelData(1);
+  const win = Math.floor(winSec * sr);
+  const out = [];
+  for (let off = 0; off + win <= L.length; off += win) {
+    let ss = 0;
+    for (let i = off; i < off + win; i++) { const m = (L[i] + R[i]) * 0.5; ss += m * m; }
+    out.push({ t: +(off / sr).toFixed(1), db: +dbfs(Math.sqrt(ss / win)).toFixed(2) });
+  }
+  return out;
+}
+
+window.Analyze = { renderBuf, spectralBalance, attackAndTail, stereoWidth, variation, distanceCompare, fullAnalyze, isolatedVariation, bandRms, directRecipe, shipVoiceProbe, musicArc, musicLoudness };

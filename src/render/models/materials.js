@@ -459,7 +459,7 @@ function applySoftBeam(m) {
 {
   float facing = abs(dot(normalize(vBmN), normalize(vBmV)));
   float core = pow(facing, 2.2);                                   // bright centre, soft falloff to the edges
-  float along = smoothstep(76.5, 52.0, vBmY) * smoothstep(40.5, 43.5, vBmY);
+  float along = (1.0 - smoothstep(52.0, 76.5, vBmY)) * smoothstep(40.5, 43.5, vBmY);
   // HDR-safe team identity: saturate the team hue and keep the stacked additive layers
   // under the bloom knee, so the column stays blue/red instead of washing to white
   vec3 hue = diffuseColor.rgb / max(max(diffuseColor.r, diffuseColor.g), max(diffuseColor.b, 1e-3));

@@ -66,7 +66,7 @@ export class Weather {
           c.xy += perp * (position.x - 0.5) * wpx / uRes * 2.0 * c.w;
           gl_Position = c;
           // fade in near the top, out right above the sea, and very close to the lens
-          vA = live * aVar.z * smoothstep(0.0, 0.08, ph) * smoothstep(1.0, 0.94, ph) * smoothstep(4.0, 22.0, c.w) * uK;
+          vA = live * aVar.z * smoothstep(0.0, 0.08, ph) * (1.0 - smoothstep(0.94, 1.0, ph)) * smoothstep(4.0, 22.0, c.w) * uK;
         }`,
       fragmentShader: /* glsl */`
         uniform vec3 uColor; uniform float uFlash;

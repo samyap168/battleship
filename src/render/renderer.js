@@ -74,7 +74,7 @@ const GradeShader = {
       float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
       col = mix(vec3(l), col, uSat * (1.0 - uDesat));
       // Vignette
-      float v = smoothstep(0.85, 0.2, length(c * vec2(aspect * 0.8, 1.0)));
+      float v = (1.0 - smoothstep(0.2, 0.85, length(c * vec2(aspect * 0.8, 1.0))));
       col *= mix(1.0 - uVignette, 1.0, v);
       // Damage vignette
       float dv = smoothstep(0.25, 0.9, length(c * vec2(aspect * 0.7, 1.0)));
@@ -143,6 +143,16 @@ export class Renderer {
       this.ao.blendIntensity = 0.9;
       composer.addPass(this.ao);
     }
+    // NaN/Inf guard: one bad pixel (undefined math on some GPU drivers) must never poison the
+    // bloom mip chain, which would smear it across the whole frame
+    composer.addPass(new ShaderPass({
+      uniforms: { tDiffuse: { value: null } },
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
+        void main() { vec4 c = texture2D(tDiffuse, vUv);
+          bool bad = any(isnan(c)) || any(isinf(c));
+          gl_FragColor = bad ? vec4(0.0, 0.0, 0.0, 1.0) : vec4(min(c.rgb, vec3(64.0)), c.a); }`,
+    }));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.42, 0.5, 1.0);
     this.bloom.enabled = this.q.bloom;
     this.bloom.highPassUniforms.smoothWidth.value = 0.45; // soft knee: highlights roll into bloom instead of clipping

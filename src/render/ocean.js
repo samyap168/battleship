@@ -271,17 +271,17 @@ export class WaterDecals {
           float n = nz(vUv * 7.0 + vD1.z * 13.0) * 0.6 + nz(vUv * 17.0) * 0.4;
           float a;
           if (kind < 0.5) {         // foam blob
-            a = smoothstep(1.0, 0.25, r + n * 0.45) * smoothstep(0.25, 0.55, n + (1.0 - age) * 0.5);
+            a = (1.0 - smoothstep(0.25, 1.0, r + n * 0.45)) * smoothstep(0.25, 0.55, n + (1.0 - age) * 0.5);
           } else if (kind < 1.5) {  // expanding ring
             // torn, lacy foam front with a faint churned interior
             float n2 = nz(vUv * 23.0 + age * 3.0 + vD1.z * 5.0);
             float rr = r + (n - 0.5) * 0.18;
             float band = 1.0 - smoothstep(0.0, 0.13 + age * 0.12, abs(rr - 0.74));
             float lace = smoothstep(0.3, 0.72, n2 * 0.55 + n * 0.45 + (1.0 - age) * 0.28);
-            float inner = smoothstep(0.75, 0.15, r) * smoothstep(0.4, 0.8, n2) * 0.22 * (1.0 - age);
+            float inner = (1.0 - smoothstep(0.15, 0.75, r)) * smoothstep(0.4, 0.8, n2) * 0.22 * (1.0 - age);
             a = band * lace * 1.15 + inner;
           } else {                  // dark scorch / oil slick
-            a = smoothstep(1.0, 0.1, r + n * 0.5) * 0.8;
+            a = (1.0 - smoothstep(0.1, 1.0, r + n * 0.5)) * 0.8;
             gl_FragColor = vec4(vec3(0.02, 0.018, 0.016), a * vD1.z * (1.0 - age));
             return;
           }

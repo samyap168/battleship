@@ -31,24 +31,24 @@ void main() {
     a = pow(1.0 - r, 2.2);
   } else if (vKind < 1.5) {
     float n = nz(p * 2.3 + vSeed * 17.0) * 0.55 + nz(p * 5.1 - vSeed * 9.0) * 0.45;
-    a = smoothstep(1.0, 0.3, r + (n - 0.5) * 0.8);
+    a = (1.0 - smoothstep(0.3, 1.0, r + (n - 0.5) * 0.8));
     // fake lighting: brighter top-left
     float lit = 0.75 + 0.35 * (-p.y * 0.6 - p.x * 0.3) + n * 0.2;
     col *= lit;
   } else if (vKind < 2.5) {
-    a = smoothstep(1.0, 0.0, r); a = a * a * a;
+    a = (1.0 - smoothstep(0.0, 1.0, r)); a = a * a * a;
   } else if (vKind < 3.5) {
     float n = nz(p * 3.0 + vSeed * 31.0);
-    a = smoothstep(1.0, 0.2, r + (n - 0.5) * 0.9) * (0.6 + n * 0.5);
+    a = (1.0 - smoothstep(0.2, 1.0, r + (n - 0.5) * 0.9)) * (0.6 + n * 0.5);
   } else if (vKind < 4.5) {
     float n = nz(vec2(p.x * 2.5, p.y * 1.5 + vSeed * 20.0));
-    a = smoothstep(1.0, 0.1, r + (n - 0.5) * 1.1);
+    a = (1.0 - smoothstep(0.1, 1.0, r + (n - 0.5) * 1.1));
     col *= mix(vec3(1.0), vec3(1.6, 1.3, 0.8), 1.0 - r);
   } else {
     // kind 5: self-lit fire puff (alpha blended so it occludes instead of saturating)
     float n = nz(p * 2.6 + vSeed * 23.0) * 0.6 + nz(p * 6.0 - vSeed * 7.0) * 0.4;
-    a = smoothstep(1.0, 0.25, r + (n - 0.5) * 0.9);
-    float core = smoothstep(0.75, 0.0, r + (n - 0.5) * 0.6);
+    a = (1.0 - smoothstep(0.25, 1.0, r + (n - 0.5) * 0.9));
+    float core = (1.0 - smoothstep(0.0, 0.75, r + (n - 0.5) * 0.6));
     col *= 0.55 + core * 0.9 + n * 0.25;
   }
   a *= vColor.a;

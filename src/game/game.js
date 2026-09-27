@@ -438,7 +438,7 @@ export class Game {
     const pl = this.player;
     if (pl && !this.over) {
       const H = [
-        [9, '<kbd>Right-click</kbd> the sea to sail · head for the <b>mid lane</b> and escort your gunboats'],
+        [9, '<kbd>Click</kbd> the sea to sail · head for the <b>mid lane</b> and escort your gunboats'],
         [22, '<b>Hold</b> <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> to aim an ability, <b>release to fire</b> · right-click cancels'],
         [40, 'Guns fire automatically · shells take time to land, so <b>keep moving</b> to dodge · red rings are incoming enemy salvos'],
         [58, 'Sinking gunboats earns <b>gold</b> · last hits pay the most · the top-left panel shows your next goal'],

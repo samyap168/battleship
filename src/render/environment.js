@@ -477,10 +477,10 @@ export class Environment {
           float v = vUv.y;
           float n = nz(vW.xz * 0.35) * 0.6 + nz(vW.xz * 1.1 + uTime * 0.2) * 0.4;
           // wash line hugging the sand + two surf bands rolling shoreward
-          float wash = smoothstep(0.22, 0.0, v + (n - 0.5) * 0.18);
-          float band1 = smoothstep(0.12, 0.0, abs(fract(v * 1.6 + uTime * 0.18 + n * 0.3) - 0.5) - 0.32) * (1.0 - v);
+          float wash = (1.0 - smoothstep(0.0, 0.22, v + (n - 0.5) * 0.18));
+          float band1 = (1.0 - smoothstep(0.0, 0.12, abs(fract(v * 1.6 + uTime * 0.18 + n * 0.3) - 0.5) - 0.32)) * (1.0 - v);
           float lace = smoothstep(0.55, 0.75, n) * (1.0 - v) * 0.6;
-          float a = clamp(wash + band1 * 0.55 + lace * 0.35, 0.0, 1.0) * smoothstep(1.0, 0.6, v);
+          float a = clamp(wash + band1 * 0.55 + lace * 0.35, 0.0, 1.0) * (1.0 - smoothstep(0.6, 1.0, v));
           gl_FragColor = vec4(vec3(0.93, 0.96, 0.98) * a, a * 0.9);
         }`,
       transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
