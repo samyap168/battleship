@@ -252,6 +252,8 @@ export class Combat {
         G.fx.muzzle(_p, _dir, g.kind === 'ball' ? 1.1 : g.kind === 'flak' ? 0.7 : 1.3, g.kind);
         if (hero.isPlayer && g.kind !== 'flak') G.fx.shake(0.05 + hero.age * 0.012, hero.x, hero.z);
         G.audio.play(VIS[g.kind].snd, { x: _p.x, z: _p.z, vol: 0.55, era: hero.age });
+        // Carrier flak is a real anti-air gun: each burst can swat a nearby enemy drone or missile
+        if (g.kind === 'flak' && Math.random() < 0.55) G.drones.shootDown(hero.team, hero.x, hero.z, 42, 1) + this.interceptNear(hero.team, hero.x, hero.z, 42, 1);
       });
     }
   }
