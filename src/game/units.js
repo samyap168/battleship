@@ -303,6 +303,7 @@ export class Creep extends Unit {
     this.rig = buildCreepShip(era, heavy, team);
     this.rig.root.userData.noAO = true; // tiny hulls: AO is invisible at gameplay zoom, the extra G-buffer draws are not
     this.rig.root.traverse((o) => { if (o.isMesh) o.castShadow = false; }); // perf: gunboat shadows are imperceptible from above
+    applyTeamRim(this.rig.root, this.team); // faction rim: gunboats stay readable through smoke and the squall's chop
     G.scene.add(this.rig.root);
     this.gunKind = era <= 1 ? 'ball' : era >= 5 ? 'laser' : era >= 4 ? 'pulse' : 'shell';
   }
