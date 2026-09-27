@@ -393,6 +393,12 @@ class AudioSystem {
   }
   get intensity() { return this.eng ? this.eng.music.I : this._intensity; }
 
+  setShip(age, speed) {
+    if (this._shipAge === age && Math.abs((this._shipSpd ?? -1) - speed) < 0.05) return;
+    this._shipAge = age; this._shipSpd = speed;
+    this._safe((e) => e.ambience.setShip(age, speed));
+  }
+
   setSwarm(count) {
     this._swarm = clamp(+count || 0, 0, 200);
     this._safe((e) => e.swarm.set(this._swarm));

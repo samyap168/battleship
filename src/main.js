@@ -403,6 +403,7 @@ function tick(dt, draw) {
     for (const h of G.heroes) if (h.alive && Math.hypot(h.x - f.x, h.z - f.z) < 200 && h.target && h.target.kind === 'hero') heat += 0.25;
     G.combatHeat = Math.min(1, Math.max(G.combatHeat, heat));
     audio.setIntensity(mode === 'menu' ? 0.35 : G.combatHeat);
+    if (mode === 'play' && G.player) { const p = G.player; audio.setShip(p.alive ? p.age : 0, p.alive ? Math.min(1, Math.abs(p.speed || 0) / (p.maxSpeed || p.hull.speed || 20)) : 0); }
   }
 
   document.body.classList.toggle('cinematic', !!cameraDir.cine && cameraDir.cine.letterbox && mode === 'play');

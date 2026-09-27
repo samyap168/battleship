@@ -56,11 +56,47 @@ export class Ambience {
     this._loop('pink', k.filter('bandpass', 5200, 0.7, k.gain(0.12, this.rainG)), 1.3);
     this.galeG = k.gain(0, this.windBus);
     this._loop('brown', k.filter('lowpass', 420, 0.9, k.gain(0.5, this.galeG)), 0.9);
+    // the player's own ship voice: bow wash for every hull + a per-age propulsion layer
+    const ctx = this.ctx;
+    this.shipOut = k.gain(0.9, this.out);
+    this.washG = k.gain(0, this.shipOut);
+    this._loop('brown', k.filter('lowpass', 520, 0.7, this.washG));
+    this._loop('white', k.filter('bandpass', 1900, 0.9, k.gain(0.12, this.washG)), 0.8);
+    this.creakG = k.gain(0, this.shipOut);                       // Sail: rigging creak (slow resonant wobble)
+    const creakBP = k.filter('bandpass', 420, 9, this.creakG);
+    this._loop('pink', creakBP, 0.6);
+    const cl = ctx.createOscillator(); cl.frequency.value = 0.35; const cld = k.gain(160); cl.connect(cld); cld.connect(creakBP.frequency); cl.start(); this.srcs.push(cl);
+    this.chuffG = k.gain(0, this.shipOut);                       // Steam: piston chuff, tempo follows speed
+    const chuffAmp = k.gain(0, this.chuffG);
+    this._loop('pink', k.filter('bandpass', 190, 1.4, chuffAmp));
+    this.chuffLfo = ctx.createOscillator(); this.chuffLfo.type = 'square'; this.chuffLfo.frequency.value = 1.5;
+    const cd = k.gain(0.5); this.chuffLfo.connect(cd); cd.connect(chuffAmp.gain); chuffAmp.gain.value = 0.5; this.chuffLfo.start(); this.srcs.push(this.chuffLfo);
+    this.turbG = k.gain(0, this.shipOut);                        // Dreadnought-Airpower: turbine drone
+    const turbLP = k.filter('lowpass', 240, 0.8, this.turbG);
+    this.turbOsc = [44, 88.6].map((f, i) => { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(k.gain(i ? 0.35 : 0.6, turbLP)); o.start(); this.srcs.push(o); return o; });
+    this.humG = k.gain(0, this.shipOut);                         // Swarm: electric hum + fan whine
+    this.humOsc = [110, 220.7, 1760].map((f, i) => { const o = ctx.createOscillator(); o.type = i === 2 ? 'triangle' : 'sine'; o.frequency.value = f; o.connect(k.gain([0.5, 0.25, 0.04][i], this.humG)); o.start(); this.srcs.push(o); return o; });
+    this.setShip(this.shipAge || 1, this.shipSpeed || 0);
     this.setStorm(this.storm || 0);
     this.setZoom(this.eng.listener.zoom);
   }
 
   /** 0..1 storm intensity: rain + gale. */
+  /** Player ship voice: age picks the propulsion layer, speed (0..1) drives wash, tempo and pitch. */
+  setShip(age, speed) {
+    this.shipAge = age; this.shipSpeed = clamp(speed);
+    if (!this.on || !this.washG) return;
+    const t = this.ctx.currentTime, v = this.shipSpeed, tc = 0.4;
+    this.washG.gain.setTargetAtTime(0.012 + v * 0.07, t, tc);
+    this.creakG.gain.setTargetAtTime(age === 1 ? 0.05 + v * 0.03 : 0, t, tc);
+    this.chuffG.gain.setTargetAtTime(age === 2 ? 0.05 + v * 0.06 : 0, t, tc);
+    this.chuffLfo.frequency.setTargetAtTime(1.2 + v * 3.2, t, tc);
+    this.turbG.gain.setTargetAtTime(age === 3 || age === 4 ? 0.02 + v * 0.035 : 0, t, tc);
+    this.turbOsc.forEach((o, i) => o.frequency.setTargetAtTime((i ? 88.6 : 44) * (0.85 + v * 0.35), t, tc));
+    this.humG.gain.setTargetAtTime(age === 5 ? 0.012 + v * 0.02 : 0, t, tc);
+    this.humOsc[2].frequency.setTargetAtTime(1500 + v * 900, t, tc);
+  }
+
   setStorm(v) {
     this.storm = clamp(v);
     if (!this.on) return;

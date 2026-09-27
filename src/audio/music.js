@@ -231,7 +231,7 @@ export class Music {
     do { pi = (Math.random() * pool.length) | 0; } while (pool.length > 1 && pool === this.lastPool && pi === this.lastProg);
     // recurring identity: in sustained battle every other section returns to the
     // Armada theme (WAR[0]) with the horn call, so the score develops a throughline
-    const theme = I > 0.8 && !this.opening && (this.warSecs = (this.warSecs || 0) + 1) % 2 === 1;
+    const theme = I > 0.85 && !this.opening && (this.warSecs = (this.warSecs || 0) + 1) % 3 === 1; // returns every third war section, not every other
     if (theme) pi = 0;
     this.lastPool = pool;
     this.lastProg = pi;

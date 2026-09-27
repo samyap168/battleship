@@ -34,7 +34,7 @@ export const DEFS = {
   emp:           { cap: 2, pri: 6, rev: 0.3,  echo: 0.08, range: 1.05, jp: 0.04, jv: 0.1,  lvl: 0.93 },
   shield:        { cap: 3, pri: 5, rev: 0.3,  echo: 0,    range: 0.9,  jp: 0.03, jv: 0.1,  lvl: 1.74 },
   shieldHit:     { cap: 6, pri: 2, rev: 0.22, echo: 0,    range: 0.85, jp: 0.1,  jv: 0.2,  lvl: 1.84 },
-  heal:          { cap: 3, pri: 4, rev: 0.3,  echo: 0,    range: 0.85, jp: 0.04, jv: 0.1,  lvl: 3.31 },
+  heal:          { cap: 3, pri: 4, rev: 0.3,  echo: 0,    range: 0.85, jp: 0.04, jv: 0.1,  lvl: 1.99 },
   ram:           { cap: 3, pri: 5, rev: 0.22, echo: 0.05, range: 1.0,  jp: 0.06, jv: 0.12, lvl: 0.69 },
   smoke:         { cap: 3, pri: 3, rev: 0.2,  echo: 0,    range: 0.9,  jp: 0.06, jv: 0.15, lvl: 2.72 },
   mineDrop:      { cap: 4, pri: 2, rev: 0.15, echo: 0,    range: 0.8,  jp: 0.08, jv: 0.15, lvl: 1.64 },
@@ -45,7 +45,7 @@ export const DEFS = {
   uiClick:       { cap: 3, pri: 10, rev: 0.05, echo: 0,   range: 2,    jp: 0.02, jv: 0.05, lvl: 4.73 },
   uiHover:       { cap: 2, pri: 10, rev: 0.05, echo: 0,   range: 2,    jp: 0.02, jv: 0.05, lvl: 6.84 },
   uiError:       { cap: 2, pri: 10, rev: 0.05, echo: 0,   range: 2,    jp: 0,    jv: 0.05, lvl: 2.00 },
-  capture:       { cap: 2, pri: 8, rev: 0.3,  echo: 0.12, range: 1.3,  jp: 0.02, jv: 0.08, lvl: 2.57 },
+  capture:       { cap: 2, pri: 8, rev: 0.3,  echo: 0.12, range: 1.3,  jp: 0.02, jv: 0.08, lvl: 1.54 },
   death:         { cap: 4, pri: 8, rev: 0.28, echo: 0.12, range: 1.2,  jp: 0.05, jv: 0.1,  lvl: 0.84 },
   towerDown:     { cap: 2, pri: 8, rev: 0.3,  echo: 0.15, range: 1.3,  jp: 0.04, jv: 0.08, lvl: 0.80 },
   roar:          { cap: 2, pri: 9, rev: 0.4,  echo: 0.2,  range: 1.6,  jp: 0.06, jv: 0.08, lvl: 0.9 },
@@ -147,7 +147,8 @@ export const RECIPES = {
       V.tone(t + 0.004, { type: 'triangle', f: 612 * p, f1: 580 * p, sweep: 0.3, a: 0.002, d: 0.22, peak: 0.08 });
       V.burst(t + 0.08, { kind: 'white', type: 'highpass', f: 4800, a: 0.03, d: 0.55, peak: 0.12 });
     } else if (era >= 4) { // radar-directed battleship: supersonic crack + long rolling whump
-      V.burst(t, { kind: 'white', type: 'bandpass', f: 5200 * p, Q: 1.4, a: 0.0004, d: 0.02, peak: 0.55 });
+      V.burst(t, { kind: 'white', type: 'bandpass', f: 5200 * p, Q: 1.4, a: 0.0004, d: 0.028, peak: 0.95 });
+      V.burst(t + 0.002, { kind: 'white', type: 'highpass', f: 7000, a: 0.0003, d: 0.012, peak: 0.5 }); // N-wave snap
       V.tone(t + 0.06, { f: 54 * p, f1: 22 * p, sweep: 0.9, a: 0.01, d: 1.4, peak: 0.55 });
       V.burst(t + 0.12, { kind: 'pink', type: 'bandpass', f: 900 * p, f1: 300 * p, sweep: 1.2, Q: 0.8, a: 0.05, d: 1.3, peak: 0.18, dest: [V.out, V.echo] });
     }
