@@ -423,7 +423,7 @@ function tick(dt, draw) {
   const p = G && G.player;
   cameraDir.update(dt, p && p.alive ? p : null);
   const f = cameraDir.focus;
-  if (G) { G.listener.x = f.x; G.listener.z = f.z; G.viewScale = 1 + THREE.MathUtils.smoothstep(cameraDir.dist, 180, 290) * 0.28; }
+  if (G) { G.listener.x = f.x; G.listener.z = f.z; G.viewScale = 1.15 + THREE.MathUtils.smoothstep(cameraDir.dist, 160, 290) * 0.25; /* captains always read a size above gunboats */ }
   audio.setListener(f.x, f.z, cameraDir.dist);
 
   // time of day: dawn -> dusk across the match

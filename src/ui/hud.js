@@ -222,7 +222,8 @@ export class HUD {
     box.innerHTML = `<div class="a ${a.size}" style="--c:${a.color}"><h1>${esc(a.title)}</h1><div class="bar"></div><p>${esc(a.sub)}</p></div>`;
     const el = box.firstChild;
     // the banner's screen band: world nameplates under it fade so the two texts never interleave
-    const r = el.getBoundingClientRect(); this.annRect = { l: r.left - 20, r: r.right + 20, t: r.top - 14, b: r.bottom + 14 };
+    this.annRect = null;
+    setTimeout(() => { if (!el.isConnected) return; const r = el.getBoundingClientRect(); this.annRect = { l: r.left - 20, r: r.right + 20, t: r.top - 14, b: r.bottom + 14 }; }, 650); // measured once the scale-in settles
     setTimeout(() => el.classList.add('out'), a.size ? 2000 : 2600);
     setTimeout(() => { this.annRect = null; this.nextAnnounce(); }, a.size ? 2500 : 3100);
   }
@@ -563,7 +564,7 @@ export class HUD {
         placed.push({ x: s.x, y: y0, hw: lw });
       }
       const A = this.annRect;
-      c.globalAlpha = A && y0 > A.t - 20 && y0 < A.b && s.x > A.l && s.x < A.r ? 0.18 : 1;
+      c.globalAlpha = A && u !== p && y0 > A.t - 20 && y0 < A.b && s.x > A.l && s.x < A.r ? 0.18 : 1; // your own ship never fades
       const f = Math.max(0, u.hp / u.maxHp);
       c.fillStyle = 'rgba(0,0,0,.65)';
       c.fillRect(x0 - 1, y0 - 1, bw + 2, bh + 2);

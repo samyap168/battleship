@@ -639,7 +639,7 @@ export class Game {
       u.ring.visible = u.alive;
       u.ring.position.set(u.x, 0, u.z);
       u.ring.material.uniforms.uTime.value = t;
-      u.ring.scale.setScalar(r.length * 0.5 + 3 + Math.sin(t * 3) * (u.isPlayer ? 0.3 : 0));
+      u.ring.scale.setScalar((r.length * 0.5 + 3) * (this.viewScale || 1) + Math.sin(t * 3) * (u.isPlayer ? 0.3 : 0));
     }
     if (u.kind === 'hero') {
       u.reforgeFlash = Math.max(0, (u.reforgeFlash || 0) - dt * 1.1);
