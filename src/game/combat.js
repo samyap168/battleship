@@ -4,7 +4,7 @@ import { sampleWaves } from '../render/waves.js';
 import { TEAMS, COUNTERS, COUNTER_BONUS, HULLS } from '../core/config.js';
 
 const _w = { y: 0 };
-const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _p = new THREE.Vector3();
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _p = new THREE.Vector3(), _tp = new THREE.Vector3();
 const _dir = new THREE.Vector3(), _fwd = new THREE.Vector3(0, 0, 1);
 const rnd = (a, b) => a + Math.random() * (b - a);
 
@@ -373,7 +373,17 @@ export class Combat {
         p.trailT = 0.03;
         _p.set(p.x, p.y, p.z);
         if (v.glow) G.fx.trailGlow(_p, v.glow, v.glowSize, 0.16);
-        if (v.smoke) G.fx.trailSmoke(_p, p.mega ? 3 : 1, 0.75, v.smoke * 0.5);
+        if (v.smoke) {
+          // fill the gap since the last puff so fast shots leave one continuous plume, not a dotted line
+          const L = p.lastTrail || (p.lastTrail = { x: p.x, y: p.y, z: p.z });
+          const d = Math.hypot(p.x - L.x, p.y - L.y, p.z - L.z), n = Math.max(1, Math.min(4, Math.ceil(d / 1.8)));
+          for (let k = 1; k <= n; k++) {
+            const f = k / n;
+            _tp.set(L.x + (p.x - L.x) * f, L.y + (p.y - L.y) * f, L.z + (p.z - L.z) * f);
+            G.fx.trailSmoke(_tp, (p.mega ? 3 : 1) * 1.15, 0.75, v.smoke * 0.5 / Math.sqrt(n));
+          }
+          L.x = p.x; L.y = p.y; L.z = p.z;
+        }
         if (v.water) G.ocean.decals.add(p.x, p.z, 2.2, 1.8, 0, 0.8, 1.5);
       }
       // render

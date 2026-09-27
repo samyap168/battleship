@@ -163,7 +163,7 @@ class Pool {
 export class Particles {
   constructor(scene) {
     this.add = new Pool(scene, 9000, true);
-    this.alpha = new Pool(scene, 7000, false);
+    this.alpha = new Pool(scene, 9000, false); // headroom: big fights peaked near 7k and recycled live smoke
   }
   setScale(renderer) {
     // point size in px = size * uScale / depth. Derive uScale from fov + viewport height.

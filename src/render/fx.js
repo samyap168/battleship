@@ -330,7 +330,7 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
   /** Continuous emitters (called per-frame by entities) */
   trailSmoke(pos, scale = 1, dark = 0.8, alpha = 0.35) {
     const c = dark * rnd(0.85, 1.05);
-    this.p.alpha.emit({ x: pos.x, y: pos.y, z: pos.z, vy: rnd(0.2, 1.2), life: rnd(0.8, 1.6), s0: 1.2 * scale, s1: 4 * scale, r: c, g: c, b: c, a0: alpha, a1: 0, kind: 1, drag: 1 });
+    this.p.alpha.emit({ x: pos.x + rnd(-0.3, 0.3), y: pos.y, z: pos.z + rnd(-0.3, 0.3), vy: rnd(0.2, 1.2), life: rnd(0.8, 1.6), s0: 1.6 * scale, s1: 4.4 * scale, r: c, g: c, b: c, a0: alpha, a1: 0, kind: 1, drag: 1 });
   }
   trailGlow(pos, color, size = 2, life = 0.18) {
     this.p.add.emit({ x: pos.x, y: pos.y, z: pos.z, life, s0: size, s1: size * 0.3, r: color[0], g: color[1], b: color[2], a0: 1, a1: 0, kind: 0 });
