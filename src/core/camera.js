@@ -33,6 +33,12 @@ export class CameraDirector {
   }
   resetOrbit() { this.yawGoal = Math.round(this.yaw / (Math.PI * 2)) * Math.PI * 2; this.tiltGoal = 0; }
 
+  /** Gameplay pitch (degrees) for a zoom distance: 40-60 deg tactical, swinging low past 85. */
+  pitchFor(dist) {
+    const zoomK = (dist - 85) / (290 - 85), lowK = THREE.MathUtils.smoothstep(85 - dist, 0, 40);
+    return zoomK >= 0 ? smooth(40, 60, zoomK) : smooth(40, 16, lowK);
+  }
+
   zoom(delta) { this.distGoal = THREE.MathUtils.clamp(this.distGoal * (1 + delta * 0.0012), 45, 290); }
 
   /** Keyframed cinematic: [{ t, pos: Vector3, look: Vector3 }], ends at the gameplay pose. */
@@ -48,7 +54,18 @@ export class CameraDirector {
   }
 
   /** view footprint on the water, for the minimap rectangle */
-  get view() { return { w: this.dist * 1.45 * this.cam.aspect * 0.95, h: this.dist * 1.1 }; }
+  get view() {
+    // true ground footprint (a rotated trapezoid once the player orbits): screen corners cast onto the sea
+    const cam = this.cam, pts = [];
+    cam.updateMatrixWorld();
+    const o = cam.position, v = (this._vv ||= new THREE.Vector3());
+    for (const [nx, ny] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      v.set(nx, ny, 0.5).unproject(cam).sub(o).normalize();
+      const t = v.y < -0.02 ? Math.min(-o.y / v.y, 900) : 900; // above the horizon: cap the far edge
+      pts.push({ x: o.x + v.x * t, z: o.z + v.z * t });
+    }
+    return { w: this.dist * 1.45 * cam.aspect * 0.95, h: this.dist * 1.1, pts };
+  }
 
   update(dt, target) {
     this.t += dt;
@@ -122,11 +139,10 @@ export class CameraDirector {
     this.dist = smooth(this.dist, this.distGoal, 1 - Math.exp(-dt * 8));
     // tactical view from 85 up (44-62 deg); zooming in past that swings down to a
     // low 'photo' angle just above the swell, looking toward the horizon
-    const zoomK = (this.dist - 85) / (290 - 85);
     const lowK = THREE.MathUtils.smoothstep(85 - this.dist, 0, 40);
     const ko = 1 - Math.exp(-dt * 10);
     this.yaw = smooth(this.yaw, this.yawGoal, ko); this.tilt = smooth(this.tilt, this.tiltGoal, ko);
-    const basePitch = zoomK >= 0 ? smooth(44, 62, zoomK) : smooth(44, 16, lowK);
+    const basePitch = this.pitchFor(this.dist);
     const pitch = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(basePitch + this.tilt, 12, 84));
     const lookY = lowK * 9;
     const hor = Math.cos(pitch) * this.dist;

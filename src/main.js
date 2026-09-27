@@ -112,13 +112,13 @@ function startGame(spectate) {
     if (h !== G.player) return;
     // The Reforging: slow-mo dolly to a hero angle around the new hull, then back to play.
     const cam = R.camera.position, V3 = THREE.Vector3;
-    const pitch = THREE.MathUtils.degToRad(56), d = cameraDir.dist;
+    const d = cameraDir.dist, pitch = THREE.MathUtils.degToRad(cameraDir.pitchFor(d));
     const side = Math.sin(h.yaw) > 0 ? -1 : 1;
     cameraDir.startCinematic([
       { t: 0, pos: new V3(cam.x - h.x, cam.y, cam.z - h.z), look: new V3(0, 0, 0) },
       { t: 0.55, pos: new V3(side * 38, 22, 44), look: new V3(0, 6, 0) },
       { t: 1.05, pos: new V3(side * 30, 26, 52), look: new V3(0, 7, 0) },
-      { t: 1.65, pos: new V3(0, Math.sin(pitch) * d, Math.cos(pitch) * d), look: new V3(0, 0, 0) },
+      { t: 1.65, pos: new V3(Math.sin(cameraDir.yaw) * Math.cos(pitch) * d, Math.sin(pitch) * d, Math.cos(cameraDir.yaw) * Math.cos(pitch) * d), look: new V3(0, 0, 0) }, // lands on the player's orbit
     ], null, { letterbox: false, follow: () => ({ x: h.x, z: h.z }) });
     G.slowmo = 1.1;
     h.reforgeFlash = 1.4;
@@ -138,11 +138,12 @@ function startGame(spectate) {
     cameraDir.orbit = { a: 0, r: 200, h: 90, cx: 0, cz: 108, follow: () => (G.boss && G.boss.alive ? G.boss : hotspot(G)) };
   } else {
     cameraDir.orbit = null;
+    cameraDir.yaw = cameraDir.yawGoal = cameraDir.tilt = cameraDir.tiltGoal = 0;
     const p = G.player;
     cameraDir.snapTo(p.x, p.z);
     // Opening shot: low on the water behind our citadel, into the sunrise, then crane up to play.
     const sx = p.team === 0 ? -1 : 1, V3 = THREE.Vector3;
-    const pitch = THREE.MathUtils.degToRad(56), d = 165;
+    const d = 165, pitch = THREE.MathUtils.degToRad(cameraDir.pitchFor(d));
     const endPos = new V3(p.x, Math.sin(pitch) * d, p.z + Math.cos(pitch) * d);
     cameraDir.startCinematic([
       { t: 0, pos: new V3(sx * 790, 9, 70), look: new V3(sx * 560, 14, -10) },

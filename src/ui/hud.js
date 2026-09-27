@@ -433,7 +433,8 @@ export class HUD {
     // camera view
     if (camView) {
       c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 1.5;
-      c.strokeRect(X(camFocus.x - camView.w / 2), Z(camFocus.z - camView.h / 2), camView.w * sx, camView.h * sz);
+      if (camView.pts) { c.beginPath(); camView.pts.forEach((p, i) => (i ? c.lineTo : c.moveTo).call(c, X(p.x), Z(p.z))); c.closePath(); c.stroke(); }
+      else c.strokeRect(X(camFocus.x - camView.w / 2), Z(camFocus.z - camView.h / 2), camView.w * sx, camView.h * sz);
     }
   }
 
