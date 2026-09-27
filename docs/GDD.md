@@ -119,7 +119,7 @@ The team that lands the killing blow gets **350 gold per captain** and **the Lev
 
 ## 12. Counters and the objective tracker
 
-Age branches form one directed counter graph (`COUNTERS` in `config.js`). Bots counter-pick from it, and the age-choice cards generate their "Strong vs / Weak to" lines from it, plus a live count of the enemy hulls each card counters.
+Age branches form one directed counter graph (`COUNTERS` in `config.js`). It is a real combat rule: a captain deals **+20% damage** (`COUNTER_BONUS`) to hulls theirs counters, flagged with a gold "COUNTER +20%" tag. Bots counter-pick from it, and the age-choice cards generate their "Strong vs / Weak to" lines from it, plus a live count of the enemy hulls each card counters. The final age forms a triangle, Arsenal > Battleship > Mothership > Arsenal, so neither Age V hull is a default pick.
 
 | Hull | Counters | Countered by |
 |---|---|---|
@@ -127,8 +127,8 @@ Age branches form one directed counter graph (`COUNTERS` in `config.js`). Bots c
 | Dreadnought | Ironclad, Frigate | Torpedo, Carrier, Mothership |
 | Fast Battleship | Carrier, Mothership | Torpedo, Arsenal |
 | Fleet Carrier | Dreadnought, Torpedo | Battleship, Arsenal |
-| Arsenal Cruiser | Carrier, Mothership, Battleship | Torpedo |
-| Drone Mothership | Dreadnought, Torpedo, Ironclad | Battleship, Arsenal |
+| Arsenal Cruiser | Carrier, Battleship | Torpedo, Mothership |
+| Drone Mothership | Arsenal, Dreadnought, Torpedo | Battleship |
 
 The top-left **Admiral's orders** panel shows what's coming and what to do: squall and Leviathan countdowns, the squall and boss while they are live, age-up progress ("Press T" when affordable), and when the enemy citadel is exposed.
 

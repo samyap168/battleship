@@ -43,9 +43,12 @@ export const COUNTERS = {
   dreadnought: ['ironclad', 'frigate'],        // heavy salvos crush the older fleet
   battleship: ['carrier', 'mothership'],        // flak umbrella shreds air wings and drones
   carrier: ['dreadnought', 'torpedo'],          // air strikes from beyond gun range
-  arsenal: ['carrier', 'mothership', 'battleship'], // point-defense lasers + railgun
-  mothership: ['dreadnought', 'torpedo', 'ironclad'], // swarms overwhelm ships without anti-air
+  arsenal: ['carrier', 'battleship'],           // point-defense swats air wings; the railgun outranges capital ships
+  mothership: ['arsenal', 'dreadnought', 'torpedo'], // swarms saturate point defense and overwhelm ships without anti-air
 };
+// Damage multiplier a hull deals to the hulls it counters (combat.js). Late game forms a triangle:
+// Arsenal > Battleship > Mothership > Arsenal.
+export const COUNTER_BONUS = 1.2;
 
 export const AGE_HULLS = {
   1: ['frigate'],

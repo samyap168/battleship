@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { getProjectileAssets } from '../render/models/smallModels.js';
 import { sampleWaves } from '../render/waves.js';
-import { TEAMS } from '../core/config.js';
+import { TEAMS, COUNTERS, COUNTER_BONUS, HULLS } from '../core/config.js';
 
 const _w = { y: 0 };
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _p = new THREE.Vector3();
@@ -83,6 +83,14 @@ export class Combat {
           G.ui.announce('HOME WATERS', `${G.teams[target.team].short} defenders dig in near their forts`, TEAMS[target.team].css, 'small');
         }
       }
+    }
+    // Hull counters are real, not just advice: +20% damage into a hull yours counters (COUNTERS graph,
+    // the same one the age-choice cards and the bots read).
+    const cSrc = source && source.kind === 'hero' ? source : source && source.owner && source.owner.kind === 'hero' ? source.owner : null;
+    if (cSrc && target.kind === 'hero' && (COUNTERS[cSrc.hullId] || []).includes(target.hullId)) {
+      dmg *= COUNTER_BONUS;
+      if (cSrc === G.player && G.time - (G._ctrT || -99) > 8) { G._ctrT = G.time; G.ui.floatText(target.x, 20, target.z, 'COUNTER +20%', '#ffd76a', 15); }
+      else if (target === G.player && G.time - (G._ctrInT || -99) > 30) { G._ctrInT = G.time; G.ui.hint && G.ui.hint(`<b style="color:#ff8a6a">${HULLS[cSrc.hullId].name}</b> counters your hull · it deals +20% damage to you`, 4500); }
     }
     let absorbed = 0;
     if (target.shield > 0) {

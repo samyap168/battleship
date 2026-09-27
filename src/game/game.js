@@ -499,11 +499,14 @@ export class Game {
     for (let i = this.smokes.length - 1; i >= 0; i--) { const s = this.smokes[i]; s.t += dt; if (s.t > s.dur) this.smokes.splice(i, 1); }
 
     // AI + units
-    // alternate the bot update order every tick: neither team always reacts to the other's fresher decisions
-    if (!this.over) { const n = this.bots.length, rev = this.frame & 1; for (let i = 0; i < n; i++) this.bots[rev ? n - 1 - i : i].update(dt); }
-    const rev = this.frame & 1, H = this.heroes, nh = H.length;
+    // Update order is a coin flip every tick (not frame parity): the mirrored start makes duels recur on
+    // the same frame parity (gun cooldowns are whole numbers of ticks), so a parity rule still hands one
+    // team the first shot. A fresh coin per tick gives neither team a first-mover edge.
+    const rev = Math.random() < 0.5;
+    if (!this.over) { const n = this.bots.length; for (let i = 0; i < n; i++) this.bots[rev ? n - 1 - i : i].update(dt); }
+    const H = this.heroes, nh = H.length;
     for (let i = 0; i < nh; i++) {
-      const h = H[rev ? nh - 1 - i : i]; // same alternation as the bots: movement + gunnery have no fixed first mover
+      const h = H[rev ? nh - 1 - i : i]; // same coin as the bots: movement + gunnery have no fixed first mover
       if (!h.alive) {
         h.respawn -= dt;
         if (h.respawn <= 0 && !this.over) this.respawnHero(h);
