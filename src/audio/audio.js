@@ -274,6 +274,9 @@ export class Engine {
     dk.cancelScheduledValues(t);
     dk.setTargetAtTime(0.35, t, 0.12);
     dk.setTargetAtTime(1, t + dur * 0.7, 0.9);
+    if (pri >= 8 && this.sfxIn) { // the big stingers also carve ~4 dB out of the battle (e.g. the citadel collapse's sub rumble)
+      const sd = this.sfxIn.gain; sd.cancelScheduledValues(t); sd.setTargetAtTime(0.55 * 0.63, t, 0.05); sd.setTargetAtTime(0.55, t + Math.min(2.5, dur * 0.4), 0.6);
+    }
     this.stingers.push({ name, pri, start: t, end: t + dur, out, wet });
     return true;
   }
@@ -393,7 +396,7 @@ class AudioSystem {
   }
   get intensity() { return this.eng ? this.eng.music.I : this._intensity; }
 
-  setFinale(on) { this._finale = !!on; this._safe((e) => e.music.setFinale(this._finale)); }
+  setFinale(on) { this._finale = !!on; this._safe((e) => { e.music.setFinale(this._finale); e.ambience.setDusk && e.ambience.setDusk(this._finale); }); }
 
   setShip(age, speed) {
     this._safe((e) => { e.ambience.shipAt = e.ctx.currentTime; }); // liveness: ship one-shots stop when play stops

@@ -97,6 +97,9 @@ export class Ambience {
     this.humOsc[2].frequency.setTargetAtTime(1500 + v * 900, t, tc);
   }
 
+  /** The Dusk Tide: a lower, gustier wind and the gulls fall quiet. */
+  setDusk(on) { this.dusk = !!on; }
+
   setStorm(v) {
     this.storm = clamp(v);
     if (!this.on) return;
@@ -142,15 +145,16 @@ export class Ambience {
       }
     }
     if (now > this.nextWind) {
-      this.windBP.frequency.setTargetAtTime(rand(450, 1100), now, 2.5);
-      this.windG.gain.setTargetAtTime(rand(0.018, 0.045), now, 2.5);
+      const dk = this.dusk ? 0.7 : 1;
+      this.windBP.frequency.setTargetAtTime(rand(450, 1100) * dk, now, 2.5);
+      this.windG.gain.setTargetAtTime(rand(0.018, 0.045) * (this.dusk ? 1.35 : 1), now, 2.5);
       this.whistleBP.frequency.setTargetAtTime(rand(1300, 2200), now, 3);
       this.whistleG.gain.setTargetAtTime(Math.random() < 0.4 ? rand(0.003, 0.009) : 0.0015, now, 3);
       this.nextWind = now + rand(3, 7);
     }
     if (now > this.nextGull) {
       this._gull(now + 0.1);
-      this.nextGull = now + rand(14, 40);
+      this.nextGull = now + rand(14, 40) * (this.dusk ? 2.5 : 1);
     }
   }
 
@@ -169,21 +173,21 @@ export class Ambience {
       const t = Math.max(ev.beat, now + 0.02), n = ev.beatN++;
       let gap;
       if (age === 1) { // bow slapping into the swell
-        k.burst(t, { kind: 'brown', type: 'lowpass', f: 520, f1: 240, Q: 0.8, a: 0.02, d: 0.42, peak: 0.05 + v * 0.1, dest: out });
+        k.burst(t, { kind: 'brown', type: 'lowpass', f: 520, f1: 240, Q: 0.8, a: 0.02, d: 0.42, peak: 0.09 + v * 0.08, dest: out });
         k.burst(t + 0.03, { kind: 'white', type: 'bandpass', f: 1400, f1: 700, Q: 0.7, a: 0.03, d: 0.35, peak: 0.012 + v * 0.03, dest: out });
         gap = rand(1.6, 2.6) / (0.55 + v * 0.8);
       } else if (age === 2) { // piston chuff: strong-weak pairs, tempo follows the throttle
         const acc = n % 2 === 0;
-        k.burst(t, { kind: 'pink', type: 'bandpass', f: acc ? 260 : 320, f1: 150, Q: 1.3, a: 0.004, d: acc ? 0.2 : 0.13, peak: (acc ? 0.24 : 0.12) * (0.5 + v * 0.7), dest: out });
+        k.burst(t, { kind: 'pink', type: 'bandpass', f: acc ? 260 : 320, f1: 150, Q: 1.3, a: 0.004, d: acc ? 0.2 : 0.13, peak: (acc ? 0.24 : 0.12) * (0.75 + v * 0.5), dest: out });
         k.burst(t + 0.01, { kind: 'white', type: 'highpass', f: 3200, Q: 0.6, a: 0.003, d: 0.08, peak: 0.02 * (0.4 + v), dest: out }); // valve hiss
         gap = 1 / (1.6 + v * 4.4);
       } else if (age === 3 || age === 4) { // diesel/turbine knock: a low thump train with a metallic tick
         const acc = n % 4 === 0;
-        k.burst(t, { kind: 'brown', type: 'lowpass', f: 190, f1: 90, Q: 1.8, a: 0.003, d: 0.1, peak: (acc ? 0.16 : 0.08) * (0.45 + v * 0.7), dest: out });
+        k.burst(t, { kind: 'brown', type: 'lowpass', f: 190, f1: 90, Q: 1.8, a: 0.003, d: 0.1, peak: (acc ? 0.16 : 0.08) * (0.7 + v * 0.5), dest: out });
         if (acc) k.tone(t, { type: 'triangle', f: 612, f1: 580, a: 0.001, d: 0.05, peak: 0.008 + v * 0.01, dest: out });
         gap = 1 / (3 + v * 5);
       } else { // swarm tender: quiet servo ticks under the hum
-        k.tone(t, { type: 'sine', f: 2400 + (n % 3) * 180, a: 0.001, d: 0.03, peak: 0.004 + v * 0.006, dest: out });
+        k.tone(t, { type: 'sine', f: 2400 + (n % 3) * 180, a: 0.001, d: 0.03, peak: 0.007 + v * 0.005, dest: out });
         gap = rand(0.35, 0.7);
       }
       ev.beat += gap;
