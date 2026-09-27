@@ -155,7 +155,7 @@ function startGame(spectate) {
     cameraDir.snapTo(p.x, p.z);
     // Opening shot: low on the water behind our citadel, into the sunrise, then crane up to play.
     const sx = p.team === 0 ? -1 : 1, V3 = THREE.Vector3;
-    const d = 165, pitch = THREE.MathUtils.degToRad(cameraDir.pitchFor(d));
+    const d = 150, pitch = THREE.MathUtils.degToRad(cameraDir.pitchFor(d));
     const endPos = new V3(p.x, Math.sin(pitch) * d, p.z + Math.cos(pitch) * d);
     cameraDir.startCinematic([
       { t: 0, pos: new V3(sx * 790, 9, 70), look: new V3(sx * 560, 14, -10) },
@@ -164,7 +164,7 @@ function startGame(spectate) {
       { t: 6.2, pos: endPos, look: new V3(p.x, 0, p.z) },
     ], { x: p.x, z: p.z });
     cameraDir.locked = true;
-    cameraDir.distGoal = cameraDir.dist = 165;
+    cameraDir.distGoal = cameraDir.dist = 150; // close enough that your hull reads as a ship, not a marker
     audio.stinger('matchStart');
     setTimeout(() => hud.announce('ARMADA ASCENSION', `${TEAMS[settings.team].name} · Destroy the enemy citadel`, TEAMS[settings.team].css), 1200);
     setTimeout(() => hud.hint('<kbd>Right-click</kbd> sail / attack &nbsp; <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> abilities at cursor &nbsp; <kbd>T</kbd> advance age', 9000), 4800);

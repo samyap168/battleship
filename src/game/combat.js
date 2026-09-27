@@ -10,8 +10,8 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 
 // Visual configs per projectile model
 const VIS = {
-  ball: { mesh: 'ball', scale: 1.1, glow: [1.6, 0.9, 0.4], glowSize: 2.2, smoke: 0.55, arc: 0.2, snd: 'cannon' },
-  chain: { mesh: 'ball', scale: 1.4, glow: [1.8, 1.0, 0.5], glowSize: 3, smoke: 0.6, arc: 0.12, snd: 'cannon', spin: true },
+  ball: { mesh: 'ball', scale: 1.0, glow: [1.3, 0.45, 0.14], glowSize: 1.3, smoke: 0.6, arc: 0.2, snd: 'cannon' }, // hot iron: a small ember, not a golden orb
+  chain: { mesh: 'ball', scale: 1.3, glow: [1.4, 0.5, 0.16], glowSize: 1.7, smoke: 0.6, arc: 0.12, snd: 'cannon', spin: true },
   shell: { mesh: 'shell', scale: 1, glow: [2.4, 1.3, 0.5], glowSize: 2.4, smoke: 0, arc: 0.16, snd: 'cannonHeavy' },
   shell_big: { mesh: 'shell', scale: 1.7, glow: [2.8, 1.5, 0.6], glowSize: 3.8, smoke: 0.3, arc: 0.22, snd: 'cannonHeavy' },
   flak: { mesh: 'shell', scale: 0.7, glow: [2.6, 2.0, 0.9], glowSize: 1.8, smoke: 0, arc: 0.06, snd: 'flak' },

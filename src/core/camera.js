@@ -8,7 +8,7 @@ export class CameraDirector {
     this.cam = camera;
     this.focus = new THREE.Vector3(0, 0, 0);
     this.goal = new THREE.Vector3();
-    this.dist = 165; this.distGoal = 165;
+    this.dist = 150; this.distGoal = 150;
     this.locked = true;
     this.trauma = 0;
     this.t = 0;

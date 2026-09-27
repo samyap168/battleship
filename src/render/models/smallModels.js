@@ -217,10 +217,11 @@ export function getProjectileAssets() {
   }
 
   const metal = smallMat('proj-metal', { metalness: 0.7, roughness: 0.35, glow: 4.0 });
+  const iron = smallMat('proj-iron', { metalness: 0.4, roughness: 0.82, glow: 3.2 }); // cast shot: dull, not a polished bauble
   const paint = smallMat('proj-paint', { metalness: 0.2, roughness: 0.45, glow: 4.5 });
   const hot = smallMat('proj-hot', { metalness: 0.4, roughness: 0.4, glow: 5.0, flat: true });
   projectiles = {
-    ball: { geometry: ball.build(), material: metal },
+    ball: { geometry: ball.build(), material: iron },
     shell: { geometry: shell.build(), material: metal },
     torpedo: { geometry: torp.build(), material: metal },
     missile: { geometry: mis.build(), material: paint },
