@@ -328,9 +328,11 @@ export function karstTower(r, h, seed, lean = 0) {
   const n = g.attributes.normal;
   const col = new Float32Array(p.count * 3);
   const c = new THREE.Color();
-  const warm = Math.sin(seed * 3.1) * 0.5 + 0.5, lum = 0.9 + 0.2 * (Math.sin(seed * 5.3) * 0.5 + 0.5);
+  // hashed per-tower picks: sin(seed * k) with k near a multiple of 2*pi barely moves between adjacent seeds
+  const hsh = (k) => { const x = Math.sin(seed * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
+  const warm = hsh(1), lum = 0.9 + 0.2 * hsh(2);
   const tintR = lum * (0.9 + warm * 0.24), tintG = lum * (0.97 + warm * 0.05), tintB = lum * (1.14 - warm * 0.28); // iron-red to cool grey limestone
-  const stoneKind = Math.floor((Math.sin(seed * 12.7) * 0.5 + 0.5) * 2.999); // 0 warm tan, 1 cool grey, 2 dark weathered
+  const stoneKind = Math.floor(hsh(3) * 2.999); // 0 warm tan, 1 cool grey, 2 dark weathered
   const _grey = new THREE.Color();
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
