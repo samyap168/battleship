@@ -3,6 +3,8 @@
 // but keeps the raw rendered buffer around so we can measure spectral
 // balance, attack time, decay tail, stereo width and shot-to-shot variation.
 import { Engine } from '../src/audio/audio.js';
+import { Kit, getResources } from '../src/audio/synth.js';
+import { RECIPES } from '../src/audio/sounds.js';
 
 async function renderBuf(script, { seconds = 3, sampleRate = 44100, raw = false } = {}) {
   const OAC = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
@@ -197,4 +199,59 @@ export async function fullAnalyze(name, opts = {}, seconds = 5) {
   return { name, ...at, bandsPct: sb.pct, stereo: width };
 }
 
-window.Analyze = { renderBuf, spectralBalance, attackAndTail, stereoWidth, variation, distanceCompare, fullAnalyze, isolatedVariation };
+// Simple RBJ biquad (bandpass/highpass/lowpass), used for short-window band
+// probes where STFT (spectralBalance's N=4096 frame) is too coarse in time
+// (e.g. a 20ms transient early in a 2s sound).
+function biquad(chan, sr, { type = 'bandpass', f0, Q = 1 }) {
+  const w0 = (2 * Math.PI * f0) / sr, cw = Math.cos(w0), sw = Math.sin(w0), alpha = sw / (2 * Q);
+  let b0, b1, b2, a0, a1, a2;
+  if (type === 'bandpass') { b0 = alpha; b1 = 0; b2 = -alpha; a0 = 1 + alpha; a1 = -2 * cw; a2 = 1 - alpha; }
+  else if (type === 'highpass') { b0 = (1 + cw) / 2; b1 = -(1 + cw); b2 = (1 + cw) / 2; a0 = 1 + alpha; a1 = -2 * cw; a2 = 1 - alpha; }
+  else { b0 = (1 - cw) / 2; b1 = 1 - cw; b2 = (1 - cw) / 2; a0 = 1 + alpha; a1 = -2 * cw; a2 = 1 - alpha; } // lowpass
+  b0 /= a0; b1 /= a0; b2 /= a0; a1 /= a0; a2 /= a0;
+  const out = new Float32Array(chan.length);
+  let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  for (let i = 0; i < chan.length; i++) {
+    const x0 = chan[i];
+    const y0 = b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+    out[i] = y0;
+    x2 = x1; x1 = x0; y2 = y1; y1 = y0;
+  }
+  return out;
+}
+
+// RMS (dBFS) of a band-filtered signal within [start,end) seconds — for
+// narrow time windows (early transient) where spectralBalance's STFT frame
+// (93ms @44.1k) is too coarse.
+export function bandRms(chan, sr, { start = 0, end, peak = false, ...filt } = {}) {
+  const filtered = biquad(chan, sr, filt);
+  const s0 = Math.floor(start * sr), e0 = Math.min(chan.length, end ? Math.floor(end * sr) : chan.length);
+  if (peak) {
+    let pk = 0; for (let i = s0; i < e0; i++) { const a = Math.abs(filtered[i]); if (a > pk) pk = a; }
+    return +dbfs(pk).toFixed(2);
+  }
+  let ss = 0, n = 0;
+  for (let i = s0; i < e0; i++) { ss += filtered[i] * filtered[i]; n++; }
+  return +dbfs(Math.sqrt(ss / (n || 1))).toFixed(2);
+}
+
+// Call a RECIPES[name] fn directly with a fixed V.p=1 and no play()-level
+// pitch/level jitter, gain staging or busing — for clean A/B comparison of a
+// recipe's own branches (e.g. cannonHeavy's era<=2 / era>=4 split) with zero
+// per-call random noise in the way.
+export async function directRecipe(name, opts = {}, seconds = 4) {
+  const OAC = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
+  const ctx = new OAC(2, Math.ceil(seconds * 44100), 44100);
+  const res = getResources(ctx);
+  const V = new Kit(ctx, res, true);
+  V.t = 0.02; V.p = opts.pitch == null ? 1 : +opts.pitch;
+  V.o = opts;
+  V.out = V.gain(1, ctx.destination);
+  V.wet = V.gain(0.0001, ctx.destination);
+  V.echo = V.gain(0.0001, ctx.destination);
+  RECIPES[name](V);
+  const buf = await ctx.startRendering();
+  return { buf, sr: 44100 };
+}
+
+window.Analyze = { renderBuf, spectralBalance, attackAndTail, stereoWidth, variation, distanceCompare, fullAnalyze, isolatedVariation, bandRms, directRecipe };

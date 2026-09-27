@@ -64,11 +64,12 @@ export class Combat {
       dmg *= target.kind === 'creep' ? 1.8 : 1 + G.structureScale;
     }
     if (source && source.kind === 'creep' && (target.kind === 'tower' || target.kind === 'citadel')) dmg *= 0.6;
+    if (G.duskTide && (target.kind === "tower" || target.kind === "citadel")) dmg *= 1.7; // endgame: forts crumble
     // Backdoor protection: forts shrug off captains unless allied gunboats escort the siege.
     if ((target.kind === 'tower' || target.kind === 'citadel') && source && source.kind !== 'creep') {
       const team = source.team;
       const escorted = G.creeps.some((c) => c.alive && c.team === team && (c.x - target.x) ** 2 + (c.z - target.z) ** 2 < 95 * 95);
-      if (!escorted) dmg *= 0.45;
+      if (!escorted && !G.duskTide) dmg *= 0.45; // the Dusk Tide lifts backdoor protection
     }
     // Home waters: a team trailing badly defends its own forts more stubbornly (anti-stomp).
     const behind = G.teams[1 - target.team] && target.team >= 0 ? G.teams[1 - target.team].kills - G.teams[target.team].kills : 0;

@@ -369,8 +369,9 @@ export class Game {
       for (const lane of LANE_IDS) {
         const wp = laneFor(team, lane);
         const n = 3 + (this.waveNo >= 8 ? 1 : 0);
-        for (let k = 0; k < n + 1; k++) {
-          const heavy = k === n;
+        const heavies = this.duskTide ? 2 : 1; // dusk tide: siege waves carry two heavy gunboats
+        for (let k = 0; k < n + heavies; k++) {
+          const heavy = k >= n;
           this.combat.after(k * 0.9, () => {
             const c = new Creep(this, team, lane, heavy, era, wp);
             c.x = wp[0].x + rnd(-6, 6); c.z = wp[0].z + rnd(-6, 6);
@@ -407,6 +408,13 @@ export class Game {
         for (const p of this.ports) if (p.owner === h.team) h.gold += PORTS.goldPerSec * dt;
       }
       if (t >= MATCH.duration) this.timeUp();
+      // Dusk Tide (8:00): the endgame push. Heavier waves and crumbling forts turn stalemates into sieges.
+      if (!this.duskTide && t >= 480) {
+        this.duskTide = true;
+        this.ui.announce('THE DUSK TIDE', 'Siege waves grow · every fortress crumbles, captains may siege alone', '#ffb35a');
+        this.audio.stinger('enemyAge');
+        this.ui.feed('<b style="color:#ffb35a">The Dusk Tide rises:</b> <span class="dim">heavier gunboat waves, forts take +70% damage and no longer need gunboat escort to be sieged.</span>');
+      }
       // mid-match squall
       const inStorm = t > this.stormAt && t < this.stormAt + this.stormDur;
       if (inStorm && !this.storm) { this.ui.announce('A SQUALL ROLLS IN', 'Heavy seas · gunnery accuracy reduced', '#9fb6d0', 'small'); this.audio.stinger('warning'); }

@@ -69,6 +69,9 @@ export class BotBrain {
       const eF = e.hp / e.maxHp;
       const underTower = this.enemyTowerCovers(e.x, e.z);
       let s = (1 - eF) * 2 + (h.dmgMul * h.hp) / (e.dmgMul * e.hp + 1) - h.dist(e) / 200;
+      // team play: focus the target allies are already shooting, and peel for an ally under attack
+      s += Math.min(2, allies.filter((a) => a.attackOrder === e).length) * 0.3;
+      if (allies.some((a) => e.attackOrder === a || (a.lastAttacker === e && a.hp / a.maxHp < 0.6))) s += 0.45;
       if (underTower && eF > 0.2) s -= 2;
       if (s > preyScore) { preyScore = s; prey = e; }
     }
