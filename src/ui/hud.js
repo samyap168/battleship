@@ -230,6 +230,12 @@ export class HUD {
     clearTimeout(this.hintT);
     this.hintT = setTimeout(() => (r.innerHTML = ''), ms);
   }
+  /** Hit marker on a target the player just hit (X ticks; gold on crit, red + larger when it sinks). */
+  hitMarker(x, z, crit, sunk) {
+    this.hitMarks ||= [];
+    if (this.hitMarks.length > 12) this.hitMarks.shift();
+    this.hitMarks.push({ x, z, crit, sunk, born: performance.now() });
+  }
   floatText(x, y, z, text, color = '#fff', size = 14) {
     if (this.floats.length > 80) this.floats.shift();
     this.floats.push({ x, y, z, text, color, size, t: 0, life: 1.1, dx: (Math.random() - 0.5) * 30, born: performance.now() });
@@ -539,6 +545,20 @@ export class HUD {
         c.font = '600 12px Rajdhani, sans-serif';
       } else if ((u.kind === 'tower' || u.kind === 'citadel') && u.invulnerable) {
         c.fillStyle = 'rgba(200,220,255,.7)'; c.fillText('⛨', s.x + bw / 2 + 8, y0 + 8);
+      }
+    }
+    // hit markers
+    if (this.hitMarks) {
+      const now = performance.now();
+      this.hitMarks = this.hitMarks.filter((m) => now - m.born < (m.sunk ? 650 : 260));
+      for (const m of this.hitMarks) {
+        const s = proj(m.x, 6, m.z); if (!s) continue;
+        const k = (now - m.born) / (m.sunk ? 650 : 260), r0 = (m.sunk ? 14 : 8) + k * 6, r1 = r0 + (m.sunk ? 12 : 7);
+        c.save(); c.globalAlpha = 1 - k; c.lineWidth = m.sunk ? 3.5 : 2.2; c.lineCap = 'round';
+        c.strokeStyle = m.sunk ? '#ff4a3a' : m.crit ? '#ffd76a' : '#ffffff'; c.shadowColor = 'rgba(0,0,0,.8)'; c.shadowBlur = 4;
+        c.beginPath();
+        for (const [dx, dy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { c.moveTo(s.x + dx * r0 * 0.7, s.y + dy * r0 * 0.7); c.lineTo(s.x + dx * r1 * 0.7, s.y + dy * r1 * 0.7); }
+        c.stroke(); c.restore();
       }
     }
     // ports capture arcs

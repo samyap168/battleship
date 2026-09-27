@@ -26,6 +26,8 @@ export const DEFS = {
   thunder:       { cap: 2, pri: 6, rev: 0.45, echo: 0.3,  range: 3.0,  jp: 0.12, jv: 0.15, lvl: 1.2 },
   explosionBig:  { cap: 3, pri: 7, rev: 0.3,  echo: 0.28, range: 1.2,  jp: 0.05, jv: 0.1,  lvl: 0.65 },
   splash:        { cap: 8, pri: 1, rev: 0.15, echo: 0,    range: 0.8,  jp: 0.12, jv: 0.25, lvl: 1.62 },
+  hitTick:       { cap: 3, pri: 9, rev: 0.02, echo: 0,    range: 9,    jp: 0.04, jv: 0.08, lvl: 1.4 },
+  killConfirm:   { cap: 2, pri: 10, rev: 0.12, echo: 0,   range: 9,    jp: 0.02, jv: 0.05, lvl: 1.3 },
   hit:           { cap: 8, pri: 2, rev: 0.18, echo: 0,    range: 0.85, jp: 0.1,  jv: 0.2,  lvl: 0.92 },
   droneLaunch:   { cap: 4, pri: 2, rev: 0.15, echo: 0,    range: 0.85, jp: 0.08, jv: 0.15, lvl: 2.66 },
   dronePop:      { cap: 10, pri: 1, rev: 0.15, echo: 0,   range: 0.8,  jp: 0.15, jv: 0.25, lvl: 1.51 },
@@ -334,6 +336,22 @@ export const RECIPES = {
     V.burst(t + 0.02, { kind: 'pink', type: 'lowpass', f: 1300 * p, f1: 400 * p, sweep: 0.9, a: 0.05, d: 0.9, peak: 0.25 });
     for (let i = 0; i < 5; i++) V.blip(t + rand(0.15, 0.8), rand(900, 2800) * p, rand(0.02, 0.05), V.out, 0.025, 1.5);
     return 1.3;
+  },
+
+  // player hit confirmation: short bright tick that cuts through the battle
+  hitTick(V) {
+    const { t, p } = V;
+    V.tone(t, { type: 'triangle', f: 2400 * p, f1: 1700 * p, sweep: 0.04, a: 0.001, d: 0.05, peak: 0.25 });
+    V.burst(t, { kind: 'white', type: 'bandpass', f: 5200 * p, Q: 3, a: 0.0005, d: 0.025, peak: 0.18 });
+    return 0.12;
+  },
+  // sink confirmation: metallic double chime over a low thump
+  killConfirm(V) {
+    const { t, p } = V;
+    V.tone(t, { f: 90 * p, f1: 45 * p, sweep: 0.2, a: 0.002, d: 0.3, peak: 0.5 });
+    V.tone(t + 0.01, { type: 'triangle', f: 1320 * p, a: 0.002, d: 0.35, peak: 0.2 });
+    V.tone(t + 0.09, { type: 'triangle', f: 1760 * p, a: 0.002, d: 0.5, peak: 0.2 });
+    return 0.8;
   },
 
   hit(V) {

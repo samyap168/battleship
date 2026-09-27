@@ -96,6 +96,12 @@ export class Combat {
     if (srcHero) {
       target.damagers.set(srcHero.id, G.time);
       srcHero.dmgDealt += dmg;
+      // hit confirmation for the player: a marker on the target + a crisp tick (a sink gets a heavier confirm)
+      if (srcHero === G.player && (target.kind === 'hero' || target.kind === 'boss') && dmg > 0 && G.ui.hitMarker) {
+        const sunk = target.hp <= 0;
+        G.ui.hitMarker(target.x, target.z, !!opts.crit, sunk);
+        if (G.time - (G._hitTickT || -1) > 0.07 || sunk) { G._hitTickT = G.time; G.audio.play(sunk ? 'killConfirm' : 'hitTick', { vol: sunk ? 1 : 0.7 }); }
+      }
       if (target.kind === 'hero') {
         for (const s of G.structures) if (s.alive && s.team === target.team && s.dist(srcHero) <= s.def.range) { s.aggroHero = srcHero; s.aggroT = 2.5; }
       }

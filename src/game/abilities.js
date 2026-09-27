@@ -68,7 +68,8 @@ export function cast(G, h, i, ax, az) {
         G.audio.play('hypersonic', { x: ax, z: az, vol: 1 });
       } else {
         const p0 = gunPos(h);
-        G.fx.ring(ax, az, ab.area + 4, ab.area + 4, G.teamGlow(h.team), ab.delay + ab.spreadTime, 0.04);
+        const hostile = G.player && h.team !== G.player.team; // enemy strike zones read as danger for the player
+        G.fx.ring(ax, az, ab.area + 4, ab.area + 4, hostile ? 0xff3a2a : G.teamGlow(h.team), ab.delay + ab.spreadTime, hostile ? 0.07 : 0.04);
         for (let k = 0; k < ab.count; k++) {
           G.combat.after((k / ab.count) * ab.spreadTime, () => {
             if (!h.alive) return;
