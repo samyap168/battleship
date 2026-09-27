@@ -14,7 +14,7 @@ npm run build      # production bundle in dist/
 
 A GitHub Pages workflow (`.github/workflows/deploy.yml`) publishes `main` automatically once **Settings → Pages → Source** is set to **GitHub Actions**.
 
-URL options: `?autoplay=1` skips the menu, `?quality=low|medium|high` sets graphics quality, `?difficulty=easy|normal|hard` sets bot strength, and `?team=0|1` picks your team.
+URL options: `?autoplay=1` skips the menu, `?quality=low|medium|high` sets graphics quality (on first launch the game picks one from your GPU: Medium on integrated/mobile GPUs, Low on phones, otherwise Ultra; the menu choice is remembered), `?difficulty=easy|normal|hard` sets bot strength, and `?team=0|1` picks your team.
 
 ## Controls
 

@@ -25,8 +25,25 @@ const params = new URLSearchParams(location.search);
 const settings = {
   difficulty: params.get('difficulty') || localGet('aa.diff') || 'normal',
   team: +(params.get('team') ?? localGet('aa.team') ?? 0),
-  quality: params.get('quality') || localGet('aa.quality') || 'high',
+  quality: params.get('quality') || localGet('aa.quality') || autoQuality(),
 };
+/** First launch only (no saved or URL choice): pick a preset the GPU can hold at 60 fps. Integrated and
+ *  mobile GPUs start on Medium, phones on Low; dedicated GPUs keep Ultra. The menu always overrides. */
+function autoQuality() {
+  if (navigator.webdriver) return 'high'; // automation renders the reference look
+  try {
+    const touchSmall = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 820;
+    if (touchSmall) return 'low';
+    const gl = document.createElement('canvas').getContext('webgl2');
+    if (!gl) return 'low';
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    const name = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+    if (/SwiftShader|llvmpipe|Software|Basic Render/i.test(name)) return 'low';
+    if (/Intel|UHD|Iris|Mali|Adreno|PowerVR|Vivante|Apple GPU/i.test(name) && !/Arc/i.test(name)) return 'medium';
+  } catch (e) { /* unknown GPU: keep the full look, adaptive quality protects the frame rate */ }
+  return 'high';
+}
 function localGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
 function localSet(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } }
 
