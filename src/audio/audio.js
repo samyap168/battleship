@@ -396,6 +396,7 @@ class AudioSystem {
   setFinale(on) { this._finale = !!on; this._safe((e) => e.music.setFinale(this._finale)); }
 
   setShip(age, speed) {
+    this._safe((e) => { e.ambience.shipAt = e.ctx.currentTime; }); // liveness: ship one-shots stop when play stops
     if (this._shipAge === age && Math.abs((this._shipSpd ?? -1) - speed) < 0.05) return;
     this._shipAge = age; this._shipSpd = speed;
     this._safe((e) => e.ambience.setShip(age, speed));

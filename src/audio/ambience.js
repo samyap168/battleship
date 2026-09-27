@@ -84,7 +84,7 @@ export class Ambience {
   /** 0..1 storm intensity: rain + gale. */
   /** Player ship voice: age picks the propulsion layer, speed (0..1) drives wash, tempo and pitch. */
   setShip(age, speed) {
-    this.shipAge = age; this.shipSpeed = clamp(speed);
+    this.shipAge = age; this.shipSpeed = clamp(speed); this.shipAt = this.ctx.currentTime;
     if (!this.on || !this.washG) return;
     const t = this.ctx.currentTime, v = this.shipSpeed, tc = 0.4;
     this.washG.gain.setTargetAtTime(0.012 + v * 0.07, t, tc);
@@ -126,6 +126,7 @@ export class Ambience {
 
   update(now) {
     if (!this.on) return;
+    this._shipEvents(now);
     for (const s of this.surf) {
       if (s.next < now + 1.5) {
         const t0 = Math.max(s.next, now + 0.05);
@@ -150,6 +151,63 @@ export class Ambience {
     if (now > this.nextGull) {
       this._gull(now + 0.1);
       this.nextGull = now + rand(14, 40);
+    }
+  }
+
+  /** Rhythmic one-shots that give each age's hull a voice of its own (scheduled ~0.45 s ahead
+   *  from the 250 ms slow tick): timber creaks and sail luffs, piston chuffs, diesel knock and
+   *  hull groans, sonar pings. Speed sets the tempo; a stationary ship only ticks over. */
+  _shipEvents(now) {
+    // only while a living player ship is reporting in (not the menu backdrop, not while sunk)
+    if (!this.shipOut || !this.shipAge || !(now - (this.shipAt ?? -9) < 0.6)) { if (this.shipEv) this.shipEv.beat = now + 0.2; return; }
+    const k = this.k, age = this.shipAge, v = this.shipSpeed || 0, out = this.shipOut;
+    const ev = (this.shipEv ||= { beat: now, beatN: 0, rare: now + rand(1, 3), rare2: now + rand(4, 8) });
+    if (ev.age !== age) { ev.age = age; ev.beat = now + 0.1; ev.rare = now + rand(0.5, 2); }
+    const ahead = now + 0.45;
+    // pulse track
+    while (ev.beat < ahead) {
+      const t = Math.max(ev.beat, now + 0.02), n = ev.beatN++;
+      let gap;
+      if (age === 1) { // bow slapping into the swell
+        k.burst(t, { kind: 'brown', type: 'lowpass', f: 520, f1: 240, Q: 0.8, a: 0.02, d: 0.42, peak: 0.05 + v * 0.1, dest: out });
+        k.burst(t + 0.03, { kind: 'white', type: 'bandpass', f: 1400, f1: 700, Q: 0.7, a: 0.03, d: 0.35, peak: 0.012 + v * 0.03, dest: out });
+        gap = rand(1.6, 2.6) / (0.55 + v * 0.8);
+      } else if (age === 2) { // piston chuff: strong-weak pairs, tempo follows the throttle
+        const acc = n % 2 === 0;
+        k.burst(t, { kind: 'pink', type: 'bandpass', f: acc ? 260 : 320, f1: 150, Q: 1.3, a: 0.004, d: acc ? 0.2 : 0.13, peak: (acc ? 0.24 : 0.12) * (0.5 + v * 0.7), dest: out });
+        k.burst(t + 0.01, { kind: 'white', type: 'highpass', f: 3200, Q: 0.6, a: 0.003, d: 0.08, peak: 0.02 * (0.4 + v), dest: out }); // valve hiss
+        gap = 1 / (1.6 + v * 4.4);
+      } else if (age === 3 || age === 4) { // diesel/turbine knock: a low thump train with a metallic tick
+        const acc = n % 4 === 0;
+        k.burst(t, { kind: 'brown', type: 'lowpass', f: 190, f1: 90, Q: 1.8, a: 0.003, d: 0.1, peak: (acc ? 0.16 : 0.08) * (0.45 + v * 0.7), dest: out });
+        if (acc) k.tone(t, { type: 'triangle', f: 612, f1: 580, a: 0.001, d: 0.05, peak: 0.008 + v * 0.01, dest: out });
+        gap = 1 / (3 + v * 5);
+      } else { // swarm tender: quiet servo ticks under the hum
+        k.tone(t, { type: 'sine', f: 2400 + (n % 3) * 180, a: 0.001, d: 0.03, peak: 0.004 + v * 0.006, dest: out });
+        gap = rand(0.35, 0.7);
+      }
+      ev.beat += gap;
+    }
+    // rare, characterful events
+    if (ev.rare < ahead) {
+      const t = Math.max(ev.rare, now + 0.02);
+      if (age === 1) { // timber groan (+ a sail luff when under way)
+        const f0 = rand(260, 520);
+        k.burst(t, { kind: 'pink', type: 'bandpass', f: f0, f1: f0 * rand(0.7, 1.35), Q: 14, a: 0.08, hold: 0.1, d: 0.5, peak: 0.07, dest: out });
+        if (v > 0.35) for (let i = 0; i < 3; i++) k.burst(t + 0.6 + i * rand(0.07, 0.11), { kind: 'white', type: 'bandpass', f: 900, Q: 0.9, a: 0.006, d: 0.06, peak: 0.03, dest: out });
+        ev.rare = t + rand(2.5, 5.5);
+      } else if (age === 2) { // safety valve blow-off
+        k.burst(t, { kind: 'white', type: 'bandpass', f: 4200, f1: 3600, Q: 1.4, a: 0.05, hold: 0.25, d: 0.6, peak: 0.018, dest: out });
+        ev.rare = t + rand(9, 16);
+      } else if (age === 3 || age === 4) { // steel hull groan under load
+        const f0 = rand(95, 150);
+        k.burst(t, { kind: 'pink', type: 'bandpass', f: f0, f1: f0 * rand(0.8, 1.2), Q: 22, a: 0.2, hold: 0.2, d: 0.9, peak: 0.09, dest: out });
+        ev.rare = t + rand(7, 13);
+      } else { // sonar ping: the swarm age's signature
+        k.tone(t, { type: 'sine', f: 1320, f1: 1290, a: 0.004, d: 0.9, peak: 0.02, dest: [out, this.eng.sfxRevIn] });
+        k.tone(t + 0.02, { type: 'sine', f: 2640, a: 0.002, d: 0.25, peak: 0.004, dest: out });
+        ev.rare = t + rand(5, 8);
+      }
     }
   }
 
