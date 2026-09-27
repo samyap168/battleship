@@ -524,6 +524,7 @@ function sailPatch(c00, c10, c01, c11, dir, b0, b1, uvRect = [0, 0, 1, 1], nx = 
 // Flag in the YZ plane, hoisted at (x,y,z) (top of the hoist), streaming toward -Z.
 // Two morph targets (sin / cos) give a travelling wave.
 function flagGeo(x, y, z, len, h, taper = 0, amp = 0.18, waves = 1.3, dirZ = -1) {
+  len *= 1.35; h *= 1.35; // oversized for readability: cloth folds must resolve at gameplay zoom
   const nx = 10, ny = 3;
   const pos = [], uv = [], idx = [], m1 = [], m2 = [];
   for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) {
