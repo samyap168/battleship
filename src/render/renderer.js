@@ -240,6 +240,30 @@ export class Renderer {
       u.uShock.value[i].set(s.x, s.y, k * 0.28 * s.str, (1 - k) * s.str);
     }
     u.uFlash.value = Math.max(0, u.uFlash.value - dt * 2.5);
+    if (this.safeMode) { this.gl.toneMapping = THREE.ACESFilmicToneMapping; this.gl.render(this.scene, this.camera); return; }
     this.composer.render(dt);
+    this.selfCheck();
+  }
+
+  /** Watchdog: if the post-processing chain ever collapses the frame to one flat colour
+   *  (driver bug, unsupported render-target format), fall back to direct rendering. */
+  selfCheck() {
+    this.checkT = (this.checkT || 0) + 1;
+    if (this.checkT % 45 !== 0 || this.checkT < 180 || this.safeMode) return;
+    const g = this.gl.getContext(), W = g.drawingBufferWidth, H = g.drawingBufferHeight, px = new Uint8Array(4);
+    let mn = [255, 255, 255], mx = [0, 0, 0];
+    for (let i = 1; i <= 4; i++) for (let j = 1; j <= 3; j++) {
+      g.readPixels(Math.floor((W * i) / 5), Math.floor((H * (j + 0.6)) / 5), 1, 1, g.RGBA, g.UNSIGNED_BYTE, px);
+      for (let c = 0; c < 3; c++) { mn[c] = Math.min(mn[c], px[c]); mx[c] = Math.max(mx[c], px[c]); }
+    }
+    const spread = Math.max(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]);
+    const mean = (mn[0] + mn[1] + mn[2] + mx[0] + mx[1] + mx[2]) / 6;
+    const failureLike = spread < 6 && (mean > 205 || mean < 6); // washed-out or black, not just calm sea
+    this.flatHits = failureLike ? (this.flatHits || 0) + 1 : 0;
+    if (this.flatHits >= 3) {
+      this.safeMode = true;
+      console.warn('[render] post-processing produced a flat frame; switching to safe render mode');
+      if (this.onSafeMode) this.onSafeMode();
+    }
   }
 }

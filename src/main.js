@@ -47,7 +47,11 @@ const step = async (pct, txt) => { loadBar.style.width = pct + '%'; loadTxt.text
 await step(8, 'Kindling the forge');
 const R = new Renderer($('#app'), settings.quality);
 if (settings.quality === 'low') R.rays.enabled = false;
-if (navigator.webdriver) R.fixedRes = true; // automated captures: keep full quality, no load shedding
+if (navigator.webdriver) R.fixedRes = true;
+R.onSafeMode = () => { try { hud.hint('Graphics compatibility mode enabled for your GPU (post effects off) · choose <b>Low</b> graphics in the menu if it persists', 9000); } catch (e) { /* hud not ready */ } };
+// GPUs without float render targets can't run the HDR post chain: start in safe mode
+if (!(R.gl.extensions.has('EXT_color_buffer_float') || R.gl.extensions.has('EXT_color_buffer_half_float'))) R.safeMode = true;
+if (params.get('safe') === '1') R.safeMode = true; // automated captures: keep full quality, no load shedding
 const scene = R.scene;
 await step(22, 'Painting the sky');
 const sky = new Sky(R.gl, scene);
