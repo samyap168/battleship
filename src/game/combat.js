@@ -343,6 +343,11 @@ export class Combat {
       const hp = new THREE.Vector3(x, Math.max(y + 2, 2.5), z);
       if (p.crit) { G.fx.explosion(hp, 0.8, { water: false }); G.audio.play('explosion', { x, z, vol: 0.8 }); }
       else { G.fx.hitSpark(hp, p.model === 'shell_big' ? 1.3 : 0.9); G.audio.play('hit', { x, z, vol: 0.45 }); }
+      // splinters: hull fragments tumble off the struck ship (captains more often; pooled debris)
+      if ((best.kind === 'hero' && Math.random() < 0.55) || (best.kind === 'creep' && Math.random() < 0.18)) {
+        const n = p.model === 'shell_big' || p.crit ? 3 : 1 + (Math.random() < 0.4 ? 1 : 0);
+        for (let k = 0; k < n; k++) G.fx.spawnDebris(hp, 0.32);
+      }
       if (best.kind !== 'hero' && best.kind !== 'creep' && p.model === 'shell_big') G.fx.explosion(hp, 0.9, { water: false });
     } else {
       G.fx.splash(x, z, (p.model === 'shell_big' ? 1.3 : 0.85) * (p.splashScale || 1));
