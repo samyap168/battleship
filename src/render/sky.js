@@ -49,10 +49,10 @@ void main() {
   float h = max(d.y, 0.0);
   float mu = dot(d, uSunDir);
   // Base gradient with a warm horizon band
-  vec3 col = mix(uHorizon, uZenith, pow(h, 0.45));
+  vec3 col = mix(uHorizon, uZenith, pow(max(h, 0.0), 0.45));
   // Horizon haze toward the sun
   float sunSide = 0.5 + 0.5 * mu;
-  col += uSunColor * pow(sunSide, 6.0) * (1.0 - h) * 0.55;
+  col += uSunColor * pow(max(sunSide, 0.0), 6.0) * (1.0 - h) * 0.55;
   // Mie glow + disk
   col += uSunColor * pow(max(mu, 0.0), 48.0) * 0.5 * uSunI * 0.2;
   col += uSunColor * pow(max(mu, 0.0), 600.0) * 1.4;

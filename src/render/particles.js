@@ -28,7 +28,7 @@ void main() {
   float a;
   vec3 col = vColor.rgb;
   if (vKind < 0.5) {
-    a = pow(1.0 - r, 2.2);
+    a = pow(max(1.0 - r, 0.0), 2.2);
   } else if (vKind < 1.5) {
     float n = nz(p * 2.3 + vSeed * 17.0) * 0.55 + nz(p * 5.1 - vSeed * 9.0) * 0.45;
     a = (1.0 - smoothstep(0.3, 1.0, r + (n - 0.5) * 0.8));

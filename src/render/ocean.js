@@ -149,7 +149,7 @@ float back = pow(clamp(dot(-V.xz, sunH) * 0.5 + 0.5, 0.0, 1.0), 3.0);
 float thick = clamp(vWaveH * 0.55 + 0.45, 0.0, 1.4);
 vec3 sss = uSSS * uSunColor * (0.25 + back * 1.4) * thick * sunUp * (1.0 - foam);
 sss += uShallow * uSunColor * shallow * 0.18 * sunUp;
-totalEmissiveRadiance += sss * (0.35 + 0.65 * pow(1.0 - max(dot(wN, V), 0.0), 2.0));
+totalEmissiveRadiance += sss * (0.35 + 0.65 * pow(max(1.0 - max(dot(wN, V), 0.0), 0.0), 2.0));
 // Water-body scattering: seen from above the sea is lit from within, not by reflection.
 float facing = max(dot(wN, V), 0.0);
 vec3 body = vec3(0.006, 0.042, 0.058) * (0.45 + 0.9 * sunUp) * (0.6 + 0.4 * facing) * uBodyI;
@@ -162,7 +162,7 @@ if (uReflOn > 0.5) {
   vec4 rc = uReflMat * vec4(vOW.x, 0.0, vOW.z, 1.0);
   vec2 ruv = rc.xy / rc.w + wN.xz * 0.022 * mix(0.4, 1.0, clamp(V.y * 1.6, 0.0, 1.0)); // mild wobble, calmer at grazing angles so hulls mirror crisply
   vec3 refl = texture2D(tReflect, clamp(ruv, 0.001, 0.999)).rgb;
-  float F = (0.03 + 0.97 * pow(1.0 - max(dot(wN, V), 0.0), 4.0)) * (1.0 - foam);
+  float F = (0.03 + 0.97 * pow(max(1.0 - max(dot(wN, V), 0.0), 0.0), 4.0)) * (1.0 - foam);
   reflectedLight.indirectSpecular = refl * F * 1.3;
   // energy conservation: where the water mirrors, it scatters less -> true-colour reflections
   reflectedLight.directDiffuse *= 1.0 - F; reflectedLight.indirectDiffuse *= 1.0 - F;

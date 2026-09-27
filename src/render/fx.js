@@ -31,9 +31,9 @@ const beamMat = () => new THREE.ShaderMaterial({
   uniforms: { uColor: { value: new THREE.Color() }, uAlpha: { value: 1 } },
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
   fragmentShader: `uniform vec3 uColor; uniform float uAlpha; varying vec2 vUv;
-    void main(){ float d = abs(vUv.x - 0.5) * 2.0; float core = pow(1.0 - d, 6.0) * 3.0 + pow(1.0 - d, 1.5) * 0.6;
+    void main(){ float d = abs(vUv.x - 0.5) * 2.0; float core = pow(max(1.0 - d, 0.0), 6.0) * 3.0 + pow(max(1.0 - d, 0.0), 1.5) * 0.6;
       float ends = smoothstep(0.0, 0.02, vUv.y) * (1.0 - smoothstep(0.97, 1.0, vUv.y));
-      float a = core * uAlpha * ends; gl_FragColor = vec4(uColor * a + vec3(a * 0.35) * pow(1.0-d, 12.0), a); }`,
+      float a = core * uAlpha * ends; gl_FragColor = vec4(uColor * a + vec3(a * 0.35) * pow(max(1.0-d, 0.0), 12.0), a); }`,
   transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
 });
 

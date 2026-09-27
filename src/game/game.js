@@ -31,8 +31,8 @@ function shieldMesh(color) {
     fragmentShader: `uniform vec3 uColor; uniform float uTime, uA; varying vec3 vN; varying vec3 vV; varying vec3 vP;
       float hexDist(vec2 p){ p = abs(p); return max(dot(p, normalize(vec2(1.0, 1.732))), p.x); }
       void main(){
-        float f = pow(1.0 - abs(dot(vN, vV)), 2.5);
-        vec2 uv = vec2(atan(vP.z, vP.x) * 3.0, vP.y * 5.0 + uTime * 0.4);
+        float f = pow(max(1.0 - abs(dot(vN, vV)), 0.0), 2.5);
+        vec2 uv = vec2(atan(vP.z, vP.x + 1e-5) * 3.0, vP.y * 5.0 + uTime * 0.4);
         vec2 r = vec2(1.0, 1.732), h = r * 0.5;
         vec2 a = mod(uv, r) - h, b = mod(uv - h, r) - h;
         vec2 g = dot(a, a) < dot(b, b) ? a : b;
