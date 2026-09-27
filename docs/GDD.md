@@ -62,7 +62,7 @@ sail lane → sink gunboats / trade fire (gold + XP) → buy upgrades or save
 | Passive | 5 / s |
 | Trade port (owned) | +2 / s per player |
 | Light / heavy gunboat (last hit) | 40 / 72 |
-| Captain kill | 240 + 80 × victim age (+50 per streak above 2) |
+| Captain kill | 190 + 50 × victim age, scaled by the comeback rules below |
 | Assist (split) | ~135 total |
 | Tower destroyed | 220 (outer) / 280 (inner) to every teammate |
 
@@ -96,7 +96,7 @@ The team that lands the killing blow gets **350 gold per captain** and **the Lev
 
 ## 10. Signature moments
 
-- **The squall** hits at a random time between 4:10 and 5:20 and lasts 55 s. The swell rises 75%, rain and lightning sweep in, visibility drops, and gun scatter widens. It is a natural moment for ambushes.
+- **The squall** hits at a random time between 4:10 and 5:20 and lasts 55 s. The swell rises 75%, rain and lightning sweep in, and visibility drops. Captain, fort and gunboat fire all scatter wider, so it is a natural moment for ambushes and tower dives.
 - **Reforging:** each age-up plays a light pillar, shock rings and a screen shockwave. The new hull scales in with an overshoot, and a brass/choir stinger plays.
 - **Fortress fall:** a chain of explosions, a mega-blast, and the fort sinks into the sea while it burns.
 - **The opening shot:** a letterboxed sunrise cinematic, low on the water behind your citadel as the fleet sails out, then a crane up to the gameplay camera.

@@ -270,7 +270,7 @@ export class Combat {
     const speed = 100;
     const T = d / speed;
     this.ballistic(c, c.gunKind === 'ball' ? 'ball' : c.gunKind === 'pulse' ? 'pulse' : 'shell', _p.clone(),
-      target.x + (target.vx || 0) * T * 0.7 + rnd(-2, 2), target.z + (target.vz || 0) * T * 0.7 + rnd(-2, 2), speed, c.dmg, { hitR: 2.5, splashScale: 0.6 });
+      target.x + (target.vx || 0) * T * 0.7 + rnd(-2, 2) * (G.storm ? 3 : 1), target.z + (target.vz || 0) * T * 0.7 + rnd(-2, 2) * (G.storm ? 3 : 1), speed, c.dmg, { hitR: 2.5, splashScale: 0.6 });
     G.fx.muzzle(_p, _dir, 0.6, c.gunKind);
     if (Math.random() < 0.35) G.audio.play(c.gunKind === 'ball' ? 'cannon' : 'cannonHeavy', { x: c.x, z: c.z, vol: 0.3, era: c.era });
   }
@@ -286,7 +286,8 @@ export class Combat {
     } else {
       const d = Math.hypot(target.x - _p.x, target.z - _p.z);
       const T = d / 120;
-      this.ballistic(s, 'shell_big', _p.clone(), target.x + (target.vx || 0) * T * 0.95, target.z + (target.vz || 0) * T * 0.95, 120, dmg, { hitR: 4, splashScale: 1.2 });
+      const ss = G.storm ? d * 0.06 : 0; // squall: fort gunners lose their aim too (ambush window)
+      this.ballistic(s, 'shell_big', _p.clone(), target.x + (target.vx || 0) * T * 0.95 + rnd(-ss, ss), target.z + (target.vz || 0) * T * 0.95 + rnd(-ss, ss), 120, dmg, { hitR: 4, splashScale: 1.2 });
       _dir.set(target.x - s.x, 0.3, target.z - s.z).normalize();
       G.fx.muzzle(_p, _dir, 1.6, 'shell');
       G.audio.play('cannonHeavy', { x: s.x, z: s.z, vol: 0.8 });

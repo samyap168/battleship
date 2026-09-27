@@ -34,6 +34,16 @@ function bakePanelPlate() {
   document.documentElement.style.setProperty('--plate', `url(${c.toDataURL()})`);
 }
 
+// one-line counterplay guidance on the age-branch cards
+const MATCHUP = {
+  dreadnought: ['Strong vs Ironclads and slow brawlers', 'Weak to Torpedo Cruisers'],
+  torpedo: ['Strong vs Dreadnoughts and Battleships', 'Weak to smoke and focus fire'],
+  battleship: ['Strong vs Torpedo Cruisers and Carriers', 'Weak to air wings from range'],
+  carrier: ['Strong vs Battleships and Dreadnoughts', 'Weak to flak and Arsenal lasers'],
+  arsenal: ['Strong vs Carriers and drone swarms', 'Weak to Motherships at range'],
+  mothership: ['Strong vs Battleships and Arsenal Cruisers', 'Weak to point-defense lasers'],
+};
+
 export class HUD {
   constructor(root, overlayCanvas) {
     this.root = root;
@@ -179,6 +189,7 @@ export class HUD {
       const src = hullThumb(id, p.team);
       return `<div class="card panel ornate" data-id="${id}">${src ? `<img class="thumb" src="${src}" alt="" />` : ''}<div class="role">${h.role}</div><h2>${h.name}</h2><p>${h.desc}</p>
         <div class="stats"><span>Hull <b>${h.hp}</b></span><span>Speed <b>${h.speed}</b></span><span>Range <b>${h.guns.range}</b></span></div>
+        ${MATCHUP[id] ? `<div class="matchup"><span class="good">▲ ${MATCHUP[id][0]}</span><span class="bad">▼ ${MATCHUP[id][1]}</span></div>` : ''}
         <ul>${h.abilities.map((a, i) => `<li><b>${KEYS[i]}</b>${ABILITIES[a].name}</li>`).join('')}</ul></div>`;
     }).join('')}</div></div>`;
     root.querySelectorAll('.card').forEach((c) => c.addEventListener('click', () => { root.innerHTML = ''; onPick(c.dataset.id); }));

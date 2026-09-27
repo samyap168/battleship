@@ -133,8 +133,8 @@ export const ABILITIES = {
     desc: 'High-arc mortars saturate an area for 2 seconds.' },
 
   // ---- Dreadnought
-  mainbattery: { name: 'Main Battery', type: 'barrage', target: 'point', cd: 8, range: 125,
-    dmg: 150, count: 6, area: 12, radius: 8, delay: 0.7, spreadTime: 0.35, model: 'shell_big',
+  mainbattery: { name: 'Main Battery', type: 'barrage', target: 'point', cd: 13, range: 125,
+    dmg: 125, count: 6, area: 12, radius: 8, delay: 0.7, spreadTime: 0.35, model: 'shell_big',
     desc: 'A six-gun salvo from the 12-inch turrets.' },
   smoke: { name: 'Smoke Screen', type: 'smoke', target: 'self', cd: 18, dur: 4.5, radius: 32,
     desc: 'Deploy smoke. Allied ships inside cannot be targeted by guns or towers.' },
@@ -146,7 +146,7 @@ export const ABILITIES = {
 
   // ---- Torpedo Cruiser
   torpspread: { name: 'Torpedo Spread', type: 'projectile', target: 'dir', cd: 8, range: 150,
-    dmg: 230, speed: 72, count: 3, spread: 0.32, radius: 8, model: 'torpedo',
+    dmg: 265, speed: 72, count: 3, spread: 0.32, radius: 8, model: 'torpedo',
     desc: 'Launch three torpedoes in a fan.' },
   afterburn: { name: 'Flank Speed', type: 'buff', target: 'self', cd: 10, speedMul: 1.9, dur: 2.5,
     desc: 'Emergency flank speed: +90% for 2.5s.' },
@@ -157,8 +157,8 @@ export const ABILITIES = {
     desc: 'Ten homing torpedoes hunt every enemy nearby.' },
 
   // ---- Battleship
-  mainbattery2: { name: 'Radar Salvo', type: 'barrage', target: 'point', cd: 8, range: 145,
-    dmg: 205, count: 6, area: 14, radius: 9, delay: 0.6, spreadTime: 0.3, model: 'shell_big',
+  mainbattery2: { name: 'Radar Salvo', type: 'barrage', target: 'point', cd: 13, range: 145,
+    dmg: 170, count: 6, area: 14, radius: 9, delay: 0.6, spreadTime: 0.3, model: 'shell_big',
     desc: 'Radar-directed nine-gun salvo.' },
   flak: { name: 'Flak Umbrella', type: 'pointdefense', target: 'self', cd: 16, dur: 4.5, radius: 45,
     desc: 'Shred incoming drones, aircraft and missiles around you.' },
@@ -180,7 +180,7 @@ export const ABILITIES = {
     desc: 'Launch the full air wing: 16 fighters and 6 bombers.' },
 
   // ---- Arsenal Cruiser
-  railgun: { name: 'Railgun', type: 'beam', target: 'dir', cd: 7, range: 230, dmg: 390, width: 5,
+  railgun: { name: 'Railgun', type: 'beam', target: 'dir', cd: 9, range: 230, dmg: 300, width: 5,
     desc: 'Hypervelocity slug pierces everything in a line.' },
   pointdefense: { name: 'Point Defense Lasers', type: 'pointdefense', target: 'self', cd: 15, dur: 5, radius: 55, laser: true,
     desc: 'Laser CIWS vaporises drones and missiles nearby.' },

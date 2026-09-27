@@ -268,3 +268,5 @@ body.cinematic #announce { top: 36%; }
 @keyframes plateSheen { 0%, 25% { background-position: -140% 0, 0 0, 0 0; } 100% { background-position: 240% 0, 0 0, 0 0; } }
 #abilities, #topbar, #minimap, #portrait, #goldbox, #shop { background-size: 60% 100%, 256px 256px, 100% 100%; background-repeat: no-repeat, repeat, no-repeat; animation: plateSheen 11s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { #abilities, #topbar, #minimap, #portrait, #goldbox, #shop { animation: none; } }
+.card .matchup { display: flex; flex-direction: column; gap: 3px; margin: 8px 0 4px; font-size: 13px; letter-spacing: .03em; }
+.card .matchup .good { color: #9fe0a6; } .card .matchup .bad { color: #f0a08f; }

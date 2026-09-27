@@ -6,6 +6,13 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 
 // Utility-style bot: every think tick it scores a handful of desires
 // (retreat, fight, farm/push, capture, shop) and executes the winner.
+// which enemy hulls each branch is built to beat
+const COUNTERS = {
+  torpedo: ['dreadnought', 'battleship', 'arsenal'], dreadnought: ['torpedo', 'ironclad'],
+  battleship: ['torpedo', 'carrier'], carrier: ['battleship', 'dreadnought', 'arsenal'],
+  arsenal: ['carrier', 'mothership'], mothership: ['battleship', 'arsenal', 'dreadnought'],
+};
+
 export class BotBrain {
   constructor(G, hero, diff) {
     this.G = G; this.h = hero; this.d = diff;
@@ -204,7 +211,15 @@ export class BotBrain {
     if (Math.random() > this.d.abilityRate) return;
     this.tryDefensive(enemies, false, tookDmg);
     const creeps = G.creeps.filter((c) => c.alive && c.team !== h.team && h.dist(c) < 200);
-    for (let i = 0; i < 4; i++) {
+    // combo order: open with crowd control on a healthy target, finish a weak one with burst
+    const healthy = prey && prey.hp / prey.maxHp > 0.55;
+    const isCC = (ab) => ab && (ab.stun || ab.slow || ab.type === 'dash' || ab.type === 'emp');
+    const order = [0, 1, 2, 3].sort((a, b) => {
+      const A = h.abilities[a], B = h.abilities[b];
+      const sa = isCC(A) ? (healthy ? -1 : 1) : 0, sb = isCC(B) ? (healthy ? -1 : 1) : 0;
+      return sa - sb || a - b;
+    });
+    for (const i of order) {
       if (!canCast(h, i)) continue;
       const ab = h.abilities[i];
       const range = ab.range || 0;
@@ -262,6 +277,11 @@ export class BotBrain {
       const opts = AGE_HULLS[h.age + 1];
       let pick = opts[Math.min(this.branch, opts.length - 1)];
       if (opts.length > 1) {
+        // counter-pick against the enemy fleet's current hulls (ties keep this captain's style)
+        const enemy = G.heroes.filter((o) => o.team !== h.team).map((o) => o.hullId);
+        const score = (id) => enemy.filter((e) => (COUNTERS[id] || []).includes(e)).length;
+        const best = opts.reduce((a, b) => (score(b) > score(a) ? b : a), pick);
+        if (score(best) > score(pick) + 1) pick = best;
         // composition: avoid a third copy of the same hull on the team
         const same = G.heroes.filter((o) => o !== h && o.team === h.team && o.hullId === pick).length;
         if (same >= 2) pick = opts.find((o) => o !== pick) || pick;
