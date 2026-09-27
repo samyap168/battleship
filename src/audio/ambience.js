@@ -58,7 +58,7 @@ export class Ambience {
     this._loop('brown', k.filter('lowpass', 420, 0.9, k.gain(0.5, this.galeG)), 0.9);
     // the player's own ship voice: bow wash for every hull + a per-age propulsion layer
     const ctx = this.ctx;
-    this.shipOut = k.gain(0.9, this.out);
+    this.shipOut = k.gain(1.5, this.out); // +4.4 dB: the ship must read as 'my ship', not texture
     this.washG = k.gain(0, this.shipOut);
     this._loop('brown', k.filter('lowpass', 520, 0.7, this.washG));
     this._loop('white', k.filter('bandpass', 1900, 0.9, k.gain(0.12, this.washG)), 0.8);

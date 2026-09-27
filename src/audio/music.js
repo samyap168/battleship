@@ -238,7 +238,7 @@ export class Music {
     // recurring identity: in sustained battle every other section returns to the
     // Armada theme (WAR[0]) with the horn call, so the score develops a throughline
     const theme = I > 0.85 && !this.opening && (this.warSecs = (this.warSecs || 0) + 1) % 3 === 1; // returns every third war section, not every other
-    if (theme) pi = 0;
+    if (theme && !(this.lastPool === WAR && this.lastProg === 0)) pi = 0; // never the same progression twice running
     this.lastPool = pool;
     this.lastProg = pi;
     this.prog = this.opening ? CALM[0] : pool[pi];
@@ -251,7 +251,7 @@ export class Music {
     this.breath = sec % 4 === 3 && I < 0.7;
     this.plan = null;
     if (!this.opening) {
-      if (I < 0.6 && !this.hadLead && Math.random() < 0.7) {
+      if (I < 0.6 && !this.finale && !this.hadLead && Math.random() < 0.7) { // finale always gets its horn call
         const variant = Math.random() < 0.62 ? 'dizi' : 'erhu';
         this.plan = { kind: 'lead', bar: pick([1, 2, 4]), off: pick([0, 1, 2]), variant };
       } else if (theme || this.finale || (I >= 0.55 && Math.random() < 0.6)) {
