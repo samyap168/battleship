@@ -330,6 +330,8 @@ export function karstTower(r, h, seed, lean = 0) {
   const c = new THREE.Color();
   const warm = Math.sin(seed * 3.1) * 0.5 + 0.5, lum = 0.9 + 0.2 * (Math.sin(seed * 5.3) * 0.5 + 0.5);
   const tintR = lum * (0.9 + warm * 0.24), tintG = lum * (0.97 + warm * 0.05), tintB = lum * (1.14 - warm * 0.28); // iron-red to cool grey limestone
+  const stoneKind = Math.floor((Math.sin(seed * 12.7) * 0.5 + 0.5) * 2.999); // 0 warm tan, 1 cool grey, 2 dark weathered
+  const _grey = new THREE.Color();
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
     const t = (y + 2.5) / h;
@@ -343,8 +345,14 @@ export function karstTower(r, h, seed, lean = 0) {
     c.lerp(green, Math.min(1, veg));
     if (y < 1.2) c.lerp(WET, 0.75 * (1 - THREE.MathUtils.smoothstep(y, -0.5, 1.2)));
     c.multiplyScalar(0.85 + fbm(x * 0.5, y * 0.8 + z * 0.5, seed + 13, 2) * 0.3);
-    // per-tower mineral tint: some stacks warmer and iron-stained, some cooler and paler
+    // per-tower stone: warm tan limestone, cool grey limestone, or dark weathered rock (a real hue
+    // and value change between stacks, not just a brightness wobble)
     c.r *= tintR; c.g *= tintG; c.b *= tintB;
+    if (stoneKind > 0 && veg < 0.5) {
+      const L = c.r * 0.3 + c.g * 0.59 + c.b * 0.11;
+      if (stoneKind === 1) { c.lerp(_grey.setRGB(L * 0.95, L * 1.0, L * 1.1), 0.6); }
+      else { c.lerp(_grey.setRGB(L * 0.72, L * 0.72, L * 0.76), 0.55); }
+    }
     col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
   }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));

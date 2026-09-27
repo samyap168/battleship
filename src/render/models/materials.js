@@ -261,11 +261,18 @@ function sailTex(teamId) {
   const team = teamInfo(teamId);
   for (let half = 0; half < 2; half++) {
     const x0 = half * 256;
+    // Crimson Hegemony flies rust-red junk cloth on battens; Azure (and neutrals) keep cream canvas
+    const junk = teamId === 1;
     const grd = g.createLinearGradient(0, 0, 0, H);
-    grd.addColorStop(0, '#e9dfc6'); grd.addColorStop(1, '#d6c7a4');
+    if (junk) { grd.addColorStop(0, '#d4755a'); grd.addColorStop(1, '#a8492f'); }
+    else { grd.addColorStop(0, '#e9dfc6'); grd.addColorStop(1, '#d6c7a4'); }
     g.fillStyle = grd; g.fillRect(x0, 0, 256, H);
-    // vertical cloth panels
-    for (let x = 0; x < 256; x += 21) {
+    if (junk) { // horizontal battens with a slight belly between them
+      for (let y = 18; y < H; y += 30) {
+        g.fillStyle = 'rgba(40,18,10,0.55)'; g.fillRect(x0, y, 256, 3);
+        g.fillStyle = 'rgba(255,210,180,0.10)'; g.fillRect(x0, y + 5, 256, 10);
+      }
+    } else for (let x = 0; x < 256; x += 21) { // vertical cloth panels
       g.fillStyle = `rgba(90,70,40,${0.10 + r() * 0.06})`;
       g.fillRect(x0 + x, 0, 1.5, H);
       g.fillStyle = `rgba(255,250,235,${0.05 + r() * 0.05})`;
@@ -279,14 +286,14 @@ function sailTex(teamId) {
     gg.addColorStop(0, 'rgba(80,60,30,0)'); gg.addColorStop(1, 'rgba(80,60,30,0.2)');
     g.fillStyle = gg; g.fillRect(x0, 0, 256, H);
     if (teamId != null && teamId >= 0) {
-      g.fillStyle = css(team.color);
+      g.fillStyle = junk ? '#d9b25a' : css(team.color); // gold band reads against red cloth
       g.fillRect(x0, H * 0.64, 256, H * 0.12);
       g.fillStyle = 'rgba(255,255,255,0.35)';
       g.fillRect(x0, H * 0.64, 256, 3); g.fillRect(x0, H * 0.76 - 3, 256, 3);
       if (half === 1) {
-        g.fillStyle = css(team.color);
+        g.fillStyle = junk ? '#2a1410' : css(team.color);
         g.beginPath(); g.arc(x0 + 128, H * 0.38, 46, 0, Math.PI * 2); g.fill();
-        g.strokeStyle = '#f4ecd8'; g.lineWidth = 5; g.stroke();
+        g.strokeStyle = junk ? '#d9b25a' : '#f4ecd8'; g.lineWidth = 5; g.stroke();
         drawEmblem(g, teamId, x0 + 128, H * 0.38, 30, '#f7f0dc');
       }
     }
