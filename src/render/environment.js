@@ -114,14 +114,14 @@ function treeGeometries() {
   // cloud-pruned look of hand-painted broadleaf trees): the pads, not a sphere,
   // define the silhouette, so it reads as foliage clumps at any distance.
   for (let i = 0; i < 2; i++) {
-    const c = new THREE.IcosahedronGeometry(1.0 - i * 0.25, 1);
+    const c = new THREE.IcosahedronGeometry(1.0 - i * 0.25, 0); // core is buried inside the pads: low poly
     c.scale(1, 0.75, 1);
     c.translate(i * 0.3, 5.4 + i * 1.3, 0);
     crowns.push(c);
   }
   const PADS = [ // [angle, ring radius, height, size, detail]
-    [0.3, 1.5, 4.7, 1.6, 1], [1.5, 1.7, 5.0, 1.45, 0], [2.6, 1.45, 4.6, 1.7, 1], [3.8, 1.75, 5.1, 1.4, 0], [5.0, 1.5, 4.8, 1.55, 1],
-    [0.9, 0.95, 6.2, 1.35, 1], [2.9, 1.0, 6.4, 1.25, 0], [4.7, 0.9, 6.1, 1.3, 0], [0, 0, 7.1, 1.05, 1],
+    [0.3, 1.5, 4.7, 1.6, 1], [1.5, 1.7, 5.0, 1.45, 0], [2.6, 1.45, 4.6, 1.7, 0], [3.8, 1.75, 5.1, 1.4, 0], [5.0, 1.5, 4.8, 1.55, 1],
+    [0.9, 0.95, 6.2, 1.35, 0], [2.9, 1.0, 6.4, 1.25, 0], [4.7, 0.9, 6.1, 1.3, 0], [0, 0, 7.1, 1.05, 1],
   ];
   for (const [a, r, y, sz, det] of PADS) {
     const c = new THREE.IcosahedronGeometry(sz, det);

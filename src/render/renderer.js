@@ -236,6 +236,8 @@ export class Renderer {
     const vis = v.z < 1 ? 1 - THREE.MathUtils.smoothstep(off, 1.0, 1.9) : 0;
     ru.uStrength.value += (vis * strength - ru.uStrength.value) * 0.1;
     ru.uTint.value.copy(color);
+    // 56 taps per pixel: skip the whole pass while the shafts are too faint to see (most top-down play)
+    this.rays.enabled = this.q.bloom && this.bloom.enabled && ru.uStrength.value > 0.04;
   }
 
   render(dt, time) {
