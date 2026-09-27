@@ -124,6 +124,18 @@ function startGame(spectate) {
     h.reforgeFlash = 1.4;
     R.grade.uniforms.uFlash.value = 0.22;
   });
+  // The last citadel falls: a slow-motion swing low around the collapsing fortress, then a slow orbit
+  // over the burning ruin behind the victory / defeat screen.
+  G.events.on('citadelFall', (c) => {
+    if (spectate) return;
+    const V3 = THREE.Vector3, sx = -Math.sign(c.x) || 1;
+    const P = (dx, y, dz) => new V3(c.x + sx * dx, y, c.z + dz);
+    cameraDir.startCinematic([
+      { t: 0, pos: P(200, 84, 96), look: new V3(c.x, 16, c.z) },
+      { t: 1.8, pos: P(118, 24, -64), look: new V3(c.x, 14, c.z) },
+      { t: 3.8, pos: P(150, 44, -150), look: new V3(c.x, 8, c.z) },
+    ], { x: c.x, z: c.z }, { onEnd: () => { cameraDir.orbit = { a: Math.atan2(-150, sx * 150), r: 212, h: 44, cx: c.x, cz: c.z }; } });
+  });
   if (spectate) {
     // menu backdrop: skip ahead so the seas are already busy
     // showreel: jump to the late game so the backdrop shows airpower, swarms and the Leviathan

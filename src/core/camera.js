@@ -44,6 +44,7 @@ export class CameraDirector {
   /** Keyframed cinematic: [{ t, pos: Vector3, look: Vector3 }], ends at the gameplay pose. */
   startCinematic(keys, end, opts = {}) {
     this.cine = { keys, end, t: 0, dur: keys[keys.length - 1].t, letterbox: opts.letterbox !== false, follow: opts.follow };
+    this.onCineEnd = opts.onEnd || null;
     this.intro = 0;
   }
 
@@ -98,7 +99,10 @@ export class CameraDirector {
       if (C.follow) { const f = C.follow(); cam.position.x += f.x; cam.position.z += f.z; this._look.x += f.x; this._look.z += f.z; }
       cam.lookAt(this._look);
       this.focus.set(this._look.x, 0, this._look.z);
-      if (C.t >= C.dur) { this.cine = null; const e2 = C.follow ? C.follow() : C.end; this.snapTo(e2.x, e2.z); }
+      if (C.t >= C.dur) {
+        this.cine = null; const e2 = C.follow ? C.follow() : C.end; this.snapTo(e2.x, e2.z);
+        if (this.onCineEnd) { const f = this.onCineEnd; this.onCineEnd = null; f(); }
+      }
       return;
     }
     if (this.intro > 0) {

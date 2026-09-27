@@ -347,6 +347,7 @@ export class Game {
       this.audio.stinger('towerDown');
       this.ui.feed(`<b style="color:${TEAMS[enemy].css}">${TEAMS[enemy].short}</b> destroyed the ${u.lane} ${u.tier} tower`);
     } else {
+      this.events.emit('citadelFall', u);
       this.endMatch(enemy, 'citadel');
     }
   }
