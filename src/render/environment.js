@@ -290,6 +290,7 @@ function karstGeometry(r, h, seed) {
 const LIME = new THREE.Color(0.25, 0.285, 0.27), LIME_D = new THREE.Color(0.11, 0.13, 0.12), STAIN = new THREE.Color(0.08, 0.085, 0.08);
 const CANOPY = new THREE.Color(0.07, 0.19, 0.05), CANOPY_L = new THREE.Color(0.2, 0.34, 0.08), WET = new THREE.Color(0.1, 0.1, 0.09);
 export function karstTower(r, h, seed, lean = 0) {
+  r = Math.min(r, h * 0.26 + 2); // limestone towers are tall and slim: no squat mesas at any depth
   const radial = 36, rows = 26;
   const g = new THREE.CylinderGeometry(1, 1, 1, radial, rows, false);
   g.deleteAttribute('uv');
@@ -300,7 +301,8 @@ export function karstTower(r, h, seed, lean = 0) {
     const a = Math.atan2(z, x);
     const cx = Math.cos(a), sz = Math.sin(a);
     // silhouette: slight taper, bulging shoulders, rounded crown
-    let rad = r * (1.0 - 0.18 * y + 0.12 * Math.sin(y * 3.1 + seed));
+    const taper = 0.22 + 0.2 * (Math.sin(seed * 7.3) * 0.5 + 0.5); // each tower tapers differently
+    let rad = r * (1.0 - taper * y + 0.12 * Math.sin(y * 3.1 + seed));
     // domed summit: circular profile over the top 35%
     const c = Math.max(0, (y - 0.65) / 0.35);
     rad *= Math.sqrt(Math.max(0.0, 1 - c * c * 0.97));

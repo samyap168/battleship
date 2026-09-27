@@ -290,7 +290,7 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
     d.v = new THREE.Vector3(Math.cos(a) * sp * 0.5, rnd(12, 28) * Math.sqrt(scale), Math.sin(a) * sp * 0.5);
     d.r = new THREE.Vector3(rnd(0, 6), rnd(0, 6), rnd(0, 6));
     d.w = new THREE.Vector3(rnd(-8, 8), rnd(-8, 8), rnd(-8, 8));
-    d.s = rnd(0.55, 1.35) * Math.min(1.6, Math.sqrt(scale)); // chunkier splinters: embers must read at gameplay zoom
+    d.s = rnd(0.66, 1.62) * Math.min(1.7, Math.sqrt(scale)); // chunkier splinters: embers must read at gameplay zoom
     d.alive = true; d.smoke = Math.random() < 0.5; d.heat = d.smoke ? rnd(0.7, 1) : rnd(0.25, 0.5);
   }
 
@@ -313,7 +313,7 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
   ageUp(pos, color) {
     const c = new THREE.Color(color);
     // ascension light is warm gold: it must read apart from the team-blue hex dome it rises through
-    const gold = 0xffc766, gc = new THREE.Color(gold);
+    const gold = 0xd9a24c, gc = new THREE.Color(0xffc766); // deeper gold: stays under the bloom knee so the column keeps its width
     const b = this.beam(new THREE.Vector3(pos.x, -2, pos.z), new THREE.Vector3(pos.x, 130, pos.z), gold, 5.5, 1.5);
     b.userData.pillar = true;
     for (let i = 0; i < 3; i++) this.ring(pos.x, pos.z, 3, 40 + i * 25, color, 1.0 + i * 0.35, 0.06);

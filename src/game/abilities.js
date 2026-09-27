@@ -71,7 +71,7 @@ export function cast(G, h, i, ax, az) {
         const p0 = gunPos(h);
         (G.dangers ||= []).push({ x: ax, z: az, r: ab.area + ab.radius + 4, team: h.team, until: G.time + ab.delay + ab.spreadTime + 0.2 }); // bots read these and dodge
         const hostile = G.player && h.team !== G.player.team; // enemy strike zones read as danger for the player
-        G.fx.ring(ax, az, ab.area + 4, ab.area + 4, hostile ? 0xff3a2a : G.teamGlow(h.team), ab.delay + ab.spreadTime, hostile ? 0.07 : 0.04);
+        G.fx.ring(ax, az, ab.area + 4, ab.area + 4, hostile ? 0xff8a00 : G.teamGlow(h.team), ab.delay + ab.spreadTime, hostile ? 0.07 : 0.04);
         for (let k = 0; k < ab.count; k++) {
           G.combat.after((k / ab.count) * ab.spreadTime, () => {
             if (!h.alive) return;

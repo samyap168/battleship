@@ -460,8 +460,12 @@ function applySoftBeam(m) {
   float facing = abs(dot(normalize(vBmN), normalize(vBmV)));
   float core = pow(facing, 2.2);                                   // bright centre, soft falloff to the edges
   float along = smoothstep(76.5, 52.0, vBmY) * smoothstep(40.5, 43.5, vBmY);
-  diffuseColor.a *= core * along * 1.6;
-  diffuseColor.rgb *= 1.0 + (1.0 - smoothstep(40.5, 50.0, vBmY)) * vec3(0.45, 0.75, 0.9); // cool-white base: reads as environment, not as a foreground shield
+  // HDR-safe team identity: saturate the team hue and keep the stacked additive layers
+  // under the bloom knee, so the column stays blue/red instead of washing to white
+  vec3 hue = diffuseColor.rgb / max(max(diffuseColor.r, diffuseColor.g), max(diffuseColor.b, 1e-3));
+  diffuseColor.rgb = mix(hue * hue, hue, 0.35) * 0.8;
+  diffuseColor.a *= core * along * 1.05;
+  diffuseColor.rgb *= 1.0 + (1.0 - smoothstep(40.5, 50.0, vBmY)) * 0.6; // brighter base, same hue
 }`);
   };
   m.customProgramCacheKey = () => 'softbeam';
