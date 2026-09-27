@@ -328,6 +328,8 @@ export function karstTower(r, h, seed, lean = 0) {
   const n = g.attributes.normal;
   const col = new Float32Array(p.count * 3);
   const c = new THREE.Color();
+  const warm = Math.sin(seed * 3.1) * 0.5 + 0.5, lum = 0.9 + 0.2 * (Math.sin(seed * 5.3) * 0.5 + 0.5);
+  const tintR = lum * (0.96 + warm * 0.1), tintG = lum * (0.99 + warm * 0.02), tintB = lum * (1.05 - warm * 0.1);
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
     const t = (y + 2.5) / h;
@@ -341,6 +343,8 @@ export function karstTower(r, h, seed, lean = 0) {
     c.lerp(green, Math.min(1, veg));
     if (y < 1.2) c.lerp(WET, 0.75 * (1 - THREE.MathUtils.smoothstep(y, -0.5, 1.2)));
     c.multiplyScalar(0.85 + fbm(x * 0.5, y * 0.8 + z * 0.5, seed + 13, 2) * 0.3);
+    // per-tower mineral tint: some stacks warmer and iron-stained, some cooler and paler
+    c.r *= tintR; c.g *= tintG; c.b *= tintB;
     col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
   }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));

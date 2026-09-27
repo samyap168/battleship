@@ -24,5 +24,6 @@ await page.evaluate(async ([x, z, d, sim]) => {
   }
   const an = document.querySelector('#announce'); if (an) an.innerHTML = ''; // harness: no stale title cards
 }, [x === 'player' ? NaN : +x, +z, +dist, +sim]);
-await settle(page); await page.screenshot({ path: out, timeout: 180000 });
+await settle(page); await page.evaluate(() => window.__aa.step(1, 1 / 60)); await settle(page); // one fresh frame: queued banners switch on wall-clock timers while the sim is paused
+await page.screenshot({ path: out, timeout: 180000 });
 await browser.close();

@@ -566,7 +566,8 @@ export class HUD {
         placed.push({ x: s.x, y: y0, hw: lw });
       }
       const A = this.annRect;
-      c.globalAlpha = A && u !== p && y0 > A.t - 20 && y0 < A.b && s.x > A.l && s.x < A.r ? 0.18 : 1; // your own ship never fades
+      // the whole plate (name drawn up to ~24 px above the bar, plus the bar) against the banner box
+      c.globalAlpha = A && u !== p && y0 + bh > A.t && y0 - 24 < A.b && s.x + bw / 2 > A.l && s.x - bw / 2 < A.r ? 0.18 : 1; // your own ship never fades
       const f = Math.max(0, u.hp / u.maxHp);
       c.fillStyle = 'rgba(0,0,0,.65)';
       c.fillRect(x0 - 1, y0 - 1, bw + 2, bh + 2);
