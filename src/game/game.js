@@ -335,7 +335,7 @@ export class Game {
       this.combat.after(i * 0.28, () => this.fx.explosion(new THREE.Vector3(u.x + rnd(-u.radius, u.radius), rnd(4, 20), u.z + rnd(-u.radius, u.radius)), big ? 2.6 : 1.8, { water: false }));
     }
     this.combat.after(0.1, () => this.fx.megaExplosion(new THREE.Vector3(u.x, 6, u.z), big ? 60 : 28));
-    this.audio.play('towerDown', { x: u.x, z: u.z, vol: 1.3 });
+    this.audio.play(big ? 'citadelFall' : 'towerDown', { x: u.x, z: u.z, vol: big ? 1.4 : 1.3 });
     const enemy = 1 - u.team;
     this.teams[u.team].towersLost++;
     const g = u.def.gold || 0;

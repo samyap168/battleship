@@ -101,13 +101,14 @@ export class Combat {
       target.shield -= absorbed; dmg -= absorbed;
       if (absorbed > 0 && Math.random() < 0.3) G.audio.play('shieldHit', { x: target.x, z: target.z, vol: 0.6 });
     }
+    const hpBefore = target.hp;
     target.hp -= dmg;
     target.hitFlash = 0.12;
     if (target.kind === 'boss' && target.onDamaged) target.onDamaged();
     const srcHero = source && source.kind === 'hero' ? source : source && source.owner && source.owner.kind === 'hero' ? source.owner : null;
     if (srcHero) {
       target.damagers.set(srcHero.id, G.time);
-      srcHero.dmgDealt += dmg;
+      srcHero.dmgDealt += Math.min(dmg, Math.max(0, hpBefore)); // no overkill in the scoreboard
       // hit confirmation for the player: a marker on the target + a crisp tick (a sink gets a heavier confirm)
       if (srcHero === G.player && (target.kind === 'hero' || target.kind === 'boss') && dmg > 0 && G.ui.hitMarker) {
         const sunk = target.hp <= 0;

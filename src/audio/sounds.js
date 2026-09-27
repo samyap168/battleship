@@ -48,6 +48,7 @@ export const DEFS = {
   capture:       { cap: 2, pri: 8, rev: 0.3,  echo: 0.12, range: 1.3,  jp: 0.02, jv: 0.08, lvl: 1.54 },
   death:         { cap: 4, pri: 8, rev: 0.28, echo: 0.12, range: 1.2,  jp: 0.05, jv: 0.1,  lvl: 0.84 },
   towerDown:     { cap: 2, pri: 8, rev: 0.3,  echo: 0.15, range: 1.3,  jp: 0.04, jv: 0.08, lvl: 0.80 },
+  citadelFall:   { cap: 1, pri: 10, rev: 0.45, echo: 0.35, range: 3.0, jp: 0.02, jv: 0.04, lvl: 0.7 },
   roar:          { cap: 2, pri: 9, rev: 0.4,  echo: 0.2,  range: 1.6,  jp: 0.06, jv: 0.08, lvl: 0.9 },
   sailFlap:      { cap: 4, pri: 1, rev: 0.12, echo: 0,    range: 0.7,  jp: 0.1,  jv: 0.25, lvl: 4.68 },
 };
@@ -636,6 +637,30 @@ export const RECIPES = {
     V.clang(t + 0.5, { f: rand(200, 280) * p, ratios: [1, 2.4, 3.9], decays: [1.0, 0.7, 0.4], peak: 0.1 });
     V.clang(t + 1.1, { f: rand(160, 230) * p, ratios: [1, 2.6, 4.3], decays: [0.9, 0.6, 0.4], peak: 0.08 });
     return 4.2;
+  },
+
+  // The last citadel falls: one enormous detonation, a long cascade of collapsing masonry over a
+  // swelling sub rumble, the harbour bell tolling as its tower goes, and the sea surging back in.
+  citadelFall(V) {
+    const { t, p } = V;
+    blast(V, t, 1.6, p * 0.8);
+    V.tone(t, { f: 46 * p, f1: 22 * p, sweep: 3.5, a: 0.4, hold: 1.2, d: 3.2, peak: 0.9, dest: [V.out, V.wet] }); // ground-shaking sub
+    V.burst(t + 0.2, { kind: 'brown', type: 'lowpass', f: 420 * p, f1: 120 * p, sweep: 4, a: 0.6, hold: 1.4, d: 3.0, peak: 0.55, dest: [V.out, V.echo] });
+    // masonry: dense at first, thinning as the rubble settles
+    let ti = t + 0.35;
+    for (let i = 0; i < 22; i++) {
+      const k = i / 22;
+      V.burst(ti, { kind: 'crackle', type: 'lowpass', f: rand(1200, 2600) * p, a: 0.004, d: rand(0.25, 0.5), peak: 0.32 * (1 - k * 0.6) });
+      V.tone(ti, { f: rand(55, 95) * p, f1: rand(30, 40) * p, sweep: 0.25, a: 0.002, d: rand(0.2, 0.4), peak: 0.42 * (1 - k * 0.55) });
+      ti += rand(0.06, 0.16) + k * 0.12;
+    }
+    // the bell: a detuned toll, then a dull clank as it hits the water
+    V.clang(t + 0.9, { f: 196 * p, ratios: [1, 2.02, 2.76, 4.07, 5.43], decays: [3.2, 2.4, 1.6, 1.0, 0.6], amps: [1, 0.6, 0.45, 0.3, 0.18], peak: 0.2, dest: [V.out, V.echo] });
+    V.clang(t + 2.3, { f: 150 * p, ratios: [1, 2.4, 3.9], decays: [0.5, 0.3, 0.2], peak: 0.12 });
+    // the sea rushes back into the breach
+    V.burst(t + 2.2, { kind: 'white', type: 'bandpass', f: 900 * p, f1: 420 * p, sweep: 2.2, Q: 0.6, a: 0.5, hold: 0.4, d: 1.8, peak: 0.3, dest: [V.out, V.wet] });
+    V.burst(t + 2.4, { kind: 'brown', type: 'lowpass', f: 700 * p, a: 0.3, hold: 0.5, d: 2.0, peak: 0.35 });
+    return 7;
   },
 
   sailFlap(V) {

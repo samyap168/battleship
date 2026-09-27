@@ -37,6 +37,7 @@ function bakePanelPlate() {
 
 // matchup lines generated from the shared counter graph (bots use the same table)
 const BEATS = COUNTERS;
+const fmtDmg = (d) => (d >= 1e6 ? `${(d / 1e6).toFixed(2)}M` : `${Math.round(d / 100) / 10}k`);
 const hullName = (id) => (HULLS[id] ? HULLS[id].name.replace(/^(Steam |Drone )/, '') : id);
 const list = (a) => a.length > 1 ? a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1] : a[0];
 const MATCHUP = Object.fromEntries(Object.keys(COUNTERS).map((id) => {
@@ -319,7 +320,7 @@ export class HUD {
   scoreboardHTML(G) {
     const rows = (team) => G.heroes.filter((h) => h.team === team).sort((a, b) => b.kills - a.kills).map((h) => `
       <tr class="${h.isPlayer ? 'me' : ''}"><td style="color:${TEAMS[team].css}">${esc(h.name)}${h.isPlayer ? ' (you)' : ''}</td><td>${HULLS[h.hullId].name}</td><td>${h.level}</td>
-      <td>${h.kills} / ${h.deaths} / ${h.assists}</td><td>${h.creepKills}</td><td>${Math.round(h.dmgDealt / 100) / 10}k</td><td>${Math.floor(h.gold)}</td></tr>`).join('');
+      <td>${h.kills} / ${h.deaths} / ${h.assists}</td><td>${h.creepKills}</td><td>${fmtDmg(h.dmgDealt)}</td><td>${Math.floor(h.gold)}</td></tr>`).join('');
     const head = `<tr><th>Captain</th><th>Vessel</th><th>Lv</th><th>K / D / A</th><th>Sunk</th><th>Damage</th><th>Gold</th></tr>`;
     return `<table><tr><td colspan="7" class="team" style="color:${TEAMS[0].css}">${TEAMS[0].name} · ${G.teams[0].kills} kills</td></tr>${head}${rows(0)}
       <tr><td colspan="7" class="team" style="color:${TEAMS[1].css}">${TEAMS[1].name} · ${G.teams[1].kills} kills</td></tr>${head}${rows(1)}</table>`;
@@ -342,7 +343,7 @@ export class HUD {
     const mins = Math.floor(G.time / 60), secs = String(Math.floor(G.time % 60)).padStart(2, '0');
     r.innerHTML = `<div id="end"><h1 class="${won ? 'win' : 'lose'}">${title}</h1><div class="sub">${sub} · ${mins}:${secs}</div>
       ${mvp ? `<div class="mvp panel ornate"><div class="lbl">MVP</div><div class="nm" style="color:${TEAMS[mvp.team].css}">${esc(mvp.name)}</div>
-        <div class="st">${HULLS[mvp.hullId].name} · ${mvp.kills} / ${mvp.deaths} / ${mvp.assists} · ${Math.round(mvp.dmgDealt / 100) / 10}k damage</div></div>` : ''}
+        <div class="st">${HULLS[mvp.hullId].name} · ${mvp.kills} / ${mvp.deaths} / ${mvp.assists} · ${fmtDmg(mvp.dmgDealt)} damage</div></div>` : ''}
       <div class="panel ornate">${this.scoreboardHTML(G)}</div>
       <button class="btn-primary" id="again">SAIL AGAIN</button><button class="btn-ghost" id="tomenu">Main menu</button></div>`;
     r.querySelector('#again').onclick = () => this.handlers.again && this.handlers.again();
