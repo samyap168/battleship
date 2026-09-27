@@ -470,7 +470,8 @@ export class Game {
     for (let i = this.smokes.length - 1; i >= 0; i--) { const s = this.smokes[i]; s.t += dt; if (s.t > s.dur) this.smokes.splice(i, 1); }
 
     // AI + units
-    if (!this.over) for (const b of this.bots) b.update(dt);
+    // alternate the bot update order every tick: neither team always reacts to the other's fresher decisions
+    if (!this.over) { const n = this.bots.length, rev = this.frame & 1; for (let i = 0; i < n; i++) this.bots[rev ? n - 1 - i : i].update(dt); }
     for (const h of this.heroes) {
       if (!h.alive) {
         h.respawn -= dt;
@@ -505,7 +506,7 @@ export class Game {
   }
 
   timeUp() {
-    // Score: structures destroyed x3 + kills; tie -> draw
+    // Score: structures destroyed x5 + kills + citadel damage/1000; tie-breaks below
     const score = [0, 1].map((tm) => this.teams[1 - tm].towersLost * 5 + this.teams[tm].kills
       + (this.structures.find((s) => s.team === 1 - tm && s.kind === 'citadel').maxHp - this.structures.find((s) => s.team === 1 - tm && s.kind === 'citadel').hp) / 1000);
     // tie-breaks (dusk decides, a 10-minute match should never end without a victor):

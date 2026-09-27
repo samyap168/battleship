@@ -64,7 +64,7 @@ export class Combat {
       dmg *= target.kind === 'creep' ? 1.8 : 1 + G.structureScale;
     }
     if (source && source.kind === 'creep' && (target.kind === 'tower' || target.kind === 'citadel')) dmg *= 0.6;
-    if (G.duskTide && (target.kind === "tower" || target.kind === "citadel")) dmg *= 1.7; // endgame: forts crumble
+    if (G.duskTide && (target.kind === "tower" || target.kind === "citadel")) dmg *= Math.min(2.4, 1.7 + Math.max(0, G.time - 480) / 90 * 0.5); // endgame: forts crumble, faster as dusk deepens
     // Backdoor protection: forts shrug off captains unless allied gunboats escort the siege.
     if ((target.kind === 'tower' || target.kind === 'citadel') && source && source.kind !== 'creep') {
       const team = source.team;

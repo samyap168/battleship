@@ -63,8 +63,9 @@ export function cast(G, h, i, ax, az) {
       if (isHyper) {
         G.combat.skyStrike(h, 'hypersonic', ax, az, ab.delay, ab.dmg * dm, ab.radius);
         (G.dangers ||= []).push({ x: ax, z: az, r: ab.radius * 1.2 + 4, team: h.team, until: G.time + ab.delay + 0.2 });
-        G.fx.ring(ax, az, ab.radius, ab.radius, 0xff4030, ab.delay, 0.05);
-        G.fx.ring(ax, az, ab.radius * 1.2, 2, 0xff8060, ab.delay, 0.08);
+        const hostileH = G.player && h.team !== G.player.team;
+        G.fx.ring(ax, az, ab.radius, ab.radius, hostileH ? 0xff8a00 : G.teamGlow(h.team), ab.delay, 0.05);
+        G.fx.ring(ax, az, ab.radius * 1.2, 2, hostileH ? 0xffb050 : 0xffffff, ab.delay, 0.08);
         G.audio.play('missile', { x: h.x, z: h.z, vol: 1.2, pitch: 0.7 });
         G.audio.play('hypersonic', { x: ax, z: az, vol: 1 });
       } else {

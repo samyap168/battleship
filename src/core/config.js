@@ -169,7 +169,7 @@ export const ABILITIES = {
 
   // ---- Battleship
   mainbattery2: { name: 'Radar Salvo', type: 'barrage', target: 'point', cd: 13, range: 145, minLevel: 2,
-    dmg: 188, count: 6, area: 14, radius: 9, delay: 0.6, spreadTime: 0.3, model: 'shell_big',
+    dmg: 188, count: 7, area: 14, radius: 9, delay: 0.6, spreadTime: 0.3, model: 'shell_big',
     desc: 'Radar-directed nine-gun salvo.' },
   flak: { name: 'Flak Umbrella', type: 'pointdefense', target: 'self', cd: 16, dur: 4.5, radius: 45,
     desc: 'Shred incoming drones, aircraft and missiles around you.' },
@@ -191,7 +191,7 @@ export const ABILITIES = {
     desc: 'Launch the full air wing: 16 fighters and 6 bombers.' },
 
   // ---- Arsenal Cruiser
-  railgun: { name: 'Railgun', type: 'beam', target: 'dir', cd: 10, range: 230, dmg: 255, minLevel: 2, width: 5,
+  railgun: { name: 'Railgun', type: 'beam', target: 'dir', cd: 12, range: 230, dmg: 255, minLevel: 2, width: 5,
     desc: 'Hypervelocity slug pierces everything in a line.' },
   pointdefense: { name: 'Point Defense Lasers', type: 'pointdefense', target: 'self', cd: 15, dur: 5, radius: 55, laser: true,
     desc: 'Laser CIWS vaporises drones and missiles nearby.' },
@@ -204,7 +204,7 @@ export const ABILITIES = {
 
   // ---- Drone Mothership
   microswarm: { name: 'Micro Swarm', type: 'swarm', target: 'point', cd: 11, range: 150,
-    count: 18, drone: 'micro', dur: 8, dmg: 48, radius: 5,
+    count: 18, drone: 'micro', dur: 8, dmg: 43, radius: 5,
     desc: 'Release 18 kamikaze micro-drones that seek enemies.' },
   aegis: { name: 'Aegis Drones', type: 'buff', target: 'self', cd: 16, shield: 850, dur: 6, drones: 6,
     desc: 'Six shield drones orbit your hull, absorbing 850 damage.' },
