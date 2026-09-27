@@ -169,7 +169,7 @@ export const ABILITIES = {
 
   // ---- Battleship
   mainbattery2: { name: 'Radar Salvo', type: 'barrage', target: 'point', cd: 13, range: 145, minLevel: 2,
-    dmg: 170, count: 6, area: 14, radius: 9, delay: 0.6, spreadTime: 0.3, model: 'shell_big',
+    dmg: 188, count: 6, area: 14, radius: 9, delay: 0.6, spreadTime: 0.3, model: 'shell_big',
     desc: 'Radar-directed nine-gun salvo.' },
   flak: { name: 'Flak Umbrella', type: 'pointdefense', target: 'self', cd: 16, dur: 4.5, radius: 45,
     desc: 'Shred incoming drones, aircraft and missiles around you.' },
@@ -191,7 +191,7 @@ export const ABILITIES = {
     desc: 'Launch the full air wing: 16 fighters and 6 bombers.' },
 
   // ---- Arsenal Cruiser
-  railgun: { name: 'Railgun', type: 'beam', target: 'dir', cd: 9, range: 230, dmg: 300, minLevel: 2, width: 5,
+  railgun: { name: 'Railgun', type: 'beam', target: 'dir', cd: 10, range: 230, dmg: 255, minLevel: 2, width: 5,
     desc: 'Hypervelocity slug pierces everything in a line.' },
   pointdefense: { name: 'Point Defense Lasers', type: 'pointdefense', target: 'self', cd: 15, dur: 5, radius: 55, laser: true,
     desc: 'Laser CIWS vaporises drones and missiles nearby.' },

@@ -62,12 +62,14 @@ export function cast(G, h, i, ax, az) {
       const isHyper = ab.model === 'hypersonic';
       if (isHyper) {
         G.combat.skyStrike(h, 'hypersonic', ax, az, ab.delay, ab.dmg * dm, ab.radius);
+        (G.dangers ||= []).push({ x: ax, z: az, r: ab.radius * 1.2 + 4, team: h.team, until: G.time + ab.delay + 0.2 });
         G.fx.ring(ax, az, ab.radius, ab.radius, 0xff4030, ab.delay, 0.05);
         G.fx.ring(ax, az, ab.radius * 1.2, 2, 0xff8060, ab.delay, 0.08);
         G.audio.play('missile', { x: h.x, z: h.z, vol: 1.2, pitch: 0.7 });
         G.audio.play('hypersonic', { x: ax, z: az, vol: 1 });
       } else {
         const p0 = gunPos(h);
+        (G.dangers ||= []).push({ x: ax, z: az, r: ab.area + ab.radius + 4, team: h.team, until: G.time + ab.delay + ab.spreadTime + 0.2 }); // bots read these and dodge
         const hostile = G.player && h.team !== G.player.team; // enemy strike zones read as danger for the player
         G.fx.ring(ax, az, ab.area + 4, ab.area + 4, hostile ? 0xff3a2a : G.teamGlow(h.team), ab.delay + ab.spreadTime, hostile ? 0.07 : 0.04);
         for (let k = 0; k < ab.count; k++) {

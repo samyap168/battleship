@@ -35,6 +35,18 @@ export class BotBrain {
     const enemyPower = enemies.reduce((s, e) => s + e.hp * e.dmgMul, 0);
     const allyPower = allies.reduce((s, a) => s + a.hp * a.dmgMul, 0) + h.hp * h.dmgMul;
 
+    // ---- dodge: step out of a telegraphed enemy strike zone (reaction scales with difficulty)
+    if (G.dangers && G.dangers.length) {
+      G.dangers = G.dangers.filter((d) => d.until > G.time);
+      const d = G.dangers.find((z) => z.team !== h.team && (h.x - z.x) ** 2 + (h.z - z.z) ** 2 < (z.r + h.radius) ** 2);
+      if (d && Math.random() < this.d.aim) {
+        const ax = h.x - d.x, az = h.z - d.z, l = Math.hypot(ax, az) || 1, side = h.slot % 2 ? 1 : -1;
+        const out = d.r + h.radius + 12;
+        this.dest = null; this.go(d.x + (ax / l) * out + (-az / l) * 10 * side, d.z + (az / l) * out + (ax / l) * 10 * side);
+        this.thinkT = 0.35; // re-check soon
+        return;
+      }
+    }
     // ---- retreat
     const outnumbered = enemyPower > allyPower * 1.35;
     if (this.state === 'retreat') {

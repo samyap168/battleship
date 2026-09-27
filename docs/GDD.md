@@ -31,7 +31,7 @@ sail lane → sink gunboats / trade fire (gold + XP) → buy upgrades or save
 - **~5:30** **Age of Airpower** (2200 g): Fast Battleship or Fleet Carrier.
 - **5:30** Bots start grouping to push the weakest enemy lane.
 - **~7:30** **Age of Swarms** (3000 g): Arsenal Cruiser or Drone Mothership.
-- **10:00** Dusk. If no citadel has fallen, score = 3 × structures destroyed + kills + citadel damage/1000.
+- **10:00** Dusk. If no citadel has fallen, score = 5 × structures destroyed + kills + citadel damage/1000.
 
 ## 4. The five ages
 

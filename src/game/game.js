@@ -445,9 +445,15 @@ export class Game {
         tip('enemycap', () => pl.alive && near(this.heroes, (pl.hull && pl.hull.guns ? pl.hull.guns.range : 80) * 1.1), '<b>Enemy captain in range</b> · <kbd>Right-click</kbd> them to focus fire, keep turning to dodge their shells') ||
         tip('ult', () => pl.abilities && pl.abilities[3] && pl.level >= (pl.abilities[3].minLevel || 1) && pl.level >= 3, '<b>Ultimate ready</b> · <kbd>R</kbd> is unlocked: save it for a team fight or a fleeing captain') ||
         tip('fortsolo', () => pl.alive && near(this.structures, 70) && !this.creeps.some((c) => c.alive && c.team === pl.team && (c.x - pl.x) ** 2 + (c.z - pl.z) ** 2 < 110 * 110), 'Forts shrug off captains who siege alone · <b>wait for your gunboats</b> to tank before you push') ||
-        tip('storm', () => this.storm > 0, '<b>Squall</b> · every gun loses its aim, including forts: dive a weakened fort or ambush from the rain') ||
-        tip('boss', () => this.boss && this.boss.risen && this.boss.alive, '<b>The Leviathan</b> has risen south of mid · slay it with your team for gold and a +30% damage blessing')
+        false // squall + Leviathan are covered by their banners and the Admiral's orders panel (no triple call-outs)
       );
+      // first time either citadel opens up: make it an event, not a silent panel row
+      for (const c of this.structures) if (c.kind === 'citadel' && c.alive && !c.invulnerable && !seen['cit' + c.team]) {
+        seen['cit' + c.team] = true;
+        const ours = c.team === pl.team;
+        this.ui.announce(ours ? 'OUR CITADEL IS EXPOSED' : 'ENEMY CITADEL EXPOSED', ours ? 'Defend it: both inner forts have fallen' : 'Push with your gunboats to win', ours ? '#ff6a5a' : '#ffd76a');
+        this.audio.stinger(ours ? 'warning' : 'towerDown');
+      }
     }
     // ports
     for (const p of this.ports) this.updatePort(p, dt);
@@ -491,7 +497,7 @@ export class Game {
 
   timeUp() {
     // Score: structures destroyed x3 + kills; tie -> draw
-    const score = [0, 1].map((tm) => this.teams[1 - tm].towersLost * 3 + this.teams[tm].kills
+    const score = [0, 1].map((tm) => this.teams[1 - tm].towersLost * 5 + this.teams[tm].kills
       + (this.structures.find((s) => s.team === 1 - tm && s.kind === 'citadel').maxHp - this.structures.find((s) => s.team === 1 - tm && s.kind === 'citadel').hp) / 1000);
     // tie-breaks (dusk decides, a 10-minute match should never end without a victor):
     // damage dealt to enemy forts, then total damage dealt by captains

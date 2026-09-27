@@ -233,11 +233,19 @@ export class HUD {
     while (box.children.length > 6) box.lastChild.remove();
     setTimeout(() => { d.style.opacity = '0'; setTimeout(() => d.remove(), 700); }, 9000);
   }
+  /** Hints queue up (a contextual tip never cuts a scheduled one short); each shows for its full time. */
   hint(html, ms = 5000) {
-    const r = this.$('hintRoot');
-    r.innerHTML = `<div class="hint panel">${html}</div>`;
+    (this.hintQ ||= []).push({ html, ms });
+    if (this.hintQ.length > 4) this.hintQ.splice(1, 1);
+    if (!this.hintBusy) this.nextHint();
+  }
+  nextHint() {
+    const r = this.$('hintRoot'), h = this.hintQ && this.hintQ.shift();
+    if (!r || !h) { this.hintBusy = false; if (r) r.innerHTML = ''; return; }
+    this.hintBusy = true;
+    r.innerHTML = `<div class="hint panel">${h.html}</div>`;
     clearTimeout(this.hintT);
-    this.hintT = setTimeout(() => (r.innerHTML = ''), ms);
+    this.hintT = setTimeout(() => this.nextHint(), Math.max(3500, h.ms * (this.hintQ.length ? 0.75 : 1)));
   }
   /** Admiral's orders: what's coming next and what to do about it (strategy at a glance). */
   updateObjectives(G, p) {
