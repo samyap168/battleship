@@ -227,7 +227,7 @@ gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(1.35)); // tame sun-glint fireflie
 
 // Flat quads on the water surface (wakes, foam rings, splash marks).
 // The vertex shader applies the same Gerstner displacement so decals ride the waves.
-const DECAL_MAX = 2400;
+const DECAL_MAX = 4000; // late fights filled 2400 and recycled live foam
 export class WaterDecals {
   constructor(scene, oceanUniforms) {
     // subdivided so big rings/slicks follow the swell instead of slicing into it

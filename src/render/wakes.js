@@ -4,7 +4,7 @@ import { WAVES_GLSL, WAVE_UNIFORMS } from './waves.js';
 // Continuous wake ribbons behind ships. Each tracked ship keeps a short path
 // history. The strip widens with age (Kelvin-like spread), has a churned
 // centre and bright V-arm edges, rides the Gerstner surface and fades with age.
-const SAMPLES = 44, MAX_TRAILS = 40;
+const SAMPLES = 44, MAX_TRAILS = 80; // every captain + a full late-game gunboat fleet (at 40 some ships had no ribbon, only dotted foam)
 
 export class Wakes {
   constructor(scene) {

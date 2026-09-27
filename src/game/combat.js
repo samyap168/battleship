@@ -389,7 +389,12 @@ export class Combat {
           }
           L.x = p.x; L.y = p.y; L.z = p.z;
         }
-        if (v.water) G.ocean.decals.add(p.x, p.z, 2.2, 1.8, 0, 0.8, 1.5);
+        if (v.water) { // torpedo track: interpolated so it reads as one foam line, not a string of dots
+          const W = p.lastWater || (p.lastWater = { x: p.x, z: p.z });
+          const d = Math.hypot(p.x - W.x, p.z - W.z), n = Math.max(1, Math.min(5, Math.ceil(d / 1.2)));
+          for (let k = 1; k <= n; k++) G.ocean.decals.add(W.x + (p.x - W.x) * (k / n), W.z + (p.z - W.z) * (k / n), 2.0, 1.8, 0, 0.8 / Math.sqrt(n), 1.5);
+          W.x = p.x; W.z = p.z;
+        }
       }
       // render
       const key = v.mesh;

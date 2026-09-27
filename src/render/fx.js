@@ -171,12 +171,13 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
     }
     if (kind === 'laser' || kind === 'pulse') return;
     // black powder (sail era) = thick white banks; cordite = a brief grey puff
-    const n = smokeHeavy ? 5 : 2;
+    // (kept thin: a fleet firing broadsides stacks dozens of these, and a thick bank reads as fog over the fight)
+    const n = smokeHeavy ? 3 : 2;
     for (let i = 0; i < n; i++) {
       const s = rnd(3, 11) * scale;
-      const c = smokeHeavy ? rnd(0.7, 0.85) : rnd(0.3, 0.42);
+      const c = smokeHeavy ? rnd(0.6, 0.74) : rnd(0.3, 0.42);
       P.alpha.emit({ x: pos.x + dir.x * 2, y: pos.y, z: pos.z + dir.z * 2, vx: dir.x * s + rnd(-1, 1), vy: rnd(0.5, 2.5), vz: dir.z * s + rnd(-1, 1),
-        life: rnd(1.2, smokeHeavy ? 3.0 : 1.6), s0: 2.5 * scale, s1: rnd(6, 10) * scale * (smokeHeavy ? 1.3 : 0.9), r: c, g: c, b: c * 1.02, a0: smokeHeavy ? 0.45 : 0.28, a1: 0, kind: 1, drag: 1.8 });
+        life: rnd(1.0, smokeHeavy ? 2.2 : 1.4), s0: 2.5 * scale, s1: rnd(6, 10) * scale * (smokeHeavy ? 1.15 : 0.9), r: c, g: c, b: c * 1.02, a0: smokeHeavy ? 0.3 : 0.24, a1: 0, kind: 1, drag: 1.8 });
     }
     if (scale > 1.2) this.light(pos, 0xffb070, 18 * scale, 40 * scale, 0.12);
   }
