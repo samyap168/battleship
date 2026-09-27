@@ -159,17 +159,23 @@ function startGame(spectate) {
     const sx = p.team === 0 ? -1 : 1, V3 = THREE.Vector3;
     const d = 150, pitch = THREE.MathUtils.degToRad(cameraDir.pitchFor(d));
     const endPos = new V3(p.x, Math.sin(pitch) * d, p.z + Math.cos(pitch) * d);
+    // Prologue: a slow push across the dawn water toward the ENEMY citadel ("destroy the enemy citadel"),
+    // then a hard cut home. A key pair 0.01 s apart is a cut. Any key or click skips the whole opening.
+    const ex = -sx * 640;
     cameraDir.startCinematic([
-      { t: 0, pos: new V3(sx * 790, 9, 70), look: new V3(sx * 560, 14, -10) },
-      { t: 2.6, pos: new V3(sx * 735, 24, 105), look: new V3(sx * 600, 30, -20) },
-      { t: 4.4, pos: new V3(sx * 690, 70, 150), look: new V3(sx * 640, 6, 0) },
-      { t: 6.2, pos: endPos, look: new V3(p.x, 0, p.z) },
-    ], { x: p.x, z: p.z });
+      { t: 0, pos: new V3(ex + sx * 210, 10, 78), look: new V3(ex, 20, 0) },
+      { t: 2.3, pos: new V3(ex + sx * 150, 16, 58), look: new V3(ex, 22, 0) },
+      { t: 2.31, pos: new V3(sx * 790, 9, 70), look: new V3(sx * 560, 14, -10) },
+      { t: 4.9, pos: new V3(sx * 735, 24, 105), look: new V3(sx * 600, 30, -20) },
+      { t: 6.7, pos: new V3(sx * 690, 70, 150), look: new V3(sx * 640, 6, 0) },
+      { t: 8.5, pos: endPos, look: new V3(p.x, 0, p.z) },
+    ], { x: p.x, z: p.z }, { onEnd: () => { openingSkippable = false; } });
+    openingSkippable = true;
     cameraDir.locked = true;
     cameraDir.distGoal = cameraDir.dist = 150; // close enough that your hull reads as a ship, not a marker
     audio.stinger('matchStart');
     setTimeout(() => hud.announce('ARMADA ASCENSION', `${TEAMS[settings.team].name} · Destroy the enemy citadel`, TEAMS[settings.team].css), 1200);
-    setTimeout(() => hud.hint('<kbd>Right-click</kbd> sail / attack &nbsp; <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> abilities at cursor &nbsp; <kbd>T</kbd> advance age', 9000), 4800);
+    setTimeout(() => hud.hint('<kbd>Click</kbd> sail / attack &nbsp; <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> abilities at cursor &nbsp; <kbd>T</kbd> advance age &nbsp; <kbd>H</kbd> how to play', 9000), 7000);
   }
 }
 
@@ -318,6 +324,7 @@ canvas.addEventListener('auxclick', (e) => e.preventDefault());
 canvas.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); }); // no browser autoscroll on middle-drag
 canvas.addEventListener('pointerdown', (e) => {
   audio.init();
+  if (skipOpening()) return;
   if (mode !== 'play' || !G || !G.player || G.over) return;
   const p = G.player;
   if (hud.aiming >= 0) {
@@ -333,7 +340,15 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 canvas.addEventListener('wheel', (e) => { cameraDir.zoom(e.deltaY); e.preventDefault(); }, { passive: false });
 
+let openingSkippable = false;
+function skipOpening() {
+  if (!openingSkippable || !cameraDir.cine || mode !== 'play') return false;
+  openingSkippable = false;
+  const C = cameraDir.cine; C.t = C.dur; // lands on the gameplay pose next frame
+  return true;
+}
 window.addEventListener('keydown', (e) => {
+  if (skipOpening()) { e.preventDefault(); return; }
   if (howtoOpen) { // any key starts (H toggles, Tab/Alt ignored so alt-tab does not dismiss it)
     if (e.key === 'Tab' || e.key === 'Alt' || e.key === 'Shift' || e.key === 'Control' || e.key === 'Meta') return;
     e.preventDefault(); if (!e.repeat) showHowTo(false); return;
