@@ -1557,11 +1557,14 @@ function buildMothership(ctx) {
     const x = side * 3.2;
     const tilt = side * 0.34;
     P.box('stealthDark', 0.1, 1.9, 2.4, x + side * 0.02, hb + 1.2, z, C.graphiteDark, 0, 0, tilt);
-    P.box('teamPulse', 0.06, 1.5, 2.0, x + side * 0.08, hb + 1.2, z, 0xffffff, 0, 0, tilt);
+    // shuttered bay: light leaks through three thin slats instead of one blown-out panel
+    for (let k = 0; k < 3; k++) P.box('teamPulse', 0.06, 0.12, 1.9, x + side * 0.08 - side * (k - 1) * 0.5 * Math.sin(tilt), hb + 0.7 + k * 0.5, z, 0xffffff, 0, 0, tilt);
   }
-  // front + rear bay (large)
-  P.box('teamPulse', 2.6, 1.4, 0.06, 0, hb + 1.0, hz + 6.9, 0xffffff, -0.33, 0, 0);
-  P.box('teamPulse', 2.6, 1.4, 0.06, 0, hb + 1.0, hz - 6.9, 0xffffff, 0.33, 0, 0);
+  // front + rear bays: dark shutters with glowing seams
+  for (const [zz, rx] of [[hz + 6.9, -0.33], [hz - 6.9, 0.33]]) {
+    P.box('stealthDark', 2.8, 1.6, 0.08, 0, hb + 1.0, zz, C.graphiteDark, rx, 0, 0);
+    for (let k = 0; k < 3; k++) P.box('teamPulse', 2.4, 0.1, 0.1, 0, hb + 0.55 + k * 0.45, zz + Math.sign(zz - hz) * (0.05 + (k - 1) * 0.45 * Math.sin(-rx) * Math.sign(zz - hz)), 0xffffff, rx, 0, 0);
+  }
   // hive roof: launch deck with glowing ring pad
   const ry = hb + 4.1;
   P.add('teamGlow', new THREE.RingGeometry(0.9, 1.05, 24), 0xffffff, M(0, ry + 0.02, hz - 0.3, -PI / 2));
