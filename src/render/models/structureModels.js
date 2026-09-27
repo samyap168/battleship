@@ -326,7 +326,8 @@ function buildOuter(ctx) {
   P.add('iron', prism(ngon(8, 1.1, 0, 0, PI / 8), 16.2, null, 16.6), 0x30343a);
   P.add('lantern', prism(ngon(8, 0.98, 0, 0, PI / 8), 16.6, null, 18.1, { cap: false }), 0xffffff);
   for (const p of ngon(8, 1.0, 0, 0, PI / 8)) P.rod('iron', 0.05, 0.05, [p[0], 16.6, p[1]], [p[0], 18.1, p[1]], 0x2a2c30, 4);
-  P.add('iron', prism(ngon(8, 1.25, 0, 0, PI / 8), 18.1, ngon(8, 0.15, 0, 0, PI / 8), 19.5), 0x3e5a4e);
+  if (ctx.team === 1) pagodaRoof(P, 3.3, 18.1, 1.5); // Crimson lighthouse wears a pagoda cap
+  else P.add('iron', prism(ngon(8, 1.25, 0, 0, PI / 8), 18.1, ngon(8, 0.15, 0, 0, PI / 8), 19.5), 0x3e5a4e);
   P.sphere('brass', 0.22, 0, 19.7, 0, 0xffffff, 10, 6);
   P.rod('iron', 0.03, 0.03, [0, 19.8, 0], [0, 20.8, 0], 0x2a2c30, 4);
   // rotating lamp: bright core + two light beams
@@ -385,7 +386,10 @@ function buildInner(ctx) {
   }
   for (const [x, z] of [[1.6, 3.2], [-1.6, 3.2], [3.2, -1.6], [-3.2, 1.6]]) P.box('rubber', 0.3, 1.0, 0.1, x, 8, z, 0x111111, 0, Math.abs(x) > 3 ? PI / 2 : 0);
   // corner towers with team roofs
-  for (const [x, z] of [[3.3, 3.3], [-3.3, 3.3], [3.3, -3.3], [-3.3, -3.3]]) roundTower(P, x, z, 1.25, 5.4, 16.8, { roofH: 2.8 });
+  for (const [x, z] of [[3.3, 3.3], [-3.3, 3.3], [3.3, -3.3], [-3.3, -3.3]]) {
+    if (ctx.team === 1) { roundTower(P, x, z, 1.25, 5.4, 16.8, { crenel: false }); pagodaRoof(P, 3.4, 17.25, 1.7, x, z); } // Crimson: pagoda caps
+    else roundTower(P, x, z, 1.25, 5.4, 16.8, { roofH: 2.8 });
+  }
   // bastion point towers (smaller, crenellated)
   for (let i = 0; i < 12; i += 2) roundTower(P, star[i][0] * 0.93, star[i][1] * 0.93, 0.9, 5.4, 7.0, { crenel: true, seg: 8 });
   // upper tower
@@ -546,8 +550,8 @@ const STRUCT_BUILDERS = { outer: buildOuter, inner: buildInner, citadel: buildCi
 
 export function buildStructure(kind = 'outer', teamId = 0) {
   const fn = STRUCT_BUILDERS[kind] || buildOuter;
-  // citadels are per-faction architecture (Azure: European keep; Crimson: pagoda castle)
-  const t = kind === 'citadel' ? template('struct:citadel:' + teamId, (ctx) => { ctx.team = teamId; return fn(ctx); }) : template('struct:' + kind, fn);
+  // forts are per-faction architecture (Azure: European stone; Crimson: pagoda castles)
+  const t = template('struct:' + kind + ':' + teamId, (ctx) => { ctx.team = teamId; return fn(ctx); });
   const parts = assemble(t, teamId);
   const muzzles = [];
   const turretRig = { pivot: parts.pivot, muzzles };
