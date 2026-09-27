@@ -501,7 +501,9 @@ export class Game {
     // AI + units
     // alternate the bot update order every tick: neither team always reacts to the other's fresher decisions
     if (!this.over) { const n = this.bots.length, rev = this.frame & 1; for (let i = 0; i < n; i++) this.bots[rev ? n - 1 - i : i].update(dt); }
-    for (const h of this.heroes) {
+    const rev = this.frame & 1, H = this.heroes, nh = H.length;
+    for (let i = 0; i < nh; i++) {
+      const h = H[rev ? nh - 1 - i : i]; // same alternation as the bots: movement + gunnery have no fixed first mover
       if (!h.alive) {
         h.respawn -= dt;
         if (h.respawn <= 0 && !this.over) this.respawnHero(h);
@@ -511,8 +513,9 @@ export class Game {
       updateHeroEffects(this, h, dt);
       h.untargetable = this.inEnemySmoke(h) ? 0.1 : h.untargetable;
     }
-    for (const c of this.creeps) c.update(dt);
-    for (const s of this.structures) s.update(dt);
+    const C = this.creeps, S = this.structures;
+    for (let i = 0, n = C.length; i < n; i++) C[rev ? n - 1 - i : i].update(dt);
+    for (let i = 0, n = S.length; i < n; i++) S[rev ? n - 1 - i : i].update(dt);
     this.boss.update(dt);
     const ships = this.units.filter((u) => u.isShip && u.alive);
     separateShips(ships, dt);
