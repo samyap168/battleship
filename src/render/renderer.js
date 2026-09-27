@@ -256,7 +256,8 @@ export class Renderer {
       const s = this.shocks[i];
       if (!s) { u.uShock.value[i].w = 0; continue; }
       const k = s.t / s.life;
-      u.uShock.value[i].set(s.x, s.y, k * 0.28 * s.str, (1 - k) * s.str);
+      // fade in as the ring opens: at radius ~0 the distortion band covers a solid disc and reads as a lens
+      u.uShock.value[i].set(s.x, s.y, k * 0.28 * s.str, (1 - k) * s.str * THREE.MathUtils.smoothstep(k, 0.06, 0.3));
     }
     u.uFlash.value = Math.max(0, u.uFlash.value - dt * 2.5);
     if (this.safeMode) { this.gl.toneMapping = THREE.ACESFilmicToneMapping; this.gl.render(this.scene, this.camera); return; }

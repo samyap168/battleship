@@ -241,7 +241,7 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
       const a = Math.random() * 6.283, sp = rnd(2, 6) * S;
       const c = rnd(0.07, 0.14);
       P.alpha.emit({ x: pos.x + rnd(-2, 2) * S, y: pos.y + rnd(2, 5) * S, z: pos.z + rnd(-2, 2) * S, vx: Math.cos(a) * sp, vy: rnd(3, 8) * S, vz: Math.sin(a) * sp,
-        life: rnd(2.6, 4.6) * Math.sqrt(S), s0: 4 * S, s1: rnd(15, 22) * S, r: c + 0.42, g: c * 0.95 + 0.16, b: c * 0.9 + 0.04, r1: c, g1: c * 0.97, b1: c * 0.95, a0: 0.82, a1: 0, kind: 1, drag: 1.1 }); // fire-lit from inside, cooling to soot
+        life: rnd(2.6, 4.6) * Math.sqrt(S), s0: 4 * S, s1: rnd(15, 22) * S, r: c + 0.13, g: c * 0.95 + 0.06, b: c * 0.9 + 0.02, r1: c * 0.9, g1: c * 0.9, b1: c * 0.92, a0: 0.85, a1: 0, kind: 1, drag: 1.1 }); // soot from the start: the dark column is what makes the fireball read hot
     }
     // 6. debris
     const nd = Math.round(4 * Math.min(scale, 2.5));
@@ -258,7 +258,7 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
     this.explosion(pos, s);
     this.p.add.emit({ x: pos.x, y: pos.y + 4, z: pos.z, life: 0.3, s0: radius * 0.9, s1: radius * 1.4, r: 1.6, g: 1.3, b: 1.0, a0: 0.8, a1: 0 });
     this.ring(pos.x, pos.z, 4, radius * 2.2, 0xffe0b0, 0.9, 0.05);
-    this.ring(pos.x, pos.z, 2, radius * 1.4, 0xff7a30, 1.2, 0.2);
+    this.ring(pos.x, pos.z, 2, radius * 1.4, 0xff7a30, 1.0, 0.08); // thin heat front, not a flat donut
     // low base surge of spray racing outward
     for (let i = 0; i < 18; i++) {
       const a = Math.random() * 6.283, sp = rnd(14, 32);
@@ -273,7 +273,7 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
       if (i < 10) this.p.alpha.emit({ x: pos.x + rnd(-2, 2), y: pos.y + 3, z: pos.z + rnd(-2, 2), vy: up * 0.8, life: rnd(0.8, 1.4), s0: radius * 0.2, s1: radius * 0.45,
         r: 2.4, g: 1.2, b: 0.45, r1: 0.4, g1: 0.08, b1: 0.02, a0: 1, a1: 0, kind: 5, drag: 1.2 });
     }
-    this.renderer.shockwave(pos, 2.2, 0.9);
+    this.renderer.shockwave(pos, 1.7, 0.9);
     this.renderer.grade.uniforms.uFlash.value = Math.min(0.12, this.renderer.grade.uniforms.uFlash.value + 0.08);
     this.shake(1.2, pos.x, pos.z);
   }
