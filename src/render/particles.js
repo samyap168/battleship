@@ -11,7 +11,11 @@ uniform float uScale;
 void main() {
   vColor = aColor; vKind = aSK.y; vSeed = fract(position.x * 0.137 + position.z * 0.311);
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  gl_PointSize = clamp(aSK.x * uScale / -mv.z, 0.0, 512.0);
+  float px = aSK.x * uScale / max(-mv.z, 0.1);
+  gl_PointSize = clamp(px, 0.0, 384.0);
+  // near-camera sprites (a glow drifting past a low or zoomed camera) balloon to screen-filling, full-
+  // brightness discs that bloom into a milky veil: fade them out by camera distance and on-screen size
+  vColor.a *= smoothstep(3.0, 26.0, -mv.z) * (1.0 - smoothstep(180.0, 420.0, px) * 0.85);
   // soft glows (kind 0) are camera-facing discs as wide as they are bright: pull them toward the
   // camera by their radius so the sea surface cannot slice a hard line through a big flash
   if (aSK.y < 0.5) { float d = length(mv.xyz); mv.xyz *= max(d - aSK.x * 0.5, min(d, 2.0)) / max(d, 1e-3); }
