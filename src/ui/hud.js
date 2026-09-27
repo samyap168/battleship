@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import { TEAMS, AGES, AGE_HULLS, HULLS, ABILITIES, UPGRADES, MATCH } from '../core/config.js';
+import { TEAMS, AGES, AGE_HULLS, HULLS, ABILITIES, UPGRADES, MATCH, COUNTERS } from '../core/config.js';
 import { ISLANDS, LANES, BOUNDS } from '../game/map.js';
 import { ICONS, abilityIcon } from './icons.js';
 import { hullThumb } from '../render/thumbnails.js';
+import { LEVIATHAN } from '../game/leviathan.js';
 
 const _v = new THREE.Vector3();
 const KEYS = ['Q', 'W', 'E', 'R'];
@@ -34,15 +35,15 @@ function bakePanelPlate() {
   document.documentElement.style.setProperty('--plate', `url(${c.toDataURL()})`);
 }
 
-// one-line counterplay guidance on the age-branch cards
-const MATCHUP = {
-  dreadnought: ['Strong vs Ironclads and slow brawlers', 'Weak to Torpedo Cruisers'],
-  torpedo: ['Strong vs Dreadnoughts and Battleships', 'Weak to smoke and focus fire'],
-  battleship: ['Strong vs Torpedo Cruisers and Carriers', 'Weak to air wings from range'],
-  carrier: ['Strong vs Battleships and Dreadnoughts', 'Weak to flak and Arsenal lasers'],
-  arsenal: ['Strong vs Carriers and drone swarms', 'Weak to Motherships at range'],
-  mothership: ['Strong vs Battleships and Arsenal Cruisers', 'Weak to point-defense lasers'],
-};
+// matchup lines generated from the shared counter graph (bots use the same table)
+const BEATS = COUNTERS;
+const hullName = (id) => (HULLS[id] ? HULLS[id].name.replace(/^(Steam |Drone )/, '') : id);
+const list = (a) => a.length > 1 ? a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1] : a[0];
+const MATCHUP = Object.fromEntries(Object.keys(COUNTERS).map((id) => {
+  const beats = COUNTERS[id].map(hullName);
+  const fears = Object.keys(COUNTERS).filter((o) => COUNTERS[o].includes(id)).map(hullName);
+  return [id, [`Strong vs ${list(beats)}`, fears.length ? `Weak to ${list(fears)}` : 'No hard counter']];
+}));
 
 export class HUD {
   constructor(root, overlayCanvas) {
@@ -79,6 +80,7 @@ export class HUD {
         <div class="side red"><div class="kills" id="k1">0</div><div class="era"><span>${TEAMS[1].name}</span><b id="e1">Age of Sail</b></div></div>
       </div>
       <div id="feed" class="passthru"></div>
+      <div id="objectives" class="panel passthru"></div>
       <div id="announce" class="passthru"></div>
       <div id="minimap" class="panel ornate"><canvas id="mm" width="600" height="368"></canvas></div>
       ${p ? `<div id="command">
@@ -182,6 +184,13 @@ export class HUD {
   // ------------------------------------------------------------------ age choice
   openAgeChoice(options, onPick) {
     const p = this.G.player;
+    // live read of the enemy fleet: how many of the hulls this card beats / fears are out there right now
+    const enemy = this.G.heroes.filter((o) => o.team !== p.team).map((o) => o.hullId);
+    const liveMatch = (id) => {
+      const beats = enemy.filter((e) => (BEATS[id] || []).includes(e)).length;
+      const fears = enemy.filter((e) => (BEATS[e] || []).includes(id)).length;
+      return beats || fears ? `<span class="live">Enemy fleet now: <b class="g">${beats} it counters</b> · <b class="r">${fears} that counter it</b></span>` : '';
+    };
     const next = AGES[p.age];
     const root = this.$('modalRoot');
     root.innerHTML = `<div class="modal"><h1>${next.name.toUpperCase()}</h1><div class="choice">${options.map((id) => {
@@ -189,7 +198,7 @@ export class HUD {
       const src = hullThumb(id, p.team);
       return `<div class="card panel ornate" data-id="${id}">${src ? `<img class="thumb" src="${src}" alt="" />` : ''}<div class="role">${h.role}</div><h2>${h.name}</h2><p>${h.desc}</p>
         <div class="stats"><span>Hull <b>${h.hp}</b></span><span>Speed <b>${h.speed}</b></span><span>Range <b>${h.guns.range}</b></span></div>
-        ${MATCHUP[id] ? `<div class="matchup"><span class="good">▲ ${MATCHUP[id][0]}</span><span class="bad">▼ ${MATCHUP[id][1]}</span></div>` : ''}
+        ${MATCHUP[id] ? `<div class="matchup"><span class="good">▲ ${MATCHUP[id][0]}</span><span class="bad">▼ ${MATCHUP[id][1]}</span>${liveMatch(id)}</div>` : ''}
         <ul>${h.abilities.map((a, i) => `<li><b>${KEYS[i]}</b>${ABILITIES[a].name}</li>`).join('')}</ul></div>`;
     }).join('')}</div></div>`;
     root.querySelectorAll('.card').forEach((c) => c.addEventListener('click', () => { root.innerHTML = ''; onPick(c.dataset.id); }));
@@ -230,6 +239,26 @@ export class HUD {
     clearTimeout(this.hintT);
     this.hintT = setTimeout(() => (r.innerHTML = ''), ms);
   }
+  /** Admiral's orders: what's coming next and what to do about it (strategy at a glance). */
+  updateObjectives(G, p) {
+    const el = this.$('objectives');
+    if (!el || !p) return;
+    const t = G.time, rows = [];
+    if (t < G.stormAt) { if (G.stormAt - t < 90) rows.push(['storm', `Squall in <b>${fmtTime(G.stormAt - t)}</b>`, 'enemy forts and guns will lose their aim']); }
+    else if (G.storm) rows.push(['storm hot', `Squall · <b>${fmtTime(G.stormAt + G.stormDur - t)}</b> left`, 'ambush window: dive their forts now']);
+    const boss = G.boss;
+    if (t < LEVIATHAN.riseAt) { if (LEVIATHAN.riseAt - t < 100) rows.push(['boss', `Leviathan rises in <b>${fmtTime(LEVIATHAN.riseAt - t)}</b>`, 'group up south of mid']); }
+    else if (boss && boss.alive) rows.push(['boss hot', `Leviathan <b>${Math.round((100 * boss.hp) / boss.maxHp)}%</b>`, '+350 gold each and +30% damage to the slayers']);
+    if (p.canAgeUp && p.canAgeUp()) {
+      const cost = p.nextAgeCost(), k = Math.min(1, p.gold / cost), next = AGES[p.age];
+      rows.push(['age' + (k >= 1 ? ' hot' : ''), k >= 1 ? `<b>Press T</b> · ${next.name}` : `${next.name} <b>${Math.floor(p.gold)}/${cost}</b>`, `<i class="objbar"><i style="width:${(k * 100).toFixed(0)}%"></i></i>`]);
+    }
+    const cit = G.structures.find((st) => st.kind === 'citadel' && st.team !== p.team);
+    if (cit && cit.alive && !cit.invulnerable) rows.push(['siege hot', 'Enemy citadel <b>EXPOSED</b>', 'push with gunboats to win']);
+    el.innerHTML = rows.map(([cls, a, b]) => `<div class="obj ${cls}"><div class="a">${a}</div><div class="b">${b}</div></div>`).join('');
+    el.style.display = rows.length ? '' : 'none';
+  }
+
   /** Hit marker on a target the player just hit (X ticks; gold on crit, red + larger when it sinks). */
   hitMarker(x, z, crit, sunk) {
     this.hitMarks ||= [];
@@ -412,6 +441,8 @@ export class HUD {
     this.mmT = (this.mmT || 0) + dt;
     if (this.mmT > 0.066) { this.mmT = 0; this.drawMinimap(G, camFocus, camView); }
     if (p) this.updatePlayerPanel(G, p);
+    const nowMs = performance.now();
+    if (nowMs - (this.objT || 0) > 500) { this.objT = nowMs; this.updateObjectives(G, p); } // wall-clock throttle
     const sb = this.$('scoreboard');
     if (sb && !sb.classList.contains('hidden') && G.frame % 20 === 0) sb.innerHTML = this.scoreboardHTML(G);
     const rsp = this.$('rsp');

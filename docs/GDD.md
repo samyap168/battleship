@@ -116,10 +116,25 @@ The team that lands the killing blow gets **350 gold per captain** and **the Lev
 - **Harbour repairs:** captains within 90 units of their own citadel regenerate 6% hp/s.
 - **Spawn guard:** 3 s of invulnerability after recommissioning, so no spawn camping.
 
-## 12. Faction readability
+## 12. Counters and the objective tracker
+
+Age branches form one directed counter graph (`COUNTERS` in `config.js`). Bots counter-pick from it, and the age-choice cards generate their "Strong vs / Weak to" lines from it, plus a live count of the enemy hulls each card counters.
+
+| Hull | Counters | Countered by |
+|---|---|---|
+| Torpedo Cruiser | Dreadnought, Battleship, Arsenal | Carrier, Mothership |
+| Dreadnought | Ironclad, Frigate | Torpedo, Carrier, Mothership |
+| Fast Battleship | Carrier, Mothership | Torpedo, Arsenal |
+| Fleet Carrier | Dreadnought, Torpedo | Battleship, Arsenal |
+| Arsenal Cruiser | Carrier, Mothership, Battleship | Torpedo |
+| Drone Mothership | Dreadnought, Torpedo, Ironclad | Battleship, Arsenal |
+
+The top-left **Admiral's orders** panel shows what's coming and what to do: squall and Leviathan countdowns, the squall and boss while they are live, age-up progress ("Press T" when affordable), and when the enemy citadel is exposed.
+
+## 13. Faction readability
 
 Every captain's hull carries a Fresnel rim light in team colour, so friend and foe read by silhouette through smoke and at fleet zoom.
 
-## 13. Controls
+## 14. Controls
 
 RMB move/attack · QWER quick-cast at cursor · T advance age · Ctrl+1–5 upgrades · Space centre camera · Y free camera · Wheel zoom (all the way in swings to a low cinematic angle) · Tab scoreboard · Alt gun range · M mute.

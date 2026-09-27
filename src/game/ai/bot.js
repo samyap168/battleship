@@ -1,4 +1,4 @@
-import { AGE_HULLS, UPGRADES, ABILITIES } from '../../core/config.js';
+import { AGE_HULLS, UPGRADES, ABILITIES, COUNTERS } from '../../core/config.js';
 import { laneFor, fountain } from '../map.js';
 import { cast, canCast } from '../abilities.js';
 
@@ -6,13 +6,6 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 
 // Utility-style bot: every think tick it scores a handful of desires
 // (retreat, fight, farm/push, capture, shop) and executes the winner.
-// which enemy hulls each branch is built to beat
-const COUNTERS = {
-  torpedo: ['dreadnought', 'battleship', 'arsenal'], dreadnought: ['torpedo', 'ironclad'],
-  battleship: ['torpedo', 'carrier'], carrier: ['battleship', 'dreadnought', 'arsenal'],
-  arsenal: ['carrier', 'mothership'], mothership: ['battleship', 'arsenal', 'dreadnought'],
-};
-
 export class BotBrain {
   constructor(G, hero, diff) {
     this.G = G; this.h = hero; this.d = diff;

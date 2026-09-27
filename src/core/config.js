@@ -36,6 +36,17 @@ export const AGES = [
 ];
 
 // Hulls available at each age. Ages 3-5 offer a branching choice.
+// Directed counter graph (rock-paper-scissors between branches). Bots counter-pick
+// from it and the age-choice cards generate their matchup lines from it.
+export const COUNTERS = {
+  torpedo: ['dreadnought', 'battleship', 'arsenal'], // assassin torpedoes gut slow capital ships
+  dreadnought: ['ironclad', 'frigate'],        // heavy salvos crush the older fleet
+  battleship: ['carrier', 'mothership'],        // flak umbrella shreds air wings and drones
+  carrier: ['dreadnought', 'torpedo'],          // air strikes from beyond gun range
+  arsenal: ['carrier', 'mothership', 'battleship'], // point-defense lasers + railgun
+  mothership: ['dreadnought', 'torpedo', 'ironclad'], // swarms overwhelm ships without anti-air
+};
+
 export const AGE_HULLS = {
   1: ['frigate'],
   2: ['ironclad'],
@@ -133,7 +144,7 @@ export const ABILITIES = {
     desc: 'High-arc mortars saturate an area for 2 seconds.' },
 
   // ---- Dreadnought
-  mainbattery: { name: 'Main Battery', type: 'barrage', target: 'point', cd: 13, range: 125,
+  mainbattery: { name: 'Main Battery', type: 'barrage', target: 'point', cd: 13, range: 125, minLevel: 2,
     dmg: 125, count: 6, area: 12, radius: 8, delay: 0.7, spreadTime: 0.35, model: 'shell_big',
     desc: 'A six-gun salvo from the 12-inch turrets.' },
   smoke: { name: 'Smoke Screen', type: 'smoke', target: 'self', cd: 18, dur: 4.5, radius: 32,
@@ -157,7 +168,7 @@ export const ABILITIES = {
     desc: 'Ten homing torpedoes hunt every enemy nearby.' },
 
   // ---- Battleship
-  mainbattery2: { name: 'Radar Salvo', type: 'barrage', target: 'point', cd: 13, range: 145,
+  mainbattery2: { name: 'Radar Salvo', type: 'barrage', target: 'point', cd: 13, range: 145, minLevel: 2,
     dmg: 170, count: 6, area: 14, radius: 9, delay: 0.6, spreadTime: 0.3, model: 'shell_big',
     desc: 'Radar-directed nine-gun salvo.' },
   flak: { name: 'Flak Umbrella', type: 'pointdefense', target: 'self', cd: 16, dur: 4.5, radius: 45,
@@ -172,15 +183,15 @@ export const ABILITIES = {
   fighters: { name: 'Fighter Squadron', type: 'swarm', target: 'point', cd: 14, range: 140,
     count: 6, drone: 'fighter', dur: 14, dmg: 18, fireCd: 0.35, radius: 0,
     desc: 'Launch six fighters that strafe enemies near the target.' },
-  divebomb: { name: 'Dive Bombers', type: 'swarm', target: 'point', cd: 12, range: 170,
-    count: 4, drone: 'bomber', dur: 6, dmg: 220, radius: 15,
+  divebomb: { name: 'Dive Bombers', type: 'swarm', target: 'point', cd: 11, range: 170,
+    count: 4, drone: 'bomber', dur: 6, dmg: 265, radius: 15,
     desc: 'Bombers dive on the target area.' },
   airwing: { name: 'Air Wing Alpha', type: 'swarm', target: 'point', cd: 50, range: 190, minLevel: 3,
     count: 16, drone: 'fighter', extra: { drone: 'bomber', count: 6 }, dur: 18, dmg: 20, fireCd: 0.3, radius: 15,
     desc: 'Launch the full air wing: 16 fighters and 6 bombers.' },
 
   // ---- Arsenal Cruiser
-  railgun: { name: 'Railgun', type: 'beam', target: 'dir', cd: 9, range: 230, dmg: 300, width: 5,
+  railgun: { name: 'Railgun', type: 'beam', target: 'dir', cd: 9, range: 230, dmg: 300, minLevel: 2, width: 5,
     desc: 'Hypervelocity slug pierces everything in a line.' },
   pointdefense: { name: 'Point Defense Lasers', type: 'pointdefense', target: 'self', cd: 15, dur: 5, radius: 55, laser: true,
     desc: 'Laser CIWS vaporises drones and missiles nearby.' },
@@ -192,9 +203,9 @@ export const ABILITIES = {
     desc: 'A Mach-8 glide vehicle obliterates a wide area after 1.6s.' },
 
   // ---- Drone Mothership
-  microswarm: { name: 'Micro Swarm', type: 'swarm', target: 'point', cd: 9, range: 150,
-    count: 24, drone: 'micro', dur: 8, dmg: 48, radius: 5,
-    desc: 'Release 24 kamikaze micro-drones that seek enemies.' },
+  microswarm: { name: 'Micro Swarm', type: 'swarm', target: 'point', cd: 11, range: 150,
+    count: 18, drone: 'micro', dur: 8, dmg: 48, radius: 5,
+    desc: 'Release 18 kamikaze micro-drones that seek enemies.' },
   aegis: { name: 'Aegis Drones', type: 'buff', target: 'self', cd: 16, shield: 850, dur: 6, drones: 6,
     desc: 'Six shield drones orbit your hull, absorbing 850 damage.' },
   emp: { name: 'EMP Drone', type: 'projectile', target: 'dir', cd: 14, range: 130,

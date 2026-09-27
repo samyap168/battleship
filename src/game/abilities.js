@@ -174,6 +174,12 @@ export function cast(G, h, i, ax, az) {
       break;
     }
     case 'beam': {
+      // 0.3 s charge: a thin targeting line telegraphs the lane so the slug can be dodged
+      const c0 = gunPos(h), cTo = new THREE.Vector3(h.x + dx * ab.range, 3, h.z + dz * ab.range);
+      G.fx.beam(c0, cTo, 0xff6a50, 0.5, 0.32);
+      G.audio.play('shield', { x: h.x, z: h.z, vol: 0.5, pitch: 1.8 });
+      G.combat.after(0.3, () => {
+      if (!h.alive) return;
       const p0 = gunPos(h);
       const to = new THREE.Vector3(h.x + dx * ab.range, 3, h.z + dz * ab.range);
       // damage everything along the line
@@ -198,6 +204,7 @@ export function cast(G, h, i, ax, az) {
       G.fx.muzzle(p0, new THREE.Vector3(dx, 0, dz), 2.2, 'laser');
       G.renderer.shockwave(p0, 0.8, 0.4);
       G.fx.shake(0.3, h.x, h.z);
+      });
       G.audio.play('rail', { x: h.x, z: h.z, vol: 1.2 });
       h.pushX = -dx * 18; h.pushZ = -dz * 18; // recoil
       break;

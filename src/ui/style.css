@@ -270,3 +270,14 @@ body.cinematic #announce { top: 36%; }
 @media (prefers-reduced-motion: reduce) { #abilities, #topbar, #minimap, #portrait, #goldbox, #shop { animation: none; } }
 .card .matchup { display: flex; flex-direction: column; gap: 3px; margin: 8px 0 4px; font-size: 13px; letter-spacing: .03em; }
 .card .matchup .good { color: #9fe0a6; } .card .matchup .bad { color: #f0a08f; }
+/* admiral's orders: upcoming events + next goal, top-left */
+#objectives { position: absolute; top: 16px; left: 16px; width: 270px; padding: 8px 12px; display: flex; flex-direction: column; gap: 7px; }
+#objectives .obj { border-left: 2px solid rgba(232,196,122,.45); padding-left: 9px; }
+#objectives .obj.hot { border-left-color: #ffd76a; animation: objPulse 1.6s ease-in-out infinite; }
+#objectives .obj.storm { border-left-color: #8fb2d6; } #objectives .obj.boss { border-left-color: #6fe6d8; }
+#objectives .a { font-size: 14px; font-weight: 600; color: var(--text); letter-spacing: .03em; } #objectives .a b { color: #ffd76a; }
+#objectives .b { font-size: 12px; color: var(--dim); margin-top: 1px; }
+#objectives .objbar { display: block; height: 3px; margin-top: 4px; background: rgba(255,255,255,.1); } #objectives .objbar i { display: block; height: 100%; background: linear-gradient(90deg, #b8923f, #ffd76a); }
+@keyframes objPulse { 50% { background: linear-gradient(90deg, rgba(255,215,106,.10), transparent); } }
+body.cinematic #objectives { opacity: 0; }
+.card .matchup .live { margin-top: 3px; font-size: 12px; color: var(--dim); } .card .matchup .live .g { color: #9fe0a6; } .card .matchup .live .r { color: #f0a08f; }

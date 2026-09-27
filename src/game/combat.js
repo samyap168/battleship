@@ -289,7 +289,7 @@ export class Combat {
     if (m) m.getWorldPosition(_p); else _p.set(s.x, 20, s.z);
     const dmg = s.def.dmg * (1 + G.structureScale * 0.5);
     if (s.era >= 4) {
-      this.homing(s, 'missile', _p.clone(), target, 120, dmg, { aoe: 4, turn: 5 });
+      this.homing(s, 'missile', _p.clone(), target, 120, dmg, { aoe: 4, turn: G.storm ? 1.8 : 5 }); // squall: seekers lose lock, swing wide
       G.audio.play('missile', { x: s.x, z: s.z, vol: 0.6 });
     } else {
       const d = Math.hypot(target.x - _p.x, target.z - _p.z);
