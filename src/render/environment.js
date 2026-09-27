@@ -300,12 +300,20 @@ export function karstTower(r, h, seed, lean = 0) {
     const x = p.getX(i), y = p.getY(i) + 0.5, z = p.getZ(i); // y: 0..1
     const a = Math.atan2(z, x);
     const cx = Math.cos(a), sz = Math.sin(a);
-    // silhouette: slight taper, bulging shoulders, rounded crown
-    const taper = 0.22 + 0.2 * (Math.sin(seed * 7.3) * 0.5 + 0.5); // each tower tapers differently
-    let rad = r * (1.0 - taper * y + 0.12 * Math.sin(y * 3.1 + seed));
-    // domed summit: circular profile over the top 35%
-    const c = Math.max(0, (y - 0.65) / 0.35);
-    rad *= Math.sqrt(Math.max(0.0, 1 - c * c * 0.97));
+    // silhouette: every tower gets its own profile (taper, waist/shoulder bulges, crown shape) so a
+    // ring of stacks reads as eroded limestone, not a row of identical fingers
+    const taper = 0.22 + 0.2 * (Math.sin(seed * 7.3) * 0.5 + 0.5);
+    const bA = 0.1 + 0.16 * (Math.sin(seed * 3.7) * 0.5 + 0.5), bF = 2.4 + 3.2 * (Math.sin(seed * 5.9) * 0.5 + 0.5);
+    let rad = r * (1.0 - taper * y + bA * Math.sin(y * bF + seed * 2.3));
+    // elliptical, lobed cross-section (weathering follows the joints)
+    rad *= 1 + 0.14 * Math.cos(2 * a + seed * 1.7) + 0.07 * Math.cos(3 * a + seed * 4.1);
+    // one or two deep ledge notches where softer beds eroded out
+    const n1 = 0.3 + 0.4 * (Math.sin(seed * 8.3) * 0.5 + 0.5), n2 = 0.55 + 0.3 * (Math.sin(seed * 2.9) * 0.5 + 0.5);
+    rad *= 1 - 0.16 * Math.exp(-(((y - n1) / 0.035) ** 2)) - 0.1 * Math.exp(-(((y - n2) / 0.03) ** 2));
+    // summit: from a tall dome to a near-flat, forested mesa
+    const cs = 0.6 + 0.26 * (Math.sin(seed * 6.1) * 0.5 + 0.5), cp = 2 + 4 * (Math.sin(seed * 9.7) * 0.5 + 0.5);
+    const c = Math.max(0, (y - cs) / (1 - cs));
+    rad *= Math.sqrt(Math.max(0.0, 1 - Math.pow(c, cp) * 0.97));
     // wave-cut notch
     rad *= 1 - 0.14 * Math.exp(-Math.pow((y * h - 1.6) / 1.2, 2));
     // vertical fluting + horizontal strata ledges
