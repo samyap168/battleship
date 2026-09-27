@@ -40,6 +40,11 @@ const WAR = [
   ['Am', 'Bb', 'C', 'Dm'], ['Dm', 'C', 'F', 'G'], ['Bb', 'C', 'Dm', 'Dm'],
 ];
 
+// Finale (the Dusk Tide): driving Bb-C-Dm cadences, no calm resolutions
+const FINALE = [
+  ['Bb', 'C', 'Dm', 'Dm'], ['Dm', 'Bb', 'C', 'Asus'], ['Bb', 'C', 'Am', 'Dm'], ['Dm', 'C', 'Bb', 'C'],
+];
+
 // Ostinato: scale-degree offsets from the chord anchor, 16 eighth notes (2 bars)
 const PATS = [
   [0, 2, 4, 2, 5, 4, 2, 1, 0, 2, 4, 5, 7, 5, 4, 2],
@@ -115,6 +120,7 @@ export class Music {
   }
 
   setIntensity(v) { this.target = clamp(+v || 0); }
+  setFinale(on) { this.finale = !!on; } // the Dusk Tide: last-act arrangement
 
   start() {
     const now = this.ctx.currentTime;
@@ -174,7 +180,7 @@ export class Music {
     if (this.next < now - 0.06) this.next = now + 0.03; // fell behind (tab throttled): skip, never pile up
     while (this.next < tEnd && this.next < this.stopAt) {
       // tempo push: war sections drive ~12% faster (90 -> ~101 BPM); only changes on bar lines
-      if (this.step % 16 === 0) this.tempo = this.I > 0.7 ? 1.12 : this.I < 0.55 ? 1 : (this.tempo || 1);
+      if (this.step % 16 === 0) this.tempo = this.finale ? 1.18 : this.I > 0.7 ? 1.12 : this.I < 0.55 ? 1 : (this.tempo || 1);
       this._step(this.step, this.next);
       this.next += STEP / (this.tempo || 1);
       this.step++;
@@ -226,7 +232,7 @@ export class Music {
 
   _section(sec, t) {
     const I = this.I;
-    const pool = I > 0.5 ? WAR : CALM;
+    const pool = this.finale ? FINALE : I > 0.5 ? WAR : CALM;
     let pi;
     do { pi = (Math.random() * pool.length) | 0; } while (pool.length > 1 && pool === this.lastPool && pi === this.lastProg);
     // recurring identity: in sustained battle every other section returns to the
@@ -248,7 +254,7 @@ export class Music {
       if (I < 0.6 && !this.hadLead && Math.random() < 0.7) {
         const variant = Math.random() < 0.62 ? 'dizi' : 'erhu';
         this.plan = { kind: 'lead', bar: pick([1, 2, 4]), off: pick([0, 1, 2]), variant };
-      } else if (theme || (I >= 0.55 && Math.random() < 0.6)) {
+      } else if (theme || this.finale || (I >= 0.55 && Math.random() < 0.6)) {
         this.plan = { kind: 'horn', bar: pick([2, 4]), off: pick([0, 1]) };
       }
     }
@@ -366,7 +372,7 @@ export class Music {
 
   _drumStep(s16, barInChord, barInSec, t) {
     const I = this.I;
-    const lvl = I < 0.14 ? 0 : I < 0.4 ? 1 : I < 0.65 ? 2 : I < 0.85 ? 3 : 4;
+    const lvl = Math.max(this.finale ? 3 : 0, I < 0.14 ? 0 : I < 0.4 ? 1 : I < 0.65 ? 2 : I < 0.85 ? 3 : 4); // finale keeps the war drums rolling
     if (lvl === 0) return;
     let c = DRUMS[lvl][barInChord][s16];
     if (barInSec === 7 && I > 0.45 && s16 >= 8) c = FILL[s16];

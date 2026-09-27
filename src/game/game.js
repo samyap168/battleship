@@ -413,6 +413,7 @@ export class Game {
         this.duskTide = true;
         this.ui.announce('THE DUSK TIDE', 'Siege waves grow · every fortress crumbles, captains may siege alone', '#ffb35a');
         this.audio.stinger('enemyAge');
+        if (this.audio.setFinale) this.audio.setFinale(true);
         this.ui.feed('<b style="color:#ffb35a">The Dusk Tide rises:</b> <span class="dim">heavier gunboat waves, forts take +70% damage and no longer need gunboat escort to be sieged.</span>');
       }
       // mid-match squall

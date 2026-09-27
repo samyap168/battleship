@@ -88,6 +88,7 @@ function startGame(spectate) {
   if (worldGroup) scene.remove(worldGroup);
   worldGroup = new THREE.Group();
   scene.add(worldGroup);
+  audio.setFinale(false);
   G = new Game({ renderer: R, scene: worldGroup, fx, ocean, audio, ui: hud, sky, wakes, reflect: refl ? reflectable : null }, {
     difficulty: settings.difficulty, playerTeam: settings.team, spectate, playerName: 'You', autopilot: !!params.get('autopilot'),
   });
