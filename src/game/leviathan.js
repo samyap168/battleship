@@ -37,10 +37,34 @@ function scaleTexture() {
 function serpentMaterials() {
   const sc = scaleTexture();
   const skin = applyCloudShadow(new THREE.MeshPhysicalMaterial({ color: 0x0c6663, roughness: 0.3, metalness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.25, iridescence: 0.6, iridescenceIOR: 1.6, bumpMap: sc, bumpScale: 2.2, roughnessMap: sc }));
+  // creature colouring on the instanced body: countershading (near-black back, teal flanks, pale belly),
+  // dark dorsal saddles on alternating segments, and a thin bioluminescent flank line
+  const prevSkin = skin.onBeforeCompile;
+  skin.onBeforeCompile = (sh, r) => {
+    if (prevSkin) prevSkin(sh, r);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vSP; varying float vInst;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSP = position;\n#ifdef USE_INSTANCING\nvInst = float(gl_InstanceID);\n#else\nvInst = 0.0;\n#endif');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vSP; varying float vInst;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+{
+  float dors = smoothstep(-0.1, 0.85, vSP.y);
+  vec3 c = mix(diffuseColor.rgb, vec3(0.012, 0.07, 0.08), dors * 0.85);
+  float saddle = step(0.5, fract(vInst * 0.618)) * smoothstep(0.35, 0.9, vSP.y) * (1.0 - smoothstep(0.35, 0.95, abs(vSP.z)));
+  c = mix(c, vec3(0.006, 0.03, 0.035), saddle * 0.75);
+  c = mix(c, vec3(0.46, 0.52, 0.38), smoothstep(-0.05, -0.65, vSP.y) * 0.55);
+  diffuseColor.rgb = c;
+}`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+totalEmissiveRadiance += vec3(0.1, 0.95, 0.85) * exp(-pow((abs(vSP.x) - 0.93) / 0.05, 2.0)) * smoothstep(0.5, 0.1, abs(vSP.y)) * 0.9;`);
+  };
+  skin.customProgramCacheKey = () => 'leviathan-skin';
   const belly = applyCloudShadow(new THREE.MeshStandardMaterial({ color: 0xc9c08a, roughness: 0.55 }));
   const spine = applyCloudShadow(new THREE.MeshStandardMaterial({ color: 0x3a2a24, roughness: 0.5, metalness: 0.2 }));
   const glow = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x7dfff0, emissiveIntensity: 3 });
-  return { skin, belly, spine, glow };
+  const headSkin = applyCloudShadow(new THREE.MeshPhysicalMaterial({ color: 0x0a5552, roughness: 0.3, metalness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.25, iridescence: 0.6, iridescenceIOR: 1.6, bumpMap: sc, bumpScale: 2.2, roughnessMap: sc }));
+  return { skin, headSkin, belly, spine, glow };
 }
 
 export class Leviathan extends Unit {
@@ -65,7 +89,7 @@ export class Leviathan extends Unit {
     // lightweight per-segment transforms.
     const L = (px, py, pz, rx, sx, sy, sz) => new THREE.Matrix4().compose(new THREE.Vector3(px, py, pz), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, 0, 0)), new THREE.Vector3(sx, sy, sz));
     this.parts = [
-      { geo: segGeo, mat: M.skin, local: [L(0, 0, 0, 0, 1, 0.92, 1.35)], every: 1, shadow: true },
+      { geo: segGeo, mat: M.skin, local: [L(0, 0, 0, 0, 1, 0.92, 1.6)], every: 1, shadow: true }, // longer overlap: one sinuous body, not beads
       { geo: segGeo, mat: M.belly, local: [L(0, -0.42, 0, 0, 0.82, 0.55, 1.2)], every: 1 },
       { geo: spineGeo, mat: M.spine, local: [L(0, 1.05, 0, -0.5, 1, 1, 1)], every: 1, shadow: true },
       { geo: spotGeo, mat: M.glow, local: [L(-0.78, 0.05, 0, 0, 0.16, 0.16, 0.16), L(0.78, 0.05, 0, 0, 0.16, 0.16, 0.16)], every: 2 },
@@ -82,7 +106,7 @@ export class Leviathan extends Unit {
     this._pm = new THREE.Matrix4();
     // head: skull, jaw, fins, glowing eyes
     const head = new THREE.Group();
-    const skull = new THREE.Mesh(new THREE.ConeGeometry(1.25, 4.2, 12), M.skin); skull.rotation.x = Math.PI / 2; skull.scale.set(1.1, 1, 0.75); skull.castShadow = true;
+    const skull = new THREE.Mesh(new THREE.ConeGeometry(1.25, 4.2, 12), M.headSkin); skull.rotation.x = Math.PI / 2; skull.scale.set(1.1, 1, 0.75); skull.castShadow = true;
     const jaw = new THREE.Mesh(new THREE.ConeGeometry(0.95, 3.4, 10), M.belly); jaw.rotation.x = Math.PI / 2; jaw.position.set(0, -0.7, -0.2); jaw.scale.set(1, 1, 0.5);
     const finL = new THREE.Mesh(new THREE.ConeGeometry(0.4, 3.2, 5), M.spine); finL.position.set(1.1, 0.8, -0.8); finL.rotation.set(-0.9, 0, -0.8);
     const finR = finL.clone(); finR.position.x = -1.1; finR.rotation.z = 0.8;
