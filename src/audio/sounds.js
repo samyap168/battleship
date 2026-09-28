@@ -51,6 +51,7 @@ export const DEFS = {
   citadelFall:   { cap: 1, pri: 10, rev: 0.45, echo: 0.35, range: 3.0, jp: 0.02, jv: 0.04, lvl: 0.7 },
   roar:          { cap: 2, pri: 9, rev: 0.4,  echo: 0.2,  range: 1.6,  jp: 0.06, jv: 0.08, lvl: 0.9 },
   sailFlap:      { cap: 4, pri: 1, rev: 0.12, echo: 0,    range: 0.7,  jp: 0.1,  jv: 0.25, lvl: 4.68 },
+  hullGroan:     { cap: 2, pri: 6, rev: 0.4,  echo: 0.2,  range: 1.2,  jp: 0.08, jv: 0.1,  lvl: 0.36 },
   whaleBlow:     { cap: 2, pri: 2, rev: 0.25, echo: 0.1,  range: 1.1,  jp: 0.06, jv: 0.12, lvl: 0.55 },
   whaleSong:     { cap: 1, pri: 1, rev: 0.7,  echo: 0.45, range: 2.2,  jp: 0.08, jv: 0.1,  lvl: 0.3 },
 };
@@ -623,6 +624,28 @@ export const RECIPES = {
     V.tone(t, { f: 42 * p, f1: 28 * p, sweep: dur, a: 0.3, d: dur, peak: 0.8 }); // sub
     V.burst(t + 0.1, { kind: 'white', type: 'highpass', f: 2500, a: 0.2, d: 1.8, peak: 0.18, dest: [V.out, V.wet] }); // spray
     return dur + 1.5;
+  },
+
+  // a hull giving up: frames groan and bend (resonant, slowly detuning), timbers crack, the sea rushes in
+  hullGroan(V) {
+    const { t, p } = V;
+    const dur = 3.4;
+    const out = V.gain(0, V.out);
+    envelope2(out.gain, t, 0.4, 1.0, 1.4, 1.6);
+    const body = V.filter('bandpass', 180 * p, 7, out), ring = V.filter('bandpass', 430 * p, 11, V.gain(0.5, out));
+    body.frequency.exponentialRampToValueAtTime(95 * p, t + dur);
+    ring.frequency.exponentialRampToValueAtTime(300 * p, t + dur);
+    for (const [f, det] of [[46, 1], [46, 1.013], [69, 0.994]]) {
+      const o = V.osc('sawtooth', f * p * det, t, dur + 0.2, body); o.connect(ring);
+      o.frequency.linearRampToValueAtTime(f * p * det * 1.18, t + 0.9);
+      o.frequency.exponentialRampToValueAtTime(f * p * det * 0.62, t + dur);
+      V.lfo(rand(0.7, 1.4), f * p * 0.06, o.frequency, t, dur); // slow bending under load
+    }
+    for (let i = 0; i < 6; i++) V.burst(t + rand(0.1, 2.6), { kind: 'crackle', type: 'bandpass', f: rand(900, 2200) * p, Q: 1.2, a: 0.003, d: rand(0.08, 0.2), peak: rand(0.18, 0.32) }); // timbers
+    V.burst(t + 0.3, { kind: 'pink', type: 'lowpass', f: 900 * p, f1: 500 * p, sweep: 2.5, a: 0.6, hold: 1.2, d: 1.4, peak: 0.3, dest: [V.out, V.wet] }); // water rushing in
+    V.burst(t + 0.5, { kind: 'white', type: 'bandpass', f: 2600, Q: 0.8, a: 0.4, hold: 0.8, d: 1.0, peak: 0.08 }); // air venting
+    for (let i = 0; i < 9; i++) V.blip(t + rand(1.6, 3.6), rand(250, 700) * p, rand(0.03, 0.07), V.out, rand(0.05, 0.1), 1.6); // bubbles
+    return dur + 1.8;
   },
 
   // humpback exhale: a wet, chesty "PFFHH" that booms out of the blowhole, then a quick in-breath

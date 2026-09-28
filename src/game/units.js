@@ -118,7 +118,16 @@ export function syncShipVisual(u, dt, t, bobScale = 1) {
   u.leanS = THREE.MathUtils.lerp(u.leanS || 0, lean, Math.min(1, dt * 3));
   let y = ((yf + ya + yp + ys) * 0.25) * bobScale;
   let extraPitch = 0, extraRoll = 0;
-  if (!u.alive && u.sinkT !== undefined) {
+  if (!u.alive && u.sinkT !== undefined && u.kind === 'hero') {
+    // a captain goes down in three acts: lurch and list, the stern rears out of the sea, then the slide under
+    const T = u.sinkT, sd = u.sinkDir || 1;
+    const lurch = 1 - Math.pow(1 - Math.min(1, T / 1.1), 3);
+    const rear = THREE.MathUtils.smoothstep(T, 1.0, 4.4);
+    const slide = Math.min(1, Math.max(0, (T - 4.0) / 2.9));
+    y -= lurch * r.height * 0.12 + rear * r.height * 0.22 + slide * slide * (r.height * 0.7 + r.length * 0.5 + 6);
+    extraPitch = sd * (rear * 0.78 + slide * 0.4);
+    extraRoll = sd * (lurch * 0.42 - rear * 0.2);
+  } else if (!u.alive && u.sinkT !== undefined) {
     const k = Math.min(1, u.sinkT / 5);
     y -= k * k * (r.height + 8);
     extraPitch = k * (u.sinkDir || 1) * 0.5;

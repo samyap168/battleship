@@ -578,9 +578,13 @@ export class HUD {
         // segment ticks every 500 hp
         c.fillStyle = 'rgba(0,0,0,.55)';
         for (let k = 500; k < u.maxHp; k += 500) c.fillRect(x0 + (bw * k) / u.maxHp, y0, 1, bh);
+        const label = `${u.level}  ${u.name}`;
+        // a soft dark pill behind the name: stays legible over bloom, sun glint and white powder smoke
+        const tw = c.measureText(label).width + 12;
+        c.fillStyle = 'rgba(6,10,16,.46)';
+        if (c.roundRect) { c.beginPath(); c.roundRect(s.x - tw / 2, y0 - 17, tw, 15, 7); c.fill(); } else c.fillRect(s.x - tw / 2, y0 - 17, tw, 15);
         c.fillStyle = u === p ? '#ffe28a' : '#fff';
         c.strokeStyle = 'rgba(0,0,0,.8)'; c.lineWidth = 3;
-        const label = `${u.level}  ${u.name}`;
         c.strokeText(label, s.x, y0 - 5); c.fillText(label, s.x, y0 - 5);
         if (u.stun > 0) { c.fillStyle = '#9cf'; c.fillText('STUNNED', s.x, y0 + bh + 12); }
       } else if (boss) {

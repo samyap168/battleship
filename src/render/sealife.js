@@ -125,7 +125,7 @@ transformed.y += uBend * (sin(bu * 3.14159) * 0.9 - bu * bu * 1.2);`);
       scene.add(m);
       this.whales.push({ mesh: m, u, scale: i ? 0.55 : 1, delay: i ? 0.9 : 0, side: i ? 1 : 0 });
     }
-    this.meshes = this.whales.map((w) => w.mesh); // not reflectable: the mirror pass has no clip plane and would show the submerged body
+    this.meshes = this.whales.map((w) => w.mesh); // kept out of the mirror pass: a low back plus its reflection reads as a whole floating body
     this.next = rnd(18, 30);  // first sighting comes early so people notice
     this.active = null;
     this._v = new THREE.Vector3();

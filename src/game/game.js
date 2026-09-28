@@ -595,6 +595,38 @@ export class Game {
     }
   }
 
+  // captain's ship going down (visual only): magazine cook-offs, air venting where the hull slips under,
+  // a groan of failing frames, and a boil of escaping air after she's gone
+  sinkFx(u, r, dt) {
+    const T = u.sinkT, T0 = T - dt, at = (s) => T0 < s && T >= s;
+    const sd = u.sinkDir || 1, fx = Math.sin(u.yaw), fz = Math.cos(u.yaw), L = r.length;
+    const P = this.fx.p;
+    if (at(1.1)) this.audio.play('hullGroan', { x: u.x, z: u.z, vol: 1 });
+    for (const [s, o] of [[1.6, 0.28], [2.7, -0.18]]) if (at(s)) {
+      const k = sd * o * L;
+      this.fx.explosion(new THREE.Vector3(u.x + fx * k, 3, u.z + fz * k), 0.95);
+      this.audio.play('explosion', { x: u.x, z: u.z, vol: 0.55 });
+    }
+    if (T > 1.3 && T < 6.6 && Math.random() < 0.55) {
+      // the submerging end: air and spray jet out along the waterline
+      const k = sd * L * (0.22 + 0.12 * Math.random()) * (T < 4 ? 1 : 0.4);
+      const x = u.x + fx * k + rnd(-1.5, 1.5), z = u.z + fz * k + rnd(-1.5, 1.5), y = this.fx.waterY(x, z);
+      for (let i = 0; i < 3; i++) P.alpha.emit({ x, y, z, vx: rnd(-2.5, 2.5), vy: rnd(7, 15), vz: rnd(-2.5, 2.5), life: rnd(0.6, 1.0),
+        s0: 1, s1: rnd(3, 4.5), r: 0.93, g: 0.96, b: 1, a0: 0.5, a1: 0, kind: 3, grav: 16 });
+      if (Math.random() < 0.3) P.alpha.emit({ x, y: y + 1, z, vx: rnd(-0.5, 0.5), vy: rnd(2, 4), vz: rnd(-0.5, 0.5), life: rnd(1.8, 2.6),
+        s0: 2.5, s1: rnd(7, 10), r: 0.78, g: 0.79, b: 0.8, a0: 0.16, a1: 0, kind: 1, drag: 0.6 }); // steam where fire meets sea
+    }
+    if (at(6.5)) { this.ocean.decals.add(u.x, u.z, L * 0.9, 3.5, 1, 0.55, 2.4); this.audio.play('splash', { x: u.x, z: u.z, vol: 0.8, pitch: 0.6 }); }
+    if (T > 6.3 && T < 9.5 && Math.random() < 0.45) {
+      const a = Math.random() * 6.283, rr = Math.random() * L * 0.25;
+      const x = u.x + Math.cos(a) * rr, z = u.z + Math.sin(a) * rr, y = this.fx.waterY(x, z);
+      const g = 1 - (T - 6.3) / 3.2; // boil weakens as the air runs out
+      for (let i = 0; i < 4; i++) P.alpha.emit({ x, y, z, vx: rnd(-2, 2), vy: rnd(3, 8) * g + 1, vz: rnd(-2, 2), life: rnd(0.4, 0.7),
+        s0: 0.8, s1: rnd(2, 3.5) * (0.5 + g), r: 0.94, g: 0.97, b: 1, a0: 0.55, a1: 0, kind: 3, grav: 18 });
+      this.ocean.decals.add(x, z, rnd(2, 4) * (0.6 + g), 2.2, 0, 0.7, 1.6);
+    }
+  }
+
   syncVisual(u, dt, t) {
     const r = u.rig;
     if (!r) return;
@@ -616,8 +648,9 @@ export class Game {
     }
     if (!u.alive) {
       u.sinkT += dt;
-      if (u.sinkT > 5.5) { r.root.visible = false; return; }
-      if (Math.random() < 0.6) this.fx.fire(new THREE.Vector3(u.x + rnd(-3, 3), 2, u.z + rnd(-3, 3)), u.kind === 'hero' ? 1.5 : 0.8);
+      if (u.kind === 'hero') this.sinkFx(u, r, dt);
+      if (u.sinkT > (u.kind === 'hero' ? 7.2 : 5.5)) { r.root.visible = false; return; }
+      if (Math.random() < 0.6 && (u.kind !== 'hero' || u.sinkT < 4.6)) this.fx.fire(new THREE.Vector3(u.x + rnd(-3, 3), 2, u.z + rnd(-3, 3)), u.kind === 'hero' ? 1.5 : 0.8);
       if (this.frame % 3 === 0) this.ocean.decals.add(u.x + rnd(-4, 4), u.z + rnd(-4, 4), r.beam * 1.2, 3, 0, 0.8, 1.5);
       if (this.frame % 5 === 0) this.ocean.decals.add(u.x, u.z, r.beam * 1.5, 12, 2, 0.35, 0.4); // oil slick
     }
