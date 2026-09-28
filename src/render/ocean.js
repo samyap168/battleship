@@ -165,7 +165,15 @@ if (uReflOn > 0.5) {
   float rDist = clamp(length(cameraPosition - vOW) / 420.0, 0.0, 1.0);
   vec2 ruv = rc.xy / max(abs(rc.w), 1e-4) + wN.xz * 0.022 * mix(0.4, 1.0, clamp(V.y * 1.6, 0.0, 1.0)) * (1.0 + rDist * 1.6);
   if ((floatBitsToUint(ruv.x) & 0x7f800000u) == 0x7f800000u || (floatBitsToUint(ruv.y) & 0x7f800000u) == 0x7f800000u) ruv = vec2(0.5); // behind the mirror camera: never feed NaN to the sampler (bit test: D3D folds isnan away)
-  vec3 refl = texture2D(tReflect, clamp(ruv, 0.001, 0.999)).rgb;
+  // swell rows jitter the image sideways (breaks the dead-straight mirrored edges of karst walls and hulls),
+  // and many facets smear it vertically into streaks, more so with distance
+  float rd = length(cameraPosition.xz - vOW.xz);
+  float rip = sin(rd * 1.9 - uTime * 1.6 + sin(vOW.x * 0.21 + vOW.z * 0.17) * 2.5) * 0.6 + sin(rd * 4.7 + uTime * 2.3 + vOW.x * 0.37) * 0.4;
+  ruv.x += rip * (0.0014 + rDist * 0.007);
+  float st = 0.004 + rDist * 0.012;
+  vec3 refl = texture2D(tReflect, clamp(ruv, 0.001, 0.999)).rgb * 0.5
+    + texture2D(tReflect, clamp(ruv + vec2(0.0, st), 0.001, 0.999)).rgb * 0.25
+    + texture2D(tReflect, clamp(ruv - vec2(0.0, st), 0.001, 0.999)).rgb * 0.25;
   float F = (0.03 + 0.97 * pow(max(1.0 - max(dot(wN, V), 0.0), 0.0), 4.0)) * (1.0 - foam);
   reflectedLight.indirectSpecular = refl * F * 1.3;
   // energy conservation: where the water mirrors, it scatters less -> true-colour reflections
