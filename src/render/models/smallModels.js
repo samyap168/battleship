@@ -59,10 +59,11 @@ function smallMat(key, { metalness = 0.4, roughness = 0.45, glow = 3.5, flat = f
   m.onBeforeCompile = (sh) => {
     sh.fragmentShader = sh.fragmentShader.replace(
       '#include <emissivemap_fragment>',
-      '#include <emissivemap_fragment>\n#ifdef USE_COLOR\n totalEmissiveRadiance *= vColor.rgb;\n#endif',
+      // glow fades as a drone/projectile nears the camera: a swarm around a low camera must not bloom into a veil
+      '#include <emissivemap_fragment>\n#ifdef USE_COLOR\n totalEmissiveRadiance *= vColor.rgb;\n#endif\n totalEmissiveRadiance *= smoothstep(3.0, 30.0, length(vViewPosition));',
     );
   };
-  m.customProgramCacheKey = () => 'small-emissive-tint';
+  m.customProgramCacheKey = () => 'small-emissive-tint-nearfade';
   m.name = 'small:' + key;
   matCache.set(key, m);
   return m;
