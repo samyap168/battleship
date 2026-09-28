@@ -751,5 +751,11 @@ export class Game {
       _v.set(u.x + rnd(-1, 1) * r.beam * 0.3, 2 + rnd(0, 2), u.z + rnd(-1, 1) * r.beam * 0.3);
       this.fx.fire(_v, u.kind === 'hero' ? 1 : 0.6);
     }
+    // crippled: a dark plume climbs off the hull (thin and fast-fading, so it marks the ship without fogging the fight)
+    if (u.kind === 'hero' && hpF < 0.25 && this.frame % 4 === 0) {
+      _v.set(u.x + rnd(-1, 1) * r.beam * 0.25, 3 + r.height * 0.3, u.z + rnd(-1, 1) * r.beam * 0.25);
+      this.fx.p.alpha.emit({ x: _v.x, y: _v.y, z: _v.z, vx: rnd(-0.5, 0.5) + 1.2, vy: rnd(5, 8), vz: rnd(-0.5, 0.5), life: rnd(1.6, 2.4),
+        s0: 2.2, s1: rnd(7, 10), r: 0.09, g: 0.085, b: 0.08, a0: 0.42, a1: 0, kind: 1, drag: 0.4 });
+    }
   }
 }

@@ -118,6 +118,14 @@ export function syncShipVisual(u, dt, t, bobScale = 1) {
   u.leanS = THREE.MathUtils.lerp(u.leanS || 0, lean, Math.min(1, dt * 3));
   let y = ((yf + ya + yp + ys) * 0.25) * bobScale;
   let extraPitch = 0, extraRoll = 0;
+  if (u.alive && u.maxHp && u.kind !== 'boss') {
+    // damage tells: below half hull she settles lower and takes a list, so you can read who's hurting
+    const hurt = Math.max(0, 0.5 - u.hp / u.maxHp) * 2; // 0 at 50% -> 1 at 0%
+    u.listS = THREE.MathUtils.lerp(u.listS || 0, hurt, Math.min(1, dt * 1.5));
+    y -= u.listS * r.height * 0.05;
+    extraRoll += u.listS * 0.13 * ((u.id || 0) & 1 ? 1 : -1);
+    extraPitch += u.listS * 0.04;
+  }
   if (!u.alive && u.sinkT !== undefined && u.kind === 'hero') {
     // a captain goes down in three acts: lurch and list, the stern rears out of the sea, then the slide under
     const T = u.sinkT, sd = u.sinkDir || 1;
