@@ -42,10 +42,15 @@ const GradeShader = {
     uCA: { value: 0.0007 },
     uGrain: { value: 0.018 },
     uFlash: { value: 0 },
+    uRain: { value: 0 },
   },
   vertexShader: /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
   fragmentShader: /* glsl */ `
-    uniform sampler2D tDiffuse; uniform float uTime, uDamage, uDesat, uContrast, uSat, uVignette, uCA, uGrain, uFlash;
+    uniform sampler2D tDiffuse; uniform float uTime, uDamage, uDesat, uContrast, uSat, uVignette, uCA, uGrain, uFlash, uRain;
+    float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      float a = fract(sin(dot(i, vec2(127.1, 311.7))) * 43758.5), b = fract(sin(dot(i + vec2(1, 0), vec2(127.1, 311.7))) * 43758.5);
+      float cc = fract(sin(dot(i + vec2(0, 1), vec2(127.1, 311.7))) * 43758.5), d = fract(sin(dot(i + vec2(1, 1), vec2(127.1, 311.7))) * 43758.5);
+      return mix(mix(a, b, f.x), mix(cc, d, f.x), f.y); }
     uniform vec2 uRes; uniform vec4 uShock[4]; uniform vec3 uLift, uGain;
     varying vec2 vUv;
     float rnd(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + uTime * 7.13) * 43758.5453); }
@@ -63,7 +68,7 @@ const GradeShader = {
       }
       vec2 c = uv - 0.5;
       float edge = dot(c, c);
-      vec2 off = c * uCA * (1.0 + edge * 6.0);
+      vec2 off = c * uCA * (1.0 + edge * 6.0) * (1.0 - uRain * 0.85); // thin bright rain streaks would split into rainbow fringes
       vec3 col;
       col.r = texture2D(tDiffuse, uv + off).r;
       col.g = texture2D(tDiffuse, uv).g;
@@ -79,6 +84,21 @@ const GradeShader = {
       // Damage vignette
       float dv = smoothstep(0.25, 0.9, length(c * vec2(aspect * 0.7, 1.0)));
       col = mix(col, vec3(0.55, 0.02, 0.02), dv * uDamage * 0.65);
+      // squall: wind-driven sheets of rain sweeping across the frame. Two streak layers skewed along the
+      // fall, gated by slow gust curtains; kept faint so it reads as weather, not fog
+      if (uRain > 0.001) {
+        vec2 q = vec2(c.x * aspect, c.y);
+        float gust = smoothstep(0.35, 0.85, vn(vec2(q.x * 1.6 + q.y * 0.5 - uTime * 0.9, uTime * 0.21)));
+        float st = 0.0;
+        for (int i = 0; i < 2; i++) {
+          float fi = float(i);
+          vec2 p = vec2(q.x + q.y * 0.3, q.y);
+          st += smoothstep(0.72, 0.95, vn(vec2(p.x * (170.0 + fi * 90.0), p.y * (2.2 + fi) + uTime * (9.0 + fi * 4.0)))) * (1.0 - fi * 0.35);
+        }
+        float kk = uRain * (0.35 + 0.65 * gust);
+        col = mix(col, vec3(0.62, 0.67, 0.74), gust * uRain * 0.05);   // the curtain itself
+        col += vec3(0.55, 0.6, 0.68) * st * kk * 0.07;                  // streaks
+      }
       col += uFlash;
       col += (rnd(uv * uRes) - 0.5) * uGrain;
       gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);

@@ -4,7 +4,7 @@ import { CLOUD } from './cloudShadow.js';
 
 // Squall system: a storm front rolls through mid-match. Drives sky grading,
 // fog, swell height, rain, lightning and thunder. `k` (0..1) is intensity.
-const RAIN_N = 2600;
+const RAIN_N = 5200;
 const rnd = (a, b) => a + Math.random() * (b - a);
 
 export class Weather {
@@ -32,7 +32,7 @@ export class Weather {
     quad.instanceCount = RAIN_N;
     this.rainU = {
       uTime: { value: 0 }, uFocus: { value: new THREE.Vector3() }, uK: { value: 0 }, uCount: { value: 0 },
-      uWind: { value: new THREE.Vector2(22, 6) }, uRes: { value: new THREE.Vector2(1600, 900) },
+      uWind: { value: new THREE.Vector2(30, 9) }, uRes: { value: new THREE.Vector2(1600, 900) },
       uColor: { value: new THREE.Color(0.62, 0.68, 0.76) }, uFlash: renderer.grade.uniforms.uFlash,
     };
     this.rainMat = new THREE.ShaderMaterial({
@@ -54,7 +54,7 @@ export class Weather {
           vec2 xz = aSeed.xy + uFocus.xz + uWind * (ph * cyc);
           xz = uFocus.xz + mod(xz - uFocus.xz + BOX * 0.5, BOX) - BOX * 0.5;
           vec3 head = vec3(xz.x, H * (1.0 - ph), xz.y);
-          vec3 tail = head - normalize(vel) * (3.2 * aVar.y + 1.2);
+          vec3 tail = head - normalize(vel) * (5.5 * aVar.y + 2.0);
           vec4 ch = projectionMatrix * viewMatrix * vec4(head, 1.0);
           vec4 ct = projectionMatrix * viewMatrix * vec4(tail, 1.0);
           vec2 sh = ch.xy / ch.w * uRes, st = ct.xy / ct.w * uRes;
@@ -117,11 +117,22 @@ export class Weather {
     CLOUD.uCloudAmt.value = 0.6 + k * 0.3;
     // rain
     this.rain.visible = k > 0.01;
+    this.R.grade.uniforms.uRain.value = Math.min(1, k * 1.15);
     if (this.rain.visible) {
       const u = this.rainU;
       u.uTime.value += dt; u.uK.value = Math.min(1, k * 1.2); u.uCount.value = Math.min(1, k * 1.3);
       u.uFocus.value.set(focus.x, 0, focus.z);
       u.uRes.value.set(window.innerWidth, window.innerHeight);
+      // spindrift: the gale tears spray off the crests and flings it downwind
+      this.sprayAcc = (this.sprayAcc || 0) + dt * 70 * Math.max(0, k - 0.3);
+      while (this.sprayAcc >= 1) {
+        this.sprayAcc -= 1;
+        const r = Math.pow(Math.random(), 0.7) * 130, a = Math.random() * Math.PI * 2;
+        const x = focus.x + Math.cos(a) * r, z = focus.z + Math.sin(a) * r, y = this.fx.waterY(x, z);
+        if (y < 0.6) continue; // only off the crests
+        for (let i = 0; i < 3; i++) this.fx.p.alpha.emit({ x: x + rnd(-1, 1), y: y + 0.3, z: z + rnd(-1, 1), vx: 30 * rnd(0.5, 0.9), vy: rnd(1.5, 4), vz: 9 * rnd(0.5, 0.9),
+          life: rnd(0.6, 1.1), s0: 0.7, s1: rnd(2.5, 4), r: 0.86, g: 0.9, b: 0.95, a0: 0.32 * k, a1: 0, kind: 3, grav: 5, drag: 0.8 });
+      }
       // impact rings pock the sea around the view
       this.splashAcc += dt * 150 * k;
       while (this.splashAcc >= 1) {
