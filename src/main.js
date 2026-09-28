@@ -491,7 +491,7 @@ function tick(dt, draw) {
   CLOUD.uCloudT.value = wallTime;
   env.update(t);
   birds.update(dt, wallTime);
-  sealife.update(gdt, t, f, cameraDir.yaw);
+  if (mode === 'play') sealife.update(gdt, t, f, cameraDir.yaw); // not in the menu showreel: its orbit camera can't frame them
   wakes.update(gdt, t);
   ocean.update(gdt, t, f.x, f.z, sky);
   fx.update(gdt, t);

@@ -185,14 +185,26 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
   splash(x, z, scale = 1, alpha = 0.85) {
     const y = this.waterY(x, z);
     const P = this.p;
-    const n = Math.round(14 * scale);
-    for (let i = 0; i < n; i++) {
-      const a = Math.random() * 6.283, sp = rnd(1, 5) * scale;
-      P.alpha.emit({ x: x + Math.cos(a) * scale, y, z: z + Math.sin(a) * scale, vx: Math.cos(a) * sp, vy: rnd(10, 26) * Math.sqrt(scale), vz: Math.sin(a) * sp,
-        life: rnd(0.8, 1.4), s0: rnd(1.5, 3) * scale, s1: rnd(4, 7) * scale, r: 0.95, g: 0.98, b: 1.0, a0: alpha, a1: 0, kind: 3, grav: 26 });
+    const sq = Math.sqrt(scale);
+    // a real splash is a narrow column that shoots up and collapses, a crown of droplets thrown out
+    // and down, and a low mist; not one soft ball of spray (which is what fat puffs stack into side-on)
+    const nc = Math.round(10 * scale);
+    for (let i = 0; i < nc; i++) {
+      const a = Math.random() * 6.283, sp = rnd(0.3, 1.4) * scale;
+      P.alpha.emit({ x: x + Math.cos(a) * 0.4 * scale, y, z: z + Math.sin(a) * 0.4 * scale, vx: Math.cos(a) * sp, vy: rnd(12, 30) * sq, vz: Math.sin(a) * sp,
+        life: rnd(0.9, 1.4), s0: rnd(0.9, 1.5) * scale, s1: rnd(2.2, 3.4) * scale, r: 0.95, g: 0.98, b: 1.0, a0: alpha, a1: 0, kind: 3, grav: 26 });
     }
-    // central column
-    P.alpha.emit({ x, y: y + 2 * scale, z, vy: 6 * scale, life: 1.1, s0: 3 * scale, s1: 9 * scale, r: 0.92, g: 0.96, b: 1, a0: alpha * 0.8, a1: 0, kind: 3, grav: 4 });
+    const nd = Math.round(18 * scale);
+    for (let i = 0; i < nd; i++) {
+      const a = Math.random() * 6.283, sp = rnd(3.5, 9) * scale;
+      P.alpha.emit({ x: x + Math.cos(a) * scale, y: y + 0.3, z: z + Math.sin(a) * scale, vx: Math.cos(a) * sp, vy: rnd(7, 17) * sq, vz: Math.sin(a) * sp,
+        life: rnd(0.7, 1.2), s0: rnd(0.35, 0.6) * scale, s1: rnd(0.8, 1.4) * scale, r: 0.93, g: 0.97, b: 1.0, a0: alpha * 0.9, a1: 0, kind: 3, grav: 30 });
+    }
+    for (let i = 0; i < 3; i++) {
+      const a = Math.random() * 6.283;
+      P.alpha.emit({ x: x + Math.cos(a) * 1.5 * scale, y: y + 0.8 * scale, z: z + Math.sin(a) * 1.5 * scale, vx: Math.cos(a) * 1.5, vy: rnd(0.6, 1.6), vz: Math.sin(a) * 1.5,
+        life: rnd(1.4, 2.0), s0: 2 * scale, s1: rnd(6, 8) * scale, r: 0.88, g: 0.92, b: 0.96, a0: alpha * 0.22, a1: 0, kind: 1, drag: 0.8 });
+    }
     this.decals.add(x, z, 4 * scale, 2.5, 1, 0.8, 2.5);
     this.decals.add(x, z, 5 * scale, 6, 0, 0.9, 0.6);
   }

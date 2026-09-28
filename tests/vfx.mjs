@@ -25,6 +25,11 @@ await page.evaluate((effect) => {
     emp: () => fx.emp(-200, 0, 30),
     rail: () => { fx.beam(new V(-260, 3, 10), new V(-140, 3, -10), 0x5fc4ff, 3.2, 0.5); fx.beam(new V(-260, 3, 10), new V(-140, 3, -10), 0xffffff, 1, 0.25); },
     ageup: () => fx.ageUp(P, 0x5fc4ff),
+    splash: () => { // side-on, low: the angle that exposes a splash's shape
+      const pos = new V(-200 + 40, 7, 28), look = new V(-200, 6, 0);
+      A.cameraDir.startCinematic([{ t: 0, pos, look }, { t: 999, pos, look }], { x: -200, z: 0 }, { letterbox: false });
+      fx.splash(-200, 0, 1.6); fx.splash(-188, -10, 1.0); fx.splash(-214, 6, 0.7);
+    },
     muzzle: () => { for (let i = 0; i < 6; i++) fx.muzzle(new V(-220 + i * 8, 4, 0), new V(0, 0.1, -1), 1.3, i % 2 ? 'ball' : 'shell'); },
   };
   run[effect]();
