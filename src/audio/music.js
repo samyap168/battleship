@@ -120,7 +120,7 @@ export class Music {
   }
 
   setIntensity(v) { this.target = clamp(+v || 0); }
-  setFinale(on) { this.finale = !!on; } // the Dusk Tide: last-act arrangement
+  setFinale(on) { this.finale = !!on; if (!on) this.themeN = 0; } // the Dusk Tide: last-act arrangement (reset per match: theme climbs afresh)
 
   start() {
     const now = this.ctx.currentTime;
@@ -247,7 +247,9 @@ export class Music {
     this.lastPat = pat;
     this.pat = PATS[pat];
     this.shifts = [0, pick([-1, 0, 1, 2]), 0, pick([-1, 1, 2])];
-    if (theme) { const lift = [0, 2, 4][(this.warSecs >> 1) % 3]; this.shifts = this.shifts.map((v) => v + lift); } // each return of the theme climbs
+    // each return of the theme climbs a step and then holds at the top, so the throughline builds
+    // (was indexed by warSecs >> 1, which for returns 1, 4, 7, 10 gave 0, +4, 0, +4: never +2, and it fell back)
+    if (theme) { this.themeN = (this.themeN || 0) + 1; const lift = [0, 2, 4][Math.min(2, this.themeN - 1)]; this.shifts = this.shifts.map((v) => v + lift); }
     this.breath = sec % 4 === 3 && I < 0.7;
     this.plan = null;
     if (!this.opening) {
