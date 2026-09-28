@@ -186,11 +186,13 @@ export class HUD {
   openAgeChoice(options, onPick) {
     const p = this.G.player;
     // live read of the enemy fleet: how many of the hulls this card beats / fears are out there right now
-    const enemy = this.G.heroes.filter((o) => o.team !== p.team).map((o) => o.hullId);
+    const enemy = this.G.heroes.filter((o) => o.team !== p.team);
+    // weighted by threat: list the captains' levels, strongest first, so a fed Lv 9 reads louder than a Lv 3
+    const lv = (arr) => arr.length ? ` <small>(${arr.sort((a, b) => b.level - a.level).map((o) => 'Lv ' + o.level).join(' · ')})</small>` : '';
     const liveMatch = (id) => {
-      const beats = enemy.filter((e) => (BEATS[id] || []).includes(e)).length;
-      const fears = enemy.filter((e) => (BEATS[e] || []).includes(id)).length;
-      return beats || fears ? `<span class="live">Enemy fleet now: <b class="g">${beats} it counters</b> · <b class="r">${fears} that counter it</b></span>` : '';
+      const beats = enemy.filter((e) => (BEATS[id] || []).includes(e.hullId));
+      const fears = enemy.filter((e) => (BEATS[e.hullId] || []).includes(id));
+      return beats.length || fears.length ? `<span class="live">Enemy fleet now: <b class="g">${beats.length} it counters</b>${lv(beats)} · <b class="r">${fears.length} that counter it</b>${lv(fears)}</span>` : '';
     };
     const next = AGES[p.age];
     const root = this.$('modalRoot');

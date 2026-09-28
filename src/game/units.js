@@ -128,10 +128,14 @@ export function syncShipVisual(u, dt, t, bobScale = 1) {
     extraPitch = sd * (rear * 0.78 + slide * 0.4);
     extraRoll = sd * (lurch * 0.42 - rear * 0.2);
   } else if (!u.alive && u.sinkT !== undefined) {
-    const k = Math.min(1, u.sinkT / 5);
-    y -= k * k * (r.height + 8);
-    extraPitch = k * (u.sinkDir || 1) * 0.5;
-    extraRoll = k * 0.35;
+    // gunboats: a fast lurch onto their beam ends, then bow-first under
+    const T = u.sinkT, sd = u.sinkDir || 1;
+    const lurch = 1 - Math.pow(1 - Math.min(1, T / 0.6), 3);
+    const dive = THREE.MathUtils.smoothstep(T, 0.5, 3.2);
+    const k = Math.min(1, T / 4.2);
+    y -= lurch * r.height * 0.1 + k * k * (r.height + r.length * 0.35 + 6);
+    extraPitch = sd * dive * 0.75;
+    extraRoll = lurch * 0.6 - dive * 0.2;
   }
   r.root.position.set(u.x, y, u.z);
   _e.set(pitch + extraPitch, u.yaw, roll + u.leanS + extraRoll);
