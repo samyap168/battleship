@@ -191,7 +191,7 @@ transformed.y += uBend * (sin(bu * 3.14159) * 0.9 - bu * bu * 1.2);`);
         w.blown++;
         const bx = x + sh * ls * 0.27, bz = z + ch * ls * 0.27, by = wy + 0.6 * s;
         this._blow(bx, by, bz, s * (bi ? 0.8 : 1));
-        if (this.onSound && !w.side) this.onSound('whaleBlow', bx, bz, bi ? 0.75 : 1);
+        if (this.onSound && !w.side) this.onSound('whaleBlow', bx, bz, bi ? 0.75 : 1, bi ? 0.88 : 1); // the second breath is shorter and lower
       }
       // white water where the back breaks the surface
       if (tau > 1.0 && tau < 7.0 && tau > w.foamAt) {

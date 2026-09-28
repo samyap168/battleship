@@ -197,7 +197,7 @@ export class Engine {
     head.connect(isUI ? this.uiIn : this.sfxIn);
     // the biggest moments (Leviathan roar, citadel collapse) get width: two faint Haas copies,
     // 11/17 ms late and panned hard left/right, so they fill the stereo field instead of sitting mono
-    if (def.pri >= 9 && !isUI && ctx.createStereoPanner) {
+    if (def.wide && !isUI && ctx.createStereoPanner) { // opt-in (DEFS.wide): not the frequent pri-9 ticks and confirms
       for (const [pn, dl] of [[-0.85, 0.011], [0.85, 0.017]]) {
         const gg = V.gain(base * g * 0.32), d = ctx.createDelay(0.05), pp = ctx.createStereoPanner();
         d.delayTime.value = dl; pp.pan.value = pn;
@@ -296,7 +296,7 @@ export class Engine {
     dk.setTargetAtTime(0.35, t, 0.12);
     dk.setTargetAtTime(1, t + dur * 0.7, 0.9);
     if (pri >= 8 && this.sfxIn) { // the big stingers also carve ~4 dB out of the battle (e.g. the citadel collapse's sub rumble)
-      const sd = this.sfxIn.gain; sd.cancelScheduledValues(t); sd.setTargetAtTime(0.55 * 0.63, t, 0.05); sd.setTargetAtTime(0.55, t + Math.min(2.5, dur * 0.4), 0.6);
+      const sd = this.sfxIn.gain; sd.cancelScheduledValues(t); sd.setTargetAtTime(0.55 * 0.63, t, 0.05); sd.setTargetAtTime(0.55, t + Math.min(pri >= 9 ? 3.4 : 2.5, dur * (pri >= 9 ? 0.6 : 0.4)), 0.6); // the loudest hold until the citadel's sub tail has rung out
     }
     this.stingers.push({ name, pri, start: t, end: t + dur, out, wet });
     return true;

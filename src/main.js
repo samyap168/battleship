@@ -98,7 +98,7 @@ const wakes = new Wakes(scene);
 const particles = new Particles(scene);
 const fx = new FX(scene, particles, ocean.decals, R);
 const sealife = new SeaLife(scene, ISLANDS, fx);
-sealife.onSound = (n, x, z, vol) => audio.play(n, { x, z, vol });
+sealife.onSound = (n, x, z, vol, pitch = 1) => audio.play(n, { x, z, vol, pitch });
 sealife.clear = (x, z) => { // whales keep clear of the fleets
   if (!G) return true;
   for (const L of [G.heroes, G.creeps, G.structures]) for (const u of L) if (u.alive !== false && Math.hypot(u.x - x, u.z - z) < 34) return false;

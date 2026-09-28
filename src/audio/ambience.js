@@ -98,7 +98,7 @@ export class Ambience {
   }
 
   /** The Dusk Tide: a lower, gustier wind and the gulls fall quiet. */
-  setDusk(on) { this.dusk = !!on; }
+  setDusk(on) { this.dusk = !!on; if (on && this.ctx) this.nextWind = this.ctx.currentTime; } // the dusk wind lands with the event, not up to 7 s later
 
   setStorm(v) {
     this.storm = clamp(v);
