@@ -604,7 +604,7 @@ export class Game {
     if (at(1.1)) this.audio.play('hullGroan', { x: u.x, z: u.z, vol: 1 });
     for (const [s, o] of [[1.6, 0.28], [2.7, -0.18]]) if (at(s)) {
       const k = sd * o * L;
-      this.fx.explosion(new THREE.Vector3(u.x + fx * k, 3, u.z + fz * k), 0.95);
+      this.fx.explosion(new THREE.Vector3(u.x + fx * k, 3, u.z + fz * k), 0.78); // small: the hull silhouette must stay readable
       this.audio.play('explosion', { x: u.x, z: u.z, vol: 0.55 });
     }
     if (T > 1.3 && T < 6.6 && Math.random() < 0.55) {

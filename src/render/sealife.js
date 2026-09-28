@@ -227,7 +227,7 @@ transformed.y += uBend * (sin(bu * 3.14159) * 0.9 - bu * bu * 1.2);`);
     }
     for (let i = 0; i < 5; i++) {
       P.alpha.emit({ x: x + rnd(-1, 1), y: y + rnd(6, 9) * s, z: z + rnd(-1, 1), vx: rnd(0.6, 1.6), vy: rnd(0.2, 0.8), vz: rnd(-0.5, 0.5),
-        life: rnd(2.4, 3.4), s0: 3 * s, s1: rnd(8, 11) * s, r: 0.86, g: 0.89, b: 0.92, a0: 0.16, a1: 0, kind: 1, drag: 0.5 });
+        life: rnd(2.4, 3.4), s0: 3 * s, s1: rnd(8, 11) * s, r: 0.86, g: 0.89, b: 0.92, a0: 0.22, a1: 0, kind: 1, drag: 0.5 });
     }
   }
 

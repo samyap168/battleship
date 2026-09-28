@@ -169,7 +169,7 @@ if (uReflOn > 0.5) {
   // and many facets smear it vertically into streaks, more so with distance
   float rd = length(cameraPosition.xz - vOW.xz);
   float rip = sin(rd * 1.9 - uTime * 1.6 + sin(vOW.x * 0.21 + vOW.z * 0.17) * 2.5) * 0.6 + sin(rd * 4.7 + uTime * 2.3 + vOW.x * 0.37) * 0.4;
-  ruv.x += rip * (0.0014 + rDist * 0.007);
+  ruv.x += rip * (0.0014 + rDist * 0.009);
   float st = 0.004 + rDist * 0.012;
   vec3 refl = texture2D(tReflect, clamp(ruv, 0.001, 0.999)).rgb * 0.5
     + texture2D(tReflect, clamp(ruv + vec2(0.0, st), 0.001, 0.999)).rgb * 0.25

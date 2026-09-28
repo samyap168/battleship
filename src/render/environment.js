@@ -332,7 +332,7 @@ export function karstTower(r, h, seed, lean = 0) {
   const hsh = (k) => { const x = Math.sin(seed * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
   const warm = hsh(1), lum = 0.9 + 0.2 * hsh(2);
   const tintR = lum * (0.9 + warm * 0.24), tintG = lum * (0.97 + warm * 0.05), tintB = lum * (1.14 - warm * 0.28); // iron-red to cool grey limestone
-  const stoneKind = Math.floor(hsh(3) * 2.999); // 0 warm tan, 1 cool grey, 2 dark weathered
+  const stoneKind = Math.floor(hsh(3) * 3.999); // 0 warm tan, 1 cool blue-grey, 2 dark weathered, 3 pale cream
   const _grey = new THREE.Color();
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
@@ -352,8 +352,10 @@ export function karstTower(r, h, seed, lean = 0) {
     c.r *= tintR; c.g *= tintG; c.b *= tintB;
     if (stoneKind > 0 && veg < 0.5) {
       const L = c.r * 0.3 + c.g * 0.59 + c.b * 0.11;
-      if (stoneKind === 1) { c.lerp(_grey.setRGB(L * 0.95, L * 1.0, L * 1.1), 0.6); }
-      else { c.lerp(_grey.setRGB(L * 0.72, L * 0.72, L * 0.76), 0.55); }
+      // big value steps as well as hue: in the haze of a wide shot, value is what survives the fog
+      if (stoneKind === 1) c.lerp(_grey.setRGB(L * 0.84, L * 0.96, L * 1.18), 0.85);
+      else if (stoneKind === 2) c.lerp(_grey.setRGB(L * 0.5, L * 0.53, L * 0.55), 0.8);
+      else c.lerp(_grey.setRGB(Math.min(1, L * 1.4), Math.min(1, L * 1.33), Math.min(1, L * 1.18)), 0.75);
     }
     col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
   }
