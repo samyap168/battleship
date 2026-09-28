@@ -191,6 +191,15 @@ export class Engine {
     if (positional) { const p = V.pan(pan); head.connect(p); head = p; nodes.push(p); }
     const isUI = name.startsWith('ui');
     head.connect(isUI ? this.uiIn : this.sfxIn);
+    // the biggest moments (Leviathan roar, citadel collapse) get width: two faint Haas copies,
+    // 11/17 ms late and panned hard left/right, so they fill the stereo field instead of sitting mono
+    if (def.pri >= 9 && !isUI && ctx.createStereoPanner) {
+      for (const [pn, dl] of [[-0.85, 0.011], [0.85, 0.017]]) {
+        const gg = V.gain(base * g * 0.32), d = ctx.createDelay(0.05), pp = ctx.createStereoPanner();
+        d.delayTime.value = dl; pp.pan.value = pn;
+        V.out.connect(gg); gg.connect(d); d.connect(pp); pp.connect(this.sfxIn); nodes.push(gg, d, pp);
+      }
+    }
     if (isUI) { const ud = this.uiDuck.gain; ud.cancelScheduledValues(t); ud.setTargetAtTime(0.6, t, 0.008); ud.setTargetAtTime(1, t + 0.09, 0.08); }
     if (def.pri >= 4) {
       let heavy = 0; for (const v of this.voices) if (v.pri >= 4 && t - v.start < 0.9) heavy++;
