@@ -51,6 +51,8 @@ export const DEFS = {
   citadelFall:   { cap: 1, pri: 10, rev: 0.45, echo: 0.35, range: 3.0, jp: 0.02, jv: 0.04, lvl: 0.7 },
   roar:          { cap: 2, pri: 9, rev: 0.4,  echo: 0.2,  range: 1.6,  jp: 0.06, jv: 0.08, lvl: 0.9 },
   sailFlap:      { cap: 4, pri: 1, rev: 0.12, echo: 0,    range: 0.7,  jp: 0.1,  jv: 0.25, lvl: 4.68 },
+  whaleBlow:     { cap: 2, pri: 2, rev: 0.25, echo: 0.1,  range: 1.1,  jp: 0.06, jv: 0.12, lvl: 0.55 },
+  whaleSong:     { cap: 1, pri: 1, rev: 0.7,  echo: 0.45, range: 2.2,  jp: 0.08, jv: 0.1,  lvl: 0.3 },
 };
 
 // ---------------------------------------------------------------------------
@@ -621,6 +623,37 @@ export const RECIPES = {
     V.tone(t, { f: 42 * p, f1: 28 * p, sweep: dur, a: 0.3, d: dur, peak: 0.8 }); // sub
     V.burst(t + 0.1, { kind: 'white', type: 'highpass', f: 2500, a: 0.2, d: 1.8, peak: 0.18, dest: [V.out, V.wet] }); // spray
     return dur + 1.5;
+  },
+
+  // humpback exhale: a wet, chesty "PFFHH" that booms out of the blowhole, then a quick in-breath
+  whaleBlow(V) {
+    const { t, p } = V;
+    V.burst(t, { kind: 'pink', type: 'bandpass', f: 1100 * p, f1: 520 * p, sweep: 0.9, Q: 0.9, a: 0.025, hold: 0.25, d: 0.9, peak: 0.7, dest: [V.out, V.echo] });
+    V.burst(t, { kind: 'brown', type: 'lowpass', f: 380 * p, a: 0.02, hold: 0.2, d: 0.7, peak: 0.55 });
+    V.burst(t + 0.02, { kind: 'white', type: 'highpass', f: 3200, a: 0.04, hold: 0.15, d: 1.1, peak: 0.16, dest: [V.out, V.wet] }); // spray hiss
+    V.tone(t, { f: 70 * p, f1: 48 * p, sweep: 0.6, a: 0.02, d: 0.6, peak: 0.35 });
+    V.burst(t + 1.25, { kind: 'pink', type: 'bandpass', f: 1500 * p, f1: 2100 * p, sweep: 0.35, Q: 1.4, a: 0.12, d: 0.3, peak: 0.22 });
+    return 2.0;
+  },
+
+  // distant song: a slow moan that rises, bends and falls through a resonant throat, far across the water
+  whaleSong(V) {
+    const { t, p } = V;
+    const out = V.gain(0, V.out);
+    const dur = 3.6;
+    envelope2(out.gain, t, 0.9, 1.0, 1.6, 1.1);
+    const th = V.filter('bandpass', 420 * p, 2.5, out);
+    th.frequency.linearRampToValueAtTime(700 * p, t + 1.6);
+    th.frequency.exponentialRampToValueAtTime(300 * p, t + dur);
+    for (const [det, lvl, type] of [[1, 0.8, 'sine'], [2.01, 0.25, 'triangle'], [0.5, 0.35, 'sine']]) {
+      const o = V.osc(type, 150 * p * det, t, dur + 0.2, V.gain(lvl, th));
+      o.frequency.exponentialRampToValueAtTime(265 * p * det, t + 1.5);
+      o.frequency.linearRampToValueAtTime(240 * p * det, t + 2.3);
+      o.frequency.exponentialRampToValueAtTime(118 * p * det, t + dur);
+      V.lfo(5.2, 4 * p * det, o.frequency, t + 0.8, dur - 0.8); // slow vibrato
+    }
+    V.tone(t + 2.6, { f: 520 * p, f1: 340 * p, sweep: 0.9, a: 0.25, d: 0.8, peak: 0.12, dest: V.wet }); // a high answering cry
+    return dur + 2.5;
   },
 
   towerDown(V) {

@@ -15,6 +15,7 @@ import { audio } from './audio/audio.js';
 import { CLOUD } from './render/cloudShadow.js';
 import { Weather } from './render/weather.js';
 import { Birds } from './render/birds.js';
+import { SeaLife } from './render/sealife.js';
 import { Wakes } from './render/wakes.js';
 import { renderThumbnails } from './render/thumbnails.js';
 import { WaterReflection, reflectable } from './render/reflection.js';
@@ -95,6 +96,13 @@ const birds = new Birds(scene, ISLANDS);
 const wakes = new Wakes(scene);
 const particles = new Particles(scene);
 const fx = new FX(scene, particles, ocean.decals, R);
+const sealife = new SeaLife(scene, ISLANDS, fx);
+sealife.onSound = (n, x, z, vol) => audio.play(n, { x, z, vol });
+sealife.clear = (x, z) => { // whales keep clear of the fleets
+  if (!G) return true;
+  for (const L of [G.heroes, G.creeps, G.structures]) for (const u of L) if (u.alive !== false && Math.hypot(u.x - x, u.z - z) < 34) return false;
+  return true;
+};
 // Planar reflections on Ultra: tag reflection-worthy objects onto layer 2.
 let refl = null;
 if (settings.quality === 'high' && params.get('refl') !== '0') {
@@ -426,7 +434,7 @@ const AGE_GRADE = {
 const gradeCur = { gain: new THREE.Vector3(1, 1, 1), lift: new THREE.Vector3(), sat: 1.1, con: 1.08, ca: 0.0007 };
 const _px = new Uint8Array(4);
 function syncGPU() { const g = R.gl.getContext(); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, _px); }
-window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, refl, weather, TEAM_RIM, get fps() { return fps; }, howto: (on) => showHowTo(on) };
+window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, refl, weather, TEAM_RIM, get fps() { return fps; }, howto: (on) => showHowTo(on), sealife };
 
 function frame() {
   requestAnimationFrame(frame);
@@ -480,6 +488,7 @@ function tick(dt, draw) {
   CLOUD.uCloudT.value = wallTime;
   env.update(t);
   birds.update(dt, wallTime);
+  sealife.update(gdt, t, f, cameraDir.yaw);
   wakes.update(gdt, t);
   ocean.update(gdt, t, f.x, f.z, sky);
   fx.update(gdt, t);
