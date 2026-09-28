@@ -13,6 +13,7 @@ import {
   Parts, M, prep, prism, ngon, scalePoly, chamferRect, block, flagGeo, clothMesh, turret, radar, markerAt, shipMat,
 } from './shipModels.js';
 import { pulseMaterials } from './materials.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const PI = Math.PI;
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
@@ -110,15 +111,32 @@ function islet(P, { R, top = 1.4, flatR = R * 0.5, seed = 1, rough = 1 }) {
     const th = hash(b, 7, seed) * PI * 2;
     const rr = R * lerp(0.72, 1.02, hash(b, 9, seed));
     const s = lerp(0.6, 1.8, hash(b, 11, seed)) * (R / 15);
-    const bg = new THREE.IcosahedronGeometry(1, 1);
+    // welded + smooth-shaded (flat-shaded icosahedra read as toy low-poly), layered noise for a
+    // weathered, strata-cut shape, then painted: dark wet waterline, pale dry crown, moss on the tops
+    const bg = mergeVertices(new THREE.IcosahedronGeometry(1, 2));
     const bp = bg.attributes.position;
     for (let v = 0; v < bp.count; v++) {
-      const f = 1 + 0.28 * vnoise(bp.getX(v) * 2 + b, bp.getY(v) * 2 + bp.getZ(v) * 1.3, seed + 41);
-      bp.setXYZ(v, bp.getX(v) * f, bp.getY(v) * f * 0.7, bp.getZ(v) * f);
+      const x = bp.getX(v), y = bp.getY(v), z = bp.getZ(v);
+      let f = 1 + 0.3 * vnoise(x * 1.6 + b, y * 1.6 + z * 1.3, seed + 41) + 0.12 * vnoise(x * 4.1, y * 4.1 - z * 3.7, seed + 43);
+      f -= 0.1 * Math.abs(Math.sin(y * 5.5 + x * 1.2 + b)); // bedding planes
+      f -= 0.12 * Math.max(0, x * 0.8 + y * 0.6 - 0.55); // one cleaved face per rock, so it reads as broken stone, not a pebble
+      bp.setXYZ(v, x * f, y * f * (0.62 + 0.18 * hash(b, 21, seed)), z * f);
     }
     bg.computeVertexNormals();
-    const shade = hash(b, 13, seed) > 0.5 ? 0x6e6a62 : 0x5a5650;
-    P.add('rock', bg, shade, M(Math.cos(th) * rr, -0.1 + hash(b, 15, seed) * 0.4, Math.sin(th) * rr, hash(b, 17, seed) * 3, hash(b, 19, seed) * 3, 0, s, s, s));
+    const shade = hash(b, 13, seed) > 0.5 ? 0x8a8479 : 0x736e65;
+    const oy = -0.1 + hash(b, 15, seed) * 0.4;
+    const g = P.add('rock', bg, shade, M(Math.cos(th) * rr, oy, Math.sin(th) * rr, hash(b, 17, seed) * 0.6, hash(b, 19, seed) * 6.28, 0, s, s, s));
+    const gp = g.attributes.position, gn = g.attributes.normal, gc = g.attributes.color;
+    for (let v = 0; v < gp.count; v++) {
+      const wy = gp.getY(v), up = gn.getY(v);
+      let r = gc.getX(v), gg = gc.getY(v), bb = gc.getZ(v);
+      const wet = 1 - sst(-0.4, 0.35, wy), dry = sst(0.5, 1.5, wy) * 0.3;
+      const k = (1 - 0.45 * wet) * (1 + dry) * (0.9 + 0.2 * vnoise(gp.getX(v) * 2.2, gp.getZ(v) * 2.2 + wy, seed + 47));
+      r *= k; gg *= k; bb *= k * (1 + 0.06 * wet);
+      const moss = sst(0.55, 0.85, up) * sst(0.5, 1.0, wy) * sst(0.35, 0.65, vnoise(gp.getX(v) * 1.3, gp.getZ(v) * 1.3, seed + 49));
+      r = lerp(r, 0.24, moss * 0.7); gg = lerp(gg, 0.3, moss * 0.7); bb = lerp(bb, 0.12, moss * 0.7);
+      gc.setXYZ(v, r, gg, bb);
+    }
     k++;
   }
 }
@@ -604,10 +622,48 @@ function buildPortTemplate(ctx) {
     P.add('wood', block(w * 0.98, l * 0.98, 1.0 + h * 0.45, 1.0 + h, 0.05, 0, 0, 0, { cap: false, uvScale: 0.25 }), 0x9a7858, M(x, 0, z, 0, ry));
     roof(P, w + 0.4, l + 0.4, h * 0.45, x, 1.0 + h, z, ry, roofCol);
     P.add('rubber', new THREE.BoxGeometry(w * 0.4, h * 0.55, 0.1), 0x1a1410, M(x, 0, z, 0, ry).multiply(M(0, 1.0 + h * 0.3, l / 2 + 0.02)));
+    // dressing, so they read as buildings rather than blocks: timber frame on the upper storey,
+    // warm-lit windows, a loft door with a hoist beam, a chimney
+    const T = M(x, 0, z, 0, ry), y0 = 1.0 + h * 0.45, y1 = 1.0 + h, DK = 0x4a3222;
+    const at = (mat, geo, col, lx, ly, lz, rx = 0, rY = 0, rz = 0) => P.add(mat, geo, col, T.clone().multiply(M(lx, ly, lz, rx, rY, rz)));
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) at('wood', new THREE.BoxGeometry(0.28, h * 0.56, 0.28), DK, sx * w * 0.49, (y0 + y1) / 2, sz * l * 0.49);
+    for (const sz of [-1, 1]) {
+      at('wood', new THREE.BoxGeometry(w * 1.0, 0.22, 0.14), DK, 0, y0 + 0.1, sz * l * 0.495);
+      at('wood', new THREE.BoxGeometry(w * 1.0, 0.18, 0.14), DK, 0, y1 - 0.1, sz * l * 0.495);
+    }
+    for (const sx of [-1, 1]) {
+      at('wood', new THREE.BoxGeometry(0.14, 0.22, l * 1.0), DK, sx * w * 0.495, y0 + 0.1, 0);
+      const nWin = Math.max(2, Math.round(l / 2.2));
+      for (let i = 0; i < nWin; i++) {
+        const lz = (i + 0.5) / nWin * l * 0.8 - l * 0.4;
+        at('wood', new THREE.BoxGeometry(0.12, h * 0.52, 0.16), DK, sx * w * 0.5, (y0 + y1) / 2, lz + l * 0.4 / nWin); // studs between windows
+        at(i % 3 === 1 ? 'glass' : 'lantern', new THREE.BoxGeometry(0.06, 0.62, 0.5), 0xffffff, sx * (w * 0.5 + 0.02), y0 + (y1 - y0) * 0.55, lz);
+        at('wood', new THREE.BoxGeometry(0.1, 0.1, 0.66), DK, sx * (w * 0.5 + 0.05), y0 + (y1 - y0) * 0.55 - 0.36, lz); // sill
+      }
+    }
+    at('wood', new THREE.BoxGeometry(w * 0.32, (y1 - y0) * 0.55, 0.08), 0x6a4a32, 0, y0 + (y1 - y0) * 0.45, l / 2 + 0.05); // loft door
+    at('wood', new THREE.BoxGeometry(0.2, 0.2, 1.4), DK, 0, y1 + h * 0.2, l / 2 + 0.5); // hoist beam
+    at('rubber', new THREE.CylinderGeometry(0.02, 0.02, h * 0.5, 3), 0x151515, 0, y1 + h * 0.2 - h * 0.25, l / 2 + 1.1);
+    at('stone', new THREE.BoxGeometry(0.6, h * 0.55, 0.6), STONE_DARK, w * 0.28, y1 + h * 0.3, -l * 0.22);
+    at('iron', new THREE.BoxGeometry(0.7, 0.12, 0.7), 0x2a2c30, w * 0.28, y1 + h * 0.58, -l * 0.22);
+  };
+  // fishermen's cottages: small, so the warehouses and the ships read at their true size
+  const cottage = (x, z, ry, w, l, h, wall, roofCol) => {
+    P.add('stone', block(w, l, 1.0, 1.0 + h, 0.04, 0, 0, 0, { uvScale: 0.2 }), wall, M(x, 0, z, 0, ry));
+    roof(P, w + 0.3, l + 0.3, h * 0.7, x, 1.0 + h, z, ry, roofCol);
+    const T = M(x, 0, z, 0, ry);
+    P.add('wood', new THREE.BoxGeometry(0.5, h * 0.65, 0.08), 0x4a3222, T.clone().multiply(M(0, 1.0 + h * 0.33, l / 2 + 0.03)));
+    P.add('lantern', new THREE.BoxGeometry(0.36, 0.34, 0.06), 0xffffff, T.clone().multiply(M(w * 0.28, 1.0 + h * 0.6, l / 2 + 0.03)));
+    P.add('stone', new THREE.BoxGeometry(0.34, h * 0.6, 0.34), STONE_DARK, T.clone().multiply(M(-w * 0.3, 1.0 + h + h * 0.35, 0)));
   };
   wh(-5.2, -2.5, 0.1, 5.2, 7.5, 3.4, TERRACOTTA);
   wh(-5.8, 6.2, -0.15, 4.2, 5.0, 3.0, SLATE);
   wh(3.8, -6.2, 0.35, 4.6, 5.6, 3.2, TERRACOTTA);
+  for (const [x, z, ry, w, l, h, wall, rc] of [
+    [-9.0, 1.8, 1.2, 1.7, 2.2, 1.3, 0xd8ccb4, TERRACOTTA], [-1.2, -8.6, 0.5, 1.6, 2.0, 1.2, 0xc9b99c, SLATE],
+    [7.2, -1.2, -0.9, 1.8, 2.3, 1.35, 0xe2d6bd, TERRACOTTA], [-6.6, -8.0, 0.3, 1.5, 1.9, 1.15, 0xbfae92, TERRACOTTA],
+    [0.4, -3.2, 2.0, 1.4, 1.8, 1.1, 0xd4c7ae, SLATE],
+  ]) cottage(x, z, ry, w, l, h, wall, rc);
   // crane (painted steel) at the pier root
   const cx = 2.6, cz = 13.8, cy = 1.3;
   const Y = 0xc7982a;
