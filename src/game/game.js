@@ -67,6 +67,7 @@ function heroRing(color, isPlayer) {
 export class Game {
   constructor(ctx, opts) {
     Object.assign(this, ctx); // renderer, scene, fx, ocean, audio, ui, sky
+    if (this.audio && this.audio.setSubmerged) this.audio.setSubmerged(false); // never inherit a muffled mix from the last match
     this.opts = opts;
     this.diff = DIFFICULTY[opts.difficulty] || DIFFICULTY.normal;
     this.events = new Emitter();
@@ -355,6 +356,7 @@ export class Game {
   endMatch(winner, reason) {
     if (this.over) return;
     this.over = true; this.winner = winner;
+    if (this.audio.setSubmerged) this.audio.setSubmerged(false);
     this.slowmo = 1.8;
     const won = this.player ? winner === this.player.team : winner === 0;
     this.combat.after(winner < 0 ? 0.5 : 2.2, () => {
@@ -561,6 +563,7 @@ export class Game {
   respawnHero(h) {
     const sp = spawnPoint(h.team, h.slot);
     h.alive = true; h.hp = h.maxHp; h.x = sp.x; h.z = sp.z; h.yaw = sp.yaw; h.speed = 0;
+    if (h === this.player && this.audio.setSubmerged) this.audio.setSubmerged(false);
     h.sinkT = undefined; h.stun = 0; h.slowT = 0; h.path = []; h.moveX = null; h.attackOrder = null;
     h.rig.root.visible = true; h.spawnGuard = 3; // brief invulnerability: no spawn camping
     this.fx.ring(h.x, h.z, 4, 30, this.teamGlow(h.team), 0.8, 0.1);
@@ -602,6 +605,7 @@ export class Game {
     const sd = u.sinkDir || 1, fx = Math.sin(u.yaw), fz = Math.cos(u.yaw), L = r.length;
     const P = this.fx.p;
     if (at(1.1)) this.audio.play('hullGroan', { x: u.x, z: u.z, vol: 1 });
+    if (u === this.player && at(3.2)) this.audio.setSubmerged && this.audio.setSubmerged(true); // your ship slips under: the world muffles
     for (const [s, o] of [[1.6, 0.28], [2.7, -0.18]]) if (at(s)) {
       const k = sd * o * L;
       this.fx.explosion(new THREE.Vector3(u.x + fx * k, 3, u.z + fz * k), 0.78); // small: the hull silhouette must stay readable

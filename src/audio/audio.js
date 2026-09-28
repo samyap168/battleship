@@ -87,7 +87,11 @@ export class Engine {
       this.comp = glue; this.limiter = lim;
     }
     // SFX
-    this.sfxVol = k.gain(0.9, this.preMaster);
+    // "submerged" stage: when your own ship goes under, the world muffles behind a sweeping low-pass
+    this.subFilter = ctx.createBiquadFilter(); this.subFilter.type = 'lowpass'; this.subFilter.frequency.value = 20000; this.subFilter.Q.value = 0.9;
+    this.subGain = k.gain(1, this.preMaster);
+    this.subFilter.connect(this.subGain);
+    this.sfxVol = k.gain(0.9, this.subFilter);
     // low-end guard: a lowshelf that dips the sub when many heavy voices stack (no mud in teamfights)
     this.sfxShelf = ctx.createBiquadFilter(); this.sfxShelf.type = 'lowshelf'; this.sfxShelf.frequency.value = 150; this.sfxShelf.gain.value = 0;
     this.sfxShelf.connect(this.sfxVol);
@@ -255,6 +259,14 @@ export class Engine {
         else if (!this.offline) setTimeout(() => { for (const n of v.nodes) n.disconnect(); }, (v.end - now) * 1000 + 100);
       }
     }
+  }
+
+  setSubmerged(on) {
+    const t = this.ctx.currentTime, f = this.subFilter.frequency, g = this.subGain.gain;
+    f.cancelScheduledValues(t); g.cancelScheduledValues(t);
+    f.setValueAtTime(Math.max(60, f.value), t); g.setValueAtTime(g.value, t);
+    if (on) { f.exponentialRampToValueAtTime(380, t + 1.3); g.linearRampToValueAtTime(0.7, t + 1.3); }
+    else { f.exponentialRampToValueAtTime(20000, t + 0.9); g.linearRampToValueAtTime(1, t + 0.6); }
   }
 
   stinger(name) {
@@ -425,6 +437,7 @@ class AudioSystem {
     this._safe((e) => e.ambience.setStorm(v));
   }
   stinger(name) { return this._safe((e) => e.stinger(name), false); }
+  setSubmerged(on) { this._safe((e) => e.setSubmerged(!!on)); }
 
   setVolume(v = {}) {
     for (const key of ['master', 'music', 'sfx']) if (Number.isFinite(v[key])) this._vol[key] = clamp(v[key]);
