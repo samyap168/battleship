@@ -283,7 +283,10 @@ export class HUD {
   }
   floatText(x, y, z, text, color = '#fff', size = 14) {
     if (this.floats.length > 80) this.floats.shift();
-    this.floats.push({ x, y, z, text, color, size, t: 0, life: 1.1, dx: (Math.random() - 0.5) * 30, born: performance.now() });
+    const now = performance.now();
+    // callouts born at the same spot at the same moment (level-up + bounty) stack instead of overprinting
+    const near = this.floats.filter((f) => now - f.born < 700 && Math.abs(f.x - x) < 8 && Math.abs(f.z - z) < 8).length;
+    this.floats.push({ x, y, z, text, color, size, t: 0, life: 1.1, dx: near ? 0 : (Math.random() - 0.5) * 30, oy: near * (size + 6), born: now });
   }
   /** Pulsing minimap alert. */
   ping(x, z, color = '#ff5a4a') {
@@ -639,14 +642,16 @@ export class HUD {
       if (f.born && performance.now() - f.born > 4000) f.t = f.life;
       if (f.t > f.life) { this.floats.splice(i, 1); continue; }
       const s = proj(f.x, f.y, f.z);
-      if (!s) continue;
+      if (!s || s.x < -20 || s.x > w + 20 || s.y < -20 || s.y > h + 20) continue; // off-screen anchors stay off-screen (only on-screen ones get the safe-band clamp)
       const k = f.t / f.life;
       const pop = k < 0.12 ? 1 + (0.12 - k) * 5 : 1;
       c.globalAlpha = k > 0.6 ? 1 - (k - 0.6) / 0.4 : 1;
       c.font = `700 ${f.size * pop}px Rajdhani, sans-serif`;
       c.lineWidth = 4; c.strokeStyle = 'rgba(0,0,0,.85)';
       // start above the nameplate row; damage you take drifts off to the right of your own bar
-      const x = f.side ? s.x + 58 + f.dx * 0.3 * k : s.x + f.dx * k, y = s.y - (f.side ? 18 : 26) - 40 * k;
+      // kept inside a safe band: on short laptop screens a callout over your own ship could fall under the command bar
+      const x = Math.min(w - 60, Math.max(60, f.side ? s.x + 58 + f.dx * 0.3 * k : s.x + f.dx * k));
+      const y = Math.min(h - 190, Math.max(64, s.y - (f.side ? 18 : 26) - 40 * k - (f.oy || 0)));
       c.strokeText(f.text, x, y);
       c.fillStyle = f.color; c.fillText(f.text, x, y);
       c.globalAlpha = 1;

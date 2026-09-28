@@ -430,7 +430,7 @@ const AGE_GRADE = {
   2: { gain: [1.03, 0.99, 0.92], lift: [0.012, 0.009, 0.006], sat: 0.98, con: 1.12, ca: 0.0006 },
   3: { gain: [0.99, 1.0, 1.03], lift: [0.006, 0.01, 0.016], sat: 1.03, con: 1.12, ca: 0.0007 },
   4: { gain: [1.0, 1.01, 1.02], lift: [0.008, 0.01, 0.014], sat: 1.14, con: 1.09, ca: 0.0008 },
-  5: { gain: [0.96, 1.0, 1.07], lift: [0.0, 0.012, 0.03], sat: 1.18, con: 1.15, ca: 0.0013 },
+  5: { gain: [0.96, 1.0, 1.07], lift: [0.0, 0.012, 0.03], sat: 1.18, con: 1.15, ca: 0.001 },
 };
 const gradeCur = { gain: new THREE.Vector3(1, 1, 1), lift: new THREE.Vector3(), sat: 1.1, con: 1.08, ca: 0.0007 };
 const _px = new Uint8Array(4);

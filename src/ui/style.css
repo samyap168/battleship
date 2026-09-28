@@ -178,8 +178,9 @@ b { font-weight: 700; }
 .hint kbd { border: 1px solid var(--line); padding: 0 6px; color: var(--gold); margin: 0 2px; }
 
 /* laptop widths: the centred command panel (~790px) must fit between minimap and armory */
-@media (max-width: 1500px) { #command { transform: translateX(-50%) scale(.88); transform-origin: 50% 100%; } }
-@media (max-width: 1340px) { #command { transform: translateX(-50%) scale(.8); } #minimap canvas { width: 260px; height: 160px; } #shop { width: 225px; } }
+@media (max-width: 1500px) { #command { transform: translateX(-50%) scale(.88); transform-origin: 50% 100%; }
+  #announce { left: 300px; right: 300px; } #announce h1 { font-size: 42px; letter-spacing: .14em; } } /* banner stays clear of the kill feed */
+@media (max-width: 1340px) { #command { transform: translateX(-50%) scale(.8); } #announce h1 { font-size: 34px; } #announce p { font-size: 15px; } #minimap canvas { width: 260px; height: 160px; } #shop { width: 225px; } }
 @media (max-width: 1200px) { #shop { width: 210px; } #minimap canvas { width: 240px; height: 147px; } #portrait { width: 210px; } .ab { width: 58px; height: 58px; } #feed { width: 280px; } }
 
 #fps { position: fixed; top: 8px; left: 10px; z-index: 30; font: 600 12px var(--font-ui); color: #9fe0a0; background: rgba(0,0,0,.5); padding: 3px 8px; pointer-events: none; }
