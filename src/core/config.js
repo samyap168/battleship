@@ -84,7 +84,7 @@ export const HULLS = {
   torpedo: {
     name: 'Torpedo Cruiser', age: 3, role: 'Assassin',
     desc: 'Fast, lean hunter. Torpedo spreads and depth charges.',
-    hp: 1950, armor: 0.12, speed: 31, turn: 1.9, radius: 8,
+    hp: 2150, armor: 0.15, speed: 31, turn: 1.9, radius: 8,
     guns: { range: 66, dmg: 50, cd: 1.0, count: 2, kind: 'shell', speed: 120 },
     abilities: ['torpspread', 'afterburn', 'depthcharge', 'wolfpack'],
   },

@@ -7,7 +7,7 @@ import { Environment } from './render/environment.js';
 import { Particles } from './render/particles.js';
 import { FX } from './render/fx.js';
 import { ISLANDS, SCENERY, BOUNDS } from './game/map.js';
-import { Game } from './game/game.js';
+import { Game, shieldMesh } from './game/game.js';
 import { cast } from './game/abilities.js';
 import { HUD } from './ui/hud.js';
 import { CameraDirector } from './core/camera.js';
@@ -19,7 +19,8 @@ import { SeaLife } from './render/sealife.js';
 import { Wakes } from './render/wakes.js';
 import { renderThumbnails } from './render/thumbnails.js';
 import { WaterReflection, reflectable } from './render/reflection.js';
-import { TEAM_RIM } from './render/teamRim.js';
+import { TEAM_RIM, applyTeamRim } from './render/teamRim.js';
+import { buildHeroShip, buildCreepShip, HERO_IDS } from './render/models/shipModels.js';
 import { MATCH, AGE_HULLS, UPGRADES, AGES, TEAMS } from './core/config.js';
 
 const params = new URLSearchParams(location.search);
@@ -537,8 +538,24 @@ function tick(dt, draw) {
 
 await step(92, 'Mustering the fleets');
 toMenu();
-// warm up shaders with one frame before revealing
-R.render(0.016, 0);
+// warm up shaders with one frame before revealing (hidden, rarely-shown meshes included, so the
+// first whale sighting doesn't hitch on a shader compile)
+for (const m of sealife.meshes) { m.visible = true; m.frustumCulled = false; }
+// every hull and gunboat era for both fleets, rigged exactly as the game rigs them: age-ups otherwise
+// compile ~8 new programs mid-match (tens of ms each on D3D), right in the middle of a Reforging
+const warm = new THREE.Group();
+for (const team of [0, 1]) {
+  for (const id of HERO_IDS) { const r = buildHeroShip(id, team); applyTeamRim(r.root, team); warm.add(r.root); }
+  for (let era = 1; era <= 5; era++) for (const heavy of [false, true]) { const r = buildCreepShip(era, heavy, team); applyTeamRim(r.root, team, 2.2); warm.add(r.root); }
+}
+warm.add(shieldMesh(0x9fd8ff));
+warm.traverse((o) => { o.frustumCulled = false; });
+scene.add(warm);
+// and the effects first seen at an age-up / big kill (their shader programs compile on first use)
+try { const wp = new THREE.Vector3(cameraDir.focus.x, 4, cameraDir.focus.z); fx.ageUp(wp, 0x9fd8ff); fx.megaExplosion(wp, 20); fx.emp(wp.x, wp.z, 20); } catch (e) { console.warn('[warmup]', e); }
+R.render(0.016, 0); // a real frame (reflections, AO, shadows) compiles exactly the variants play uses
+scene.remove(warm);
+for (const m of sealife.meshes) { m.visible = false; m.frustumCulled = true; }
 await step(100, 'Set sail');
 $('#loading').style.opacity = '0';
 setTimeout(() => $('#loading').remove(), 900);

@@ -23,7 +23,7 @@ const LANE_OF_SLOT = ['top', 'top', 'mid', 'bot', 'bot'];
 
 // Energy shield: fresnel rim + scrolling hex lattice, hugging the hull as an ellipsoid.
 const SHIELD_GEO = new THREE.SphereGeometry(1, 40, 24);
-function shieldMesh(color) {
+export function shieldMesh(color) {
   const m = new THREE.Mesh(SHIELD_GEO, new THREE.ShaderMaterial({
     uniforms: { uColor: { value: new THREE.Color(color) }, uTime: { value: 0 }, uA: { value: 0 } },
     vertexShader: `varying vec3 vN; varying vec3 vV; varying vec3 vP;
