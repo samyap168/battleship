@@ -317,3 +317,7 @@ body.cinematic #howtoBtn { display: none; }
 #ui:has(#end) #topbar, #ui:has(#end) #feed, #ui:has(#end) #minimap, #ui:has(#end) #portrait, #ui:has(#end) #abilities,
 #ui:has(#end) #goldbox, #ui:has(#end) #shop, #ui:has(#end) #announce, #ui:has(#end) #objectives, #ui:has(#end) #tracker { opacity: 0; pointer-events: none; transition: opacity .6s; }
 #ui:has(#end) > div:not(#modalRoot):not(#deathRoot):not(#hintRoot):not(#end) { opacity: 0; pointer-events: none; transition: opacity .6s; }
+
+#gpuNote { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(4,6,10,.72); z-index: 40; text-align: center; font-size: 18px; letter-spacing: .06em; line-height: 1.7; color: var(--text); }
+#gpuNote.hidden { display: none; }
+#gpuNote b { font-family: var(--font-title); font-size: 26px; letter-spacing: .18em; color: var(--gold); }

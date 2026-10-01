@@ -439,10 +439,26 @@ window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, refl, we
   // test fast-forward: advance the sim AND age its effects (plain G.update leaves every spray puff frozen in place)
   ff: (dt) => { G.update(dt); const t = G.time; wakes.update(dt, t); fx.update(dt, t); particles.update(dt); ocean.decals.update(dt, t); } };
 
+// GPU context loss (driver reset, laptop GPU switch, tab memory pressure): cancel the event so the browser
+// may restore the context, hold the match still behind a notice, and resume the moment it comes back.
+let gpuLost = false;
+{
+  const note = document.createElement('div');
+  note.id = 'gpuNote'; note.className = 'hidden';
+  note.innerHTML = '<div><b>Graphics driver reset</b><br>Hold on, restoring the view. Your match is paused.</div>';
+  document.body.appendChild(note);
+  const cv = R.gl.domElement;
+  cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); gpuLost = true; note.classList.remove('hidden'); console.warn('[gpu] context lost'); });
+  cv.addEventListener('webglcontextrestored', () => {
+    gpuLost = false; note.classList.add('hidden'); lastT = performance.now(); console.warn('[gpu] context restored');
+    // GPU-side resources are gone: rebuild the lighting environment and shadow map now rather than on their slow timers
+    try { sky.updateEnv(0, true); R.gl.shadowMap.needsUpdate = true; } catch (e) { console.warn('[gpu] rebuild', e); }
+  });
+}
 function frame() {
   requestAnimationFrame(frame);
   const now = performance.now(); const dt = Math.min((now - lastT) / 1000, 0.1); lastT = now;
-  if (window.__aa.paused) return;
+  if (window.__aa.paused || gpuLost) return;
   R.adapt(dt);
   try { tick(dt, true); } catch (e) { console.error('frame error', e && e.stack || e); }
 }

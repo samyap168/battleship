@@ -1,0 +1,22 @@
+// WebGL context loss/restore test: node tests/ctxloss.mjs  (expects: notice shown while lost, hidden after restore, no page errors)
+import { createRequire } from 'module';
+const require = createRequire('/home/user/BlueWhale/tests/x.mjs');
+const { chromium } = require('/opt/node22/lib/node_modules/playwright');
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const errs = []; page.on('pageerror', (e) => errs.push(e.message)); page.on('console', (m) => { if (m.type() === 'error' && !/CERT/.test(m.text())) errs.push(m.text().slice(0, 200)); if (/\[gpu\]/.test(m.text())) console.log(m.text()); });
+await page.goto('http://localhost:5173/?autoplay=1&autopilot=1&photo=1');
+await page.waitForFunction(() => window.__aa && window.__aa.G && window.__aa.G.player, null, { timeout: 120000 });
+await page.waitForTimeout(3000);
+const t0 = await page.evaluate(() => window.__aa.G.time);
+await page.evaluate(() => { const cv = document.querySelector('#app canvas'); window.__lc = cv.getContext('webgl2').getExtension('WEBGL_lose_context'); window.__lc.loseContext(); });
+await page.waitForTimeout(2500);
+const during = await page.evaluate(() => ({ note: !document.querySelector('#gpuNote').classList.contains('hidden'), t: window.__aa.G.time }));
+console.log('lost:', JSON.stringify(during), 'time before', t0.toFixed(1));
+await page.evaluate(() => window.__lc.restoreContext());
+await page.waitForTimeout(6000);
+const after = await page.evaluate(() => ({ note: !document.querySelector('#gpuNote').classList.contains('hidden'), t: window.__aa.G.time }));
+console.log('restored:', JSON.stringify(after));
+await page.screenshot({ path: '/home/user/BlueWhale/tests/output/ctx_after.png' });
+console.log('errors:', errs.length, errs.slice(0, 3));
+await browser.close();
