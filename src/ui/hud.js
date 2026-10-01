@@ -345,7 +345,7 @@ export class HUD {
     const me = G.player ? G.player.team : 0;
     const won = winner === me;
     const title = winner < 0 ? 'STALEMATE' : won ? 'VICTORY' : 'DEFEAT';
-    const sub = winner < 0 ? 'The seas remain contested' : reason === 'citadel' ? `${TEAMS[winner].name} razed the enemy citadel` : `${TEAMS[winner].name} controls the seas at dusk`;
+    const sub = winner < 0 ? 'The seas remain contested' : reason === 'citadel' ? `${TEAMS[winner].name} razed ${won ? 'the enemy' : 'your'} citadel` : `${TEAMS[winner].name} controls the seas at dusk`;
     this.$('hintRoot').innerHTML = ''; this.$('deathRoot').innerHTML = '';
     const r = this.$('modalRoot');
     const pool = G.heroes.filter((h) => winner < 0 || h.team === winner);

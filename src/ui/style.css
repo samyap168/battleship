@@ -137,7 +137,7 @@ b { font-weight: 700; }
 #scoreboard th { text-align: left; font-weight: 400; font-size: 12px; color: var(--dim); letter-spacing: .12em; text-transform: uppercase; padding: 4px 8px; }
 #scoreboard td, #end td { padding: 5px 14px; border-top: 1px solid rgba(255,255,255,.06); white-space: nowrap; }
 #end th { text-align: left; font-weight: 400; font-size: 12px; color: var(--dim); letter-spacing: .12em; text-transform: uppercase; padding: 4px 14px; }
-#end table { border-collapse: collapse; font-size: 15px; }
+#end table { border-collapse: collapse; font-size: 15px; width: 100%; }
 #end .team { font-family: var(--font-title); font-size: 16px; padding-top: 12px; }
 #scoreboard tr.me td { background: rgba(232,196,122,.08); }
 #scoreboard .team { font-family: var(--font-title); font-size: 16px; padding-top: 12px; }
@@ -167,7 +167,7 @@ b { font-weight: 700; }
 #loading .s { margin-top: 12px; font-size: 13px; letter-spacing: .2em; color: var(--dim); text-transform: uppercase; }
 
 /* ---------- end screen */
-#end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, rgba(4,6,10,.62), rgba(4,6,10,.92)); backdrop-filter: blur(3px); animation: fadeIn 1s; z-index: 5; }
+#end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse 62% 78% at 50% 52%, rgba(4,6,10,.8), rgba(4,6,10,.56) 62%, rgba(4,6,10,.3)); animation: fadeIn 1s; z-index: 5; } /* darkest behind the scoreboard, clear at the edges so the burning ruin shows */
 #end h1 { font-family: var(--font-title); font-size: 96px; letter-spacing: .25em; margin: 0; }
 #end h1.win { background: linear-gradient(180deg, #fff6df, #e8c47a); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 30px rgba(232,196,122,.5)); }
 #end h1.lose { color: #b9b1a6; text-shadow: 0 0 40px rgba(255,60,40,.5); }
@@ -312,3 +312,8 @@ body.cinematic #objectives { opacity: 0; }
 @media (max-width: 480px) { #howto .ht-steps { grid-template-columns: 1fr; } #howto .ht-title { font-size: 22px; } }
 body.cinematic #howtoBtn { display: none; }
 #ui:has(.modal) #announce { opacity: 0; } /* banners never bleed through a choice modal */
+
+/* result screen: the HUD steps back so the world (the burning ruin orbit) is the backdrop */
+#ui:has(#end) #topbar, #ui:has(#end) #feed, #ui:has(#end) #minimap, #ui:has(#end) #portrait, #ui:has(#end) #abilities,
+#ui:has(#end) #goldbox, #ui:has(#end) #shop, #ui:has(#end) #announce, #ui:has(#end) #objectives, #ui:has(#end) #tracker { opacity: 0; pointer-events: none; transition: opacity .6s; }
+#ui:has(#end) > div:not(#modalRoot):not(#deathRoot):not(#hintRoot):not(#end) { opacity: 0; pointer-events: none; transition: opacity .6s; }
