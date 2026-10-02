@@ -226,7 +226,7 @@ export class Leviathan extends Unit {
       }
       // churn where the body cuts the surface
       const wy = sampleWaves(p.x, p.z, t, _w).y;
-      if (Math.abs(p.y - wy) < s && Math.random() < 0.08) this.G.ocean.decals.add(p.x, p.z, s * 2.4, 2.2, 0, 0.6, 1.4);
+      if (Math.abs(p.y - wy) < s && this.G.chance(0.08)) this.G.ocean.decals.add(p.x, p.z, s * 2.4, 2.2, 0, 0.6, 1.4);
     }
     for (const part of this.parts) part.mesh.instanceMatrix.needsUpdate = true;
     // head leads the first segment, rearing up; jaw snaps on bite

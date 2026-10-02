@@ -127,7 +127,7 @@ export class Drones {
       im.setMatrixAt(c, _m);
       im.setColorAt(c, this.teamCol[d.team]);
       // engine glow sprites (sparse for micro swarms)
-      if (d.type !== 'micro' || (d.idx + (G.frame | 0)) % 2 === 0) {
+      if (G.chance(d.type === 'micro' ? 0.5 : 1)) { // per second, not per frame (micro swarms stay sparse)
         const glow = d.team === 0 ? [0.6, 1.5, 3.6] : [3.6, 1.0, 0.45];
         G.fx.trailGlow(_p, glow, d.type === 'micro' ? 2.0 : 3.0, d.type === 'micro' ? 0.22 : 0.3); // streaking engine trails
       }

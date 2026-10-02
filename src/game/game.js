@@ -71,7 +71,7 @@ export class Game {
     this.opts = opts;
     this.diff = DIFFICULTY[opts.difficulty] || DIFFICULTY.normal;
     this.events = new Emitter();
-    this.time = 0; this.frame = 0;
+    this.time = 0; this.frame = 0; this.vtime = 0;
     this.over = false; this.winner = -1;
     this.listener = { x: 0, z: 0 };
     this.obstacles = buildObstacles();
@@ -398,6 +398,13 @@ export class Game {
     return true;
   }
 
+  // Effect cadence must not depend on the display's refresh rate. Frame-modulo and per-frame dice rolls tied
+  // smoke/fire density to FPS (a 144 Hz screen laid ~5x the haze of the 30 Hz tests it was tuned on), so:
+  /** True once per n/30 s, however often update() runs (n = the old "every n-th frame at 30 fps"). */
+  pulse(n) { const k = 30 / n, t = this.vtime; return Math.floor(t * k) !== Math.floor((t - this.dt) * k); }
+  /** A per-frame chance p (tuned at 30 fps) as a per-second rate. */
+  chance(p, dt = this.dt) { return Math.random() < p * dt * 30; }
+
   // ---------------------------------------------------------------- update
   update(rawDt) {
     let dt = Math.min(rawDt, 1 / 20);
@@ -405,6 +412,7 @@ export class Game {
     if (this.hitstop > 0) { this.hitstop -= rawDt; dt *= 0.15; }
     this.dt = dt;
     this.frame++;
+    this.vtime = (this.vtime || 0) + dt; // effect clock: keeps running after the match ends so ruins keep burning
     if (!this.over) this.time += dt;
     const t = this.time;
     this.structureScale = STRUCTURES.scalePerMin * (t / 60);
@@ -588,7 +596,7 @@ export class Game {
       }
     }
     p.rig.update && p.rig.update(dt, this.time);
-    if (this.frame % 4 === 0) {
+    if (this.pulse(4)) {
       const col = p.owner >= 0 ? TEAMS[p.owner].glow : 0xdddddd;
       if (Math.abs(p.prog) > 0.01 && p.owner < 0 || cap >= 0 && cap !== p.owner) {
         const a = Math.random() * 6.28;
@@ -611,7 +619,7 @@ export class Game {
       this.fx.explosion(new THREE.Vector3(u.x + fx * k, 3, u.z + fz * k), 0.78); // small: the hull silhouette must stay readable
       this.audio.play('explosion', { x: u.x, z: u.z, vol: 0.55 });
     }
-    if (T > 1.3 && T < 6.6 && Math.random() < 0.55) {
+    if (T > 1.3 && T < 6.6 && this.chance(0.55, dt)) {
       // the submerging end: air and spray jet out along the waterline
       const k = sd * L * (0.22 + 0.12 * Math.random()) * (T < 4 ? 1 : 0.4);
       const x = u.x + fx * k + rnd(-1.5, 1.5), z = u.z + fz * k + rnd(-1.5, 1.5), y = this.fx.waterY(x, z);
@@ -621,7 +629,7 @@ export class Game {
         s0: 2.5, s1: rnd(7, 10), r: 0.78, g: 0.79, b: 0.8, a0: 0.16, a1: 0, kind: 1, drag: 0.6 }); // steam where fire meets sea
     }
     if (at(6.5)) { this.ocean.decals.add(u.x, u.z, L * 0.9, 3.5, 1, 0.55, 2.4); this.audio.play('splash', { x: u.x, z: u.z, vol: 0.8, pitch: 0.6 }); }
-    if (T > 6.3 && T < 9.5 && Math.random() < 0.45) {
+    if (T > 6.3 && T < 9.5 && this.chance(0.45, dt)) {
       const a = Math.random() * 6.283, rr = Math.random() * L * 0.25;
       const x = u.x + Math.cos(a) * rr, z = u.z + Math.sin(a) * rr, y = this.fx.waterY(x, z);
       const g = 1 - (T - 6.3) / 3.2; // boil weakens as the air runs out
@@ -644,7 +652,7 @@ export class Game {
         u.sinkT += dt;
         r.root.position.y = -(Math.min(1, u.sinkT / 4) ** 2) * (u.kind === 'citadel' ? 30 : 22);
         r.root.rotation.z = Math.min(1, u.sinkT / 4) * 0.15;
-        if (Math.random() < 0.4) this.fx.fire(new THREE.Vector3(u.x + rnd(-6, 6), 4, u.z + rnd(-6, 6)), 1.6);
+        if (this.chance(0.4, dt)) this.fx.fire(new THREE.Vector3(u.x + rnd(-6, 6), 4, u.z + rnd(-6, 6)), 1.6);
         if (u.sinkT > 5 && r.root.visible) r.root.visible = false;
       }
       r.update && r.update(dt, t);
@@ -654,9 +662,9 @@ export class Game {
       u.sinkT += dt;
       if (u.kind === 'hero') this.sinkFx(u, r, dt);
       if (u.sinkT > (u.kind === 'hero' ? 7.2 : 5.5)) { r.root.visible = false; return; }
-      if (Math.random() < 0.6 && (u.kind !== 'hero' || u.sinkT < 4.6)) this.fx.fire(new THREE.Vector3(u.x + rnd(-3, 3), 2, u.z + rnd(-3, 3)), u.kind === 'hero' ? 1.5 : 0.8);
-      if (this.frame % 3 === 0) this.ocean.decals.add(u.x + rnd(-4, 4), u.z + rnd(-4, 4), r.beam * 1.2, 3, 0, 0.8, 1.5);
-      if (this.frame % 5 === 0) this.ocean.decals.add(u.x, u.z, r.beam * 1.5, 12, 2, 0.35, 0.4); // oil slick
+      if (this.chance(0.6, dt) && (u.kind !== 'hero' || u.sinkT < 4.6)) this.fx.fire(new THREE.Vector3(u.x + rnd(-3, 3), 2, u.z + rnd(-3, 3)), u.kind === 'hero' ? 1.5 : 0.8);
+      if (this.pulse(3)) this.ocean.decals.add(u.x + rnd(-4, 4), u.z + rnd(-4, 4), r.beam * 1.2, 3, 0, 0.8, 1.5);
+      if (this.pulse(5)) this.ocean.decals.add(u.x, u.z, r.beam * 1.5, 12, 2, 0.35, 0.4); // oil slick
     }
     syncShipVisual(u, dt, t, u.kind === 'hero' ? 0.8 : 1);
     if (u.kind === 'hero' && u.reforgeT < 1) {
@@ -665,7 +673,7 @@ export class Game {
       const k = u.reforgeT, c1 = 1.9, c3 = c1 + 1;
       const e = 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2);
       r.root.scale.setScalar(0.6 + 0.4 * e);
-      if (this.frame % 2 === 0) {
+      if (this.pulse(2)) {
         const a = Math.random() * 6.283, rr = Math.random() * r.length * 0.5;
         const c = new THREE.Color(TEAMS[u.team].glow);
         this.fx.p.add.emit({ x: u.x + Math.cos(a) * rr, y: Math.random() * r.height, z: u.z + Math.sin(a) * rr, vy: 12, life: 0.6, s0: 1.4, s1: 0.1, r: c.r * 3, g: c.g * 3, b: c.b * 3, a0: 1, a1: 0, kind: 2 });
@@ -741,18 +749,18 @@ export class Game {
       if (age >= 4 && r.engines) for (const e of r.engines) { e.getWorldPosition(_v); this.fx.trailGlow(_v, u.team === 0 ? [0.5, 1.2, 3] : [3, 0.9, 0.4], 2.6 * (0.4 + speed01), 0.14); }
     }
     // Leviathan's Blessing aura
-    if (u.kind === 'hero' && u.buffs.some((b) => b.blessing) && this.frame % 3 === 0) {
+    if (u.kind === 'hero' && u.buffs.some((b) => b.blessing) && this.pulse(3)) {
       const a = Math.random() * 6.283, rr = r.length * 0.4;
       this.fx.p.add.emit({ x: u.x + Math.cos(a) * rr, y: 1, z: u.z + Math.sin(a) * rr, vy: rnd(4, 9), life: 0.8, s0: 1.6, s1: 0.2, r: 0.5, g: 2.2, b: 2.0, a0: 1, a1: 0, kind: 2 });
     }
     // damage fire
     const hpF = u.hp / u.maxHp;
-    if (hpF < 0.45 && Math.random() < (0.45 - hpF) * 1.6) {
+    if (hpF < 0.45 && this.chance((0.45 - hpF) * 1.6, dt)) {
       _v.set(u.x + rnd(-1, 1) * r.beam * 0.3, 2 + rnd(0, 2), u.z + rnd(-1, 1) * r.beam * 0.3);
       this.fx.fire(_v, u.kind === 'hero' ? 1 : 0.6);
     }
     // crippled: a dark plume climbs off the hull (thin and fast-fading, so it marks the ship without fogging the fight)
-    if (u.kind === 'hero' && hpF < 0.25 && this.frame % 4 === 0) {
+    if (u.kind === 'hero' && hpF < 0.25 && this.pulse(4)) {
       _v.set(u.x + rnd(-1, 1) * r.beam * 0.25, 3 + r.height * 0.3, u.z + rnd(-1, 1) * r.beam * 0.25);
       // near-black and oily, climbing straight up: distinct from the grey drift of powder and battle smoke
       this.fx.p.alpha.emit({ x: _v.x, y: _v.y, z: _v.z, vx: rnd(-0.3, 0.3) + 0.6, vy: rnd(10, 14), vz: rnd(-0.3, 0.3), life: rnd(1.8, 2.6),

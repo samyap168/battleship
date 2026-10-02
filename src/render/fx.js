@@ -398,8 +398,8 @@ float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719)
       d.p.addScaledVector(d.v, dt);
       d.r.addScaledVector(d.w, dt);
       d.heat = Math.max(0, d.heat - dt * 0.35);
-      if (d.smoke && Math.random() < 0.6) this.trailSmoke(d.p, 0.8, 0.15, 0.5);
-      if (d.heat > 0.35 && Math.random() < 0.5) // licking flame + sparks off burning chunks
+      if (d.smoke && Math.random() < 0.6 * dt * 30) this.trailSmoke(d.p, 0.8, 0.15, 0.5); // per second, not per frame
+      if (d.heat > 0.35 && Math.random() < 0.5 * dt * 30) // licking flame + sparks off burning chunks
         this.p.alpha.emit({ x: d.p.x, y: d.p.y, z: d.p.z, vx: d.v.x * 0.1, vy: 2, vz: d.v.z * 0.1, life: rnd(0.25, 0.45), s0: 1.1 * d.s, s1: 2.2 * d.s,
           r: 2.2, g: 1.0, b: 0.35, r1: 0.35, g1: 0.08, b1: 0.02, a0: 0.9 * d.heat, a1: 0, kind: 5, drag: 2 });
       if (d.p.y < this.waterY(d.p.x, d.p.z) - 0.5 && d.v.y < 0) {

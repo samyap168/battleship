@@ -432,7 +432,7 @@ export class Combat {
           this.mines.splice(i, 1);
           continue;
         }
-        if (Math.sin(m.t * 6) > 0.9) G.fx.trailGlow(new THREE.Vector3(m.x, y + 1.2, m.z), m.team === 0 ? [0.5, 1.2, 3] : [3, 0.5, 0.3], 2.4, 0.2);
+        if (Math.sin(m.t * 6) > 0.9 && G.chance(1)) G.fx.trailGlow(new THREE.Vector3(m.x, y + 1.2, m.z), m.team === 0 ? [0.5, 1.2, 3] : [3, 0.5, 0.3], 2.4, 0.2);
       }
       _m.makeTranslation(m.x, y + 0.2, m.z);
       this.mineMesh.setMatrixAt(mc++, _m);

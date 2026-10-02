@@ -267,10 +267,10 @@ export function updateHeroEffects(G, h, dt) {
   if (h.boostFx > 0) {
     h.boostFx -= dt;
     const bx = h.x + Math.sin(h.yaw) * h.rig.length * 0.45, bz = h.z + Math.cos(h.yaw) * h.rig.length * 0.45;
-    G.fx.p.alpha.emit({ x: bx, y: 0.8, z: bz, vx: Math.cos(h.yaw) * rnd(-9, 9), vy: rnd(4, 9), vz: -Math.sin(h.yaw) * rnd(-9, 9), life: 0.7, s0: 1.5, s1: 4, r: 0.95, g: 0.97, b: 1, a0: 0.7, a1: 0, kind: 3, grav: 18 });
+    if (G.chance(1, dt)) G.fx.p.alpha.emit({ x: bx, y: 0.8, z: bz, vx: Math.cos(h.yaw) * rnd(-9, 9), vy: rnd(4, 9), vz: -Math.sin(h.yaw) * rnd(-9, 9), life: 0.7, s0: 1.5, s1: 4, r: 0.95, g: 0.97, b: 1, a0: 0.7, a1: 0, kind: 3, grav: 18 });
   }
   // shield bubble shimmer
-  if (h.shield > 0 && G.frame % 3 === 0) {
+  if (h.shield > 0 && G.pulse(3)) {
     const a = Math.random() * 6.283, e = rnd(0, 1.4), r = h.radius + 4;
     G.fx.p.add.emit({ x: h.x + Math.cos(a) * Math.cos(e) * r, y: 3 + Math.sin(e) * r * 0.6, z: h.z + Math.sin(a) * Math.cos(e) * r, life: 0.4, s0: 2.4, s1: 0.5, r: 0.4, g: 1.0, b: 2.2, a0: 0.8, a1: 0 });
   }
