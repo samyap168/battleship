@@ -88,6 +88,19 @@ await step(22, 'Painting the sky');
 const sky = new Sky(R.gl, scene);
 R.sun = sky.sun; // adaptive quality can halve the shadow map on a struggling GPU
 R.setQuality(settings.quality); // applies the preset to the sun (Low: no shadow casting)
+// Passes a previous launch proved broken on this GPU stay off; the watchdog finds new ones within a second.
+R.restoreFxOff((localGet('aa.fxoff') || '').split(',').filter(Boolean));
+let sceneWashActed = false;
+R.onSceneWash = () => { // not the post chain: something in the scene itself is washing the view out. Low removes reflections and shadows, the usual suspects.
+  if (sceneWashActed || settings.quality === 'low') return;
+  sceneWashActed = true; applyQuality('low');
+  try { hud.hint('The 3D view was washed out on your GPU, so graphics were set to <b>Low</b>. <kbd>Esc</kbd> → Graphics to change.', 9000); } catch { /* hud not up yet */ }
+};
+R.onDegrade = (name, list) => {
+  localSet('aa.fxoff', list.join(','));
+  const label = { rays: 'light shafts', bloom: 'bloom glow', nanguard: 'the NaN guard', ao: 'ambient occlusion', smaa: 'anti-aliasing', safe: 'all post-processing' }[name] || name;
+  try { hud.hint(`Your GPU washed out the picture, so <b>${label}</b> ${name === 'safe' ? 'is' : 'was'} switched off. <kbd>Esc</kbd> → Graphics to try again.`, 9000); } catch { /* hud not up yet */ }
+};
 sky.setTime(MENU_TIME, 0);
 sky.updateEnv(0, true);
 await step(40, 'Raising the tides');
@@ -287,6 +300,7 @@ let optionsOpen = false, quitArmed = 0;
 function applyQuality(name) {
   const was = settings.quality;
   settings.quality = name; localSet('aa.quality', name);
+  R.restoreFxOff([]); localSet('aa.fxoff', ''); // a deliberate change gets a fresh look: the watchdog re-tests it
   R.setQuality(name);
   const wantRefl = name === 'high' && params.get('refl') !== '0';
   if (wantRefl && !refl) {
@@ -585,7 +599,7 @@ window.__aa.step = (n = 1, dt = 1 / 30) => { for (let i = 0; i < n; i++) tick(dt
 function tick(dt, draw) {
   wallTime += dt;
   fpsAcc += dt; fpsN++;
-  if (fpsAcc > 1) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; if (!fpsEl.classList.contains('hidden')) { const off = [R.ao && !R.ao.enabled && 'AO', R.refl && !R.refl.uniforms.uReflOn.value && 'reflections', R.sun && R.sun.shadow.mapSize.x < 2048 && R.q.shadows >= 2048 && 'shadow detail', R.smaa && !R.smaa.enabled && 'AA', R.safeMode && 'post FX'].filter(Boolean);
+  if (fpsAcc > 1) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; if (!fpsEl.classList.contains('hidden')) { const off = [R.ao && !R.ao.enabled && 'AO', R.refl && !R.refl.uniforms.uReflOn.value && 'reflections', R.sun && R.sun.shadow.mapSize.x < 2048 && R.q.shadows >= 2048 && 'shadow detail', R.smaa && !R.smaa.enabled && 'AA', R.safeMode && 'post FX', ...(R.fxOff || []).map((n) => 'GPU-blocked ' + n)].filter(Boolean);
     fpsEl.textContent = `${fps.toFixed(0)} fps · ${(R.gl.getPixelRatio() * 100).toFixed(0)}% res · ${R.gl.info.render.calls} draws${off.length ? ' · off: ' + off.join(', ') : ''}`; } }
   if (howtoPending && mode === 'play' && !cameraDir.cine && G && G.time > 1) { howtoPending = false; showHowTo(true); }
   if (G && !howtoOpen && !optionsOpen) G.update(dt);
