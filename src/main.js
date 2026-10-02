@@ -87,6 +87,7 @@ const scene = R.scene;
 await step(22, 'Painting the sky');
 const sky = new Sky(R.gl, scene);
 R.sun = sky.sun; // adaptive quality can halve the shadow map on a struggling GPU
+R.setQuality(settings.quality); // applies the preset to the sun (Low: no shadow casting)
 sky.setTime(MENU_TIME, 0);
 sky.updateEnv(0, true);
 await step(40, 'Raising the tides');
@@ -106,12 +107,13 @@ sealife.clear = (x, z) => { // whales keep clear of the fleets
 };
 // Planar reflections on Ultra: tag reflection-worthy objects onto layer 2.
 let refl = null;
-if (settings.quality === 'high' && params.get('refl') !== '0') {
+function makeReflections() {
   refl = new WaterReflection(R.gl, scene, R.camera, 1 / 2);
   ocean.enableReflection(refl.uniforms);
   R.refl = refl;
   [sky.dome, sky.sun, sky.hemi, env.group, birds.mesh, fx.p.add.points, fx.p.alpha.points, fx.debris, ...fx.lights, ...fx.beams].forEach(reflectable);
 }
+if (settings.quality === 'high' && params.get('refl') !== '0') makeReflections();
 const cameraDir = new CameraDirector(R.camera);
 fx.onShake = (a, x, z) => cameraDir.addTrauma(a, x, z);
 const hud = new HUD($('#ui'), $('#overlay'));
@@ -219,7 +221,7 @@ function hotspot(g) {
 
 function toMenu() {
   mode = 'menu';
-  $('#howtoBtn').classList.add('hidden'); howtoPending = false;
+  $('#howtoBtn').classList.add('hidden'); $('#optBtn').classList.add('hidden'); howtoPending = false; if (optionsOpen) showOptions(false);
   $('#menu').classList.remove('hidden');
   $('#ui').classList.add('menuMode');
   startGame(true);
@@ -234,7 +236,7 @@ function play() {
   $('#menu').classList.add('hidden');
   $('#ui').classList.remove('menuMode');
   startGame(false);
-  $('#howtoBtn').classList.remove('hidden');
+  $('#howtoBtn').classList.remove('hidden'); $('#optBtn').classList.remove('hidden');
   howtoPending = !automated && localGet('aa.howto') !== '1';
 }
 
@@ -273,6 +275,65 @@ $('#howtoGo').onclick = (e) => { e.stopPropagation(); audio.init(); audio.play('
 $('#howtoMore').onclick = (e) => { e.stopPropagation(); audio.play('uiClick'); $('#help').classList.toggle('hidden'); };
 $('#howto').addEventListener('pointerdown', (e) => { if (e.target === $('#howto')) showHowTo(false); }); // click outside the card closes it
 $('#howtoBtn').onclick = () => { audio.init(); showHowTo(!howtoOpen); };
+
+// ---------------------------------------------------------------------------
+// Options (Esc / gear): graphics quality applies live, so the match carries on where it was.
+const QUALITY_NOTE = {
+  low: 'Fastest. No shadows, bloom or anti-aliasing; for older laptops and integrated graphics.',
+  medium: 'Balanced. Shadows, bloom and smooth edges.',
+  high: 'Best looking. Adds water reflections, ambient occlusion and a sharper image; needs a decent graphics card.',
+};
+let optionsOpen = false, quitArmed = 0;
+function applyQuality(name) {
+  const was = settings.quality;
+  settings.quality = name; localSet('aa.quality', name);
+  R.setQuality(name);
+  const wantRefl = name === 'high' && params.get('refl') !== '0';
+  if (wantRefl && !refl) {
+    makeReflections();
+    if (G) { G.reflect = reflectable; for (const u of G.units) if (u.rig) reflectable(u.rig.root); if (G.boss && G.boss.rig) reflectable(G.boss.rig.root); } // ships already afloat join the mirror too
+  }
+  if (refl) refl.uniforms.uReflOn.value = wantRefl ? 1 : 0;
+  if (was !== name && G && mode === 'play') hud.hint(`Graphics: <b>${name === 'high' ? 'Ultra' : name === 'medium' ? 'Medium' : 'Low'}</b>`, 1800);
+}
+function syncOptions() {
+  document.querySelectorAll('#optQual button').forEach((b) => b.classList.toggle('on', b.dataset.v === settings.quality));
+  $('#optQualNote').textContent = QUALITY_NOTE[settings.quality] + ' Switching can pause the picture for a moment while shaders rebuild.';
+  const v = audio.volume;
+  $('#optMaster').value = Math.round(v.master * 100); $('#optMusic').value = Math.round(v.music * 100); $('#optSfx').value = Math.round(v.sfx * 100);
+  document.querySelectorAll('#optFps button').forEach((b) => b.classList.toggle('on', (b.dataset.v === '1') === !fpsEl.classList.contains('hidden')));
+  quitArmed = 0; $('#optQuit').textContent = 'QUIT TO MENU'; $('#optQuit').classList.remove('confirm');
+}
+function showOptions(on) {
+  if (on && (mode !== 'play' || !G || howtoOpen)) return;
+  optionsOpen = on;
+  $('#options').classList.toggle('hidden', !on);
+  if (on) { hud.aiming = -1; syncOptions(); audio.init(); audio.play('uiClick'); }
+}
+$('#optBtn').onclick = () => { audio.init(); showOptions(!optionsOpen); };
+$('#optResume').onclick = () => { audio.play('uiClick'); showOptions(false); };
+$('#optHow').onclick = () => { showOptions(false); showHowTo(true); };
+$('#options').addEventListener('pointerdown', (e) => { if (e.target === $('#options')) showOptions(false); });
+document.querySelectorAll('#optQual button').forEach((b) => {
+  b.onclick = () => { audio.play('uiClick'); applyQuality(b.dataset.v); syncOptions(); };
+  b.onmouseenter = () => audio.play('uiHover');
+});
+document.querySelectorAll('#optFps button').forEach((b) => {
+  b.onclick = () => { audio.play('uiClick'); fpsEl.classList.toggle('hidden', b.dataset.v !== '1'); localSet('aa.fps', b.dataset.v); syncOptions(); };
+});
+for (const [id, key] of [['#optMaster', 'master'], ['#optMusic', 'music'], ['#optSfx', 'sfx']]) {
+  $(id).addEventListener('input', (e) => { const v = e.target.value / 100; audio.setVolume({ [key]: v }); localSet('aa.vol.' + key, String(v)); });
+  $(id).addEventListener('change', () => audio.play('uiClick'));
+}
+$('#optQuit').onclick = () => { // two clicks: a stray click must not throw away the match
+  if (!quitArmed) { quitArmed = 1; $('#optQuit').textContent = 'CLICK AGAIN TO ABANDON THE MATCH'; $('#optQuit').classList.add('confirm'); return; }
+  showOptions(false); hud.closeModal(); toMenu();
+};
+{ // remembered volumes and overlay
+  const vol = {};
+  for (const k of ['master', 'music', 'sfx']) { const v = parseFloat(localGet('aa.vol.' + k)); if (Number.isFinite(v)) vol[k] = Math.max(0, Math.min(1, v)); }
+  if (Object.keys(vol).length) audio.setVolume(vol);
+}
 hud.on('again', () => play());
 hud.on('menu', () => { hud.closeModal(); toMenu(); });
 
@@ -298,12 +359,36 @@ function playerCast(i) {
 }
 hud.on('ageUp', playerAgeUp);
 hud.on('buy', (id) => { if (G && G.player && !G.buyUpgrade(G.player, id)) audio.play('uiError'); });
-hud.on('castButton', (i) => {
-  const ab = G && G.player && G.player.abilities[i];
-  if (!ab) return;
-  if (ab.target === 'self' || ab.target === 'auto') playerCast(i);
-  else { hud.aiming = i; hud.hint('Click the sea to fire · right-click to cancel', 1800); }
+// Clicking a skill icon fires it. Self / auto skills go off at once; aimed skills fire at the best target
+  // (your current target, else the nearest enemy captain, else the nearest enemy), or dead ahead if the sea is
+  // empty. Shift+click keeps the manual route: click the sea to place the shot.
+function smartAim(p) {
+  const RNG = 150;
+  let t = p.target && p.target.alive && p.target.team !== p.team && p.dist(p.target) < RNG ? p.target : null;
+  if (!t) {
+    let bd = Infinity;
+    for (const u of G.units) {
+      if (!u.alive || u.team === p.team || u.targetable === false) continue;
+      const d = p.dist(u); if (d > RNG) continue;
+      const w = d * (u.kind === 'hero' ? 0.6 : 1); // captains first
+      if (w < bd) { bd = w; t = u; }
+    }
+  }
+  if (t) return [t.x + (t.vx || 0) * 0.4, t.z + (t.vz || 0) * 0.4];
+  return [p.x + Math.sin(p.yaw) * 70, p.z + Math.cos(p.yaw) * 70];
+}
+hud.on('castButton', (i, manual) => {
+  const p = G && G.player, ab = p && p.abilities[i];
+  if (!ab || !p.alive) return;
+  if (ab.target === 'self' || ab.target === 'auto') { playerCast(i); return; }
+  if (manual) { hud.aiming = i; hud.hint('Click the sea to fire · right-click to cancel', 1800); return; }
+  const [ax, az] = smartAim(p);
+  if (!cast(G, p, i, ax, az)) {
+    if (ab.minLevel && p.level < ab.minLevel) hud.hint(`${ab.name} unlocks at level ${ab.minLevel}`, 1500);
+    audio.play('uiError');
+  } else if (!castHinted) { castHinted = true; hud.hint('Skills fire at the best target · <kbd>Shift</kbd>+click to aim by hand', 3500); }
 });
+let castHinted = false;
 hud.on('minimapLook', (x, z) => { cameraDir.locked = false; cameraDir.goal.set(x, 0, z); });
 hud.on('minimapMove', (x, z) => { if (G && G.player && G.player.alive) { G.player.commandMove(x, z); moveMarker(x, z); } });
 
@@ -331,7 +416,12 @@ canvas.addEventListener('pointermove', (e) => {
 document.addEventListener('pointerleave', () => (cameraDir.mouse.inside = false));
 // Orbit: middle-drag (or Shift + left-drag on a trackpad) swings the camera around the focus.
 let orbitDrag = null;
+let rightDrag = null; // right button: a quick click still sails / attacks (on release), a drag orbits the camera
 canvas.addEventListener('pointerdown', (e) => {
+  if (mode === 'play' && e.button === 2 && G && !G.over && hud.aiming < 0 && !(openingSkippable && cameraDir.cine)) {
+    rightDrag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false, id: e.pointerId };
+    canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+  }
   if (mode === 'play' && (e.button === 1 || (e.button === 0 && e.shiftKey))) {
     orbitDrag = { x: e.clientX, y: e.clientY, id: e.pointerId };
     canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
@@ -341,11 +431,27 @@ canvas.addEventListener('pointerdown', (e) => {
 }, true);
 let orbitHinted = false;
 window.addEventListener('pointermove', (e) => {
+  if (rightDrag) {
+    if (!rightDrag.moved && Math.hypot(e.clientX - rightDrag.sx, e.clientY - rightDrag.sy) > 6) {
+      rightDrag.moved = true; cameraDir.orbiting = true;
+      if (!orbitHinted) { orbitHinted = true; hud.hint('Orbiting · right-drag to look around your ship · <kbd>C</kbd> resets the view', 3500); }
+    }
+    if (rightDrag.moved) { cameraDir.orbitBy(e.clientX - rightDrag.x, e.clientY - rightDrag.y); }
+    rightDrag.x = e.clientX; rightDrag.y = e.clientY;
+    return;
+  }
   if (!orbitDrag) return;
   cameraDir.orbitBy(e.clientX - orbitDrag.x, e.clientY - orbitDrag.y);
   orbitDrag.x = e.clientX; orbitDrag.y = e.clientY;
 });
-window.addEventListener('pointerup', () => { orbitDrag = null; });
+window.addEventListener('pointerup', (e) => {
+  orbitDrag = null;
+  if (rightDrag && e.button === 2) {
+    const d = rightDrag; rightDrag = null; cameraDir.orbiting = false;
+    if (!d.moved && mode === 'play' && G && G.player && !G.over) commandAtCursor(); // a plain right-click: sail / attack
+  }
+});
+window.addEventListener('pointercancel', () => { orbitDrag = null; rightDrag = null; cameraDir.orbiting = false; });
 canvas.addEventListener('auxclick', (e) => e.preventDefault());
 canvas.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); }); // no browser autoscroll on middle-drag
 canvas.addEventListener('pointerdown', (e) => {
@@ -358,12 +464,15 @@ canvas.addEventListener('pointerdown', (e) => {
     if (e.button === 0) playerCast(i);
     return;
   }
-  if ((e.button === 2 || e.button === 0) && p.alive) { // left or right click: sail / attack
-    const u = pickUnit(mouse.ground.x, mouse.ground.z, p.team);
-    if (u) { p.commandAttack(u); moveMarker(u.x, u.z, true); }
-    else { p.commandMove(mouse.ground.x, mouse.ground.z); moveMarker(mouse.ground.x, mouse.ground.z); }
-  }
+  if (e.button === 0) commandAtCursor(); // left click: sail / attack at once (right click acts on release, so a drag can orbit)
 });
+function commandAtCursor() {
+  const p = G && G.player;
+  if (!p || !p.alive) return;
+  const u = pickUnit(mouse.ground.x, mouse.ground.z, p.team);
+  if (u) { p.commandAttack(u); moveMarker(u.x, u.z, true); }
+  else { p.commandMove(mouse.ground.x, mouse.ground.z); moveMarker(mouse.ground.x, mouse.ground.z); }
+}
 canvas.addEventListener('wheel', (e) => { cameraDir.zoom(e.deltaY); e.preventDefault(); }, { passive: false });
 
 let openingSkippable = false;
@@ -379,13 +488,14 @@ window.addEventListener('keydown', (e) => {
     if (e.key === 'Tab' || e.key === 'Alt' || e.key === 'Shift' || e.key === 'Control' || e.key === 'Meta') return;
     e.preventDefault(); if (!e.repeat) showHowTo(false); return;
   }
+  if (optionsOpen) { if (e.key === 'Escape') { e.preventDefault(); showOptions(false); } return; }
   cameraDir.keys[e.key] = true;
   if (mode !== 'play' || !G) return;
   if (e.key.toLowerCase() === 'h' || e.key === 'F1') { e.preventDefault(); showHowTo(true); return; }
   const k = e.key.toLowerCase();
   if (e.ctrlKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); hud.handlers.buy(UPGRADES[+e.key - 1].id); return; }
   if (hud.modalOpen && k === 'escape') { hud.closeModal(); return; }
-  if (k === 'escape') { hud.aiming = -1; return; }
+  if (k === 'escape') { if (hud.aiming >= 0) hud.aiming = -1; else showOptions(true); return; }
   if (e.repeat) return;
   const idx = ['q', 'w', 'e', 'r'].indexOf(k);
   if (idx >= 0) {
@@ -421,6 +531,7 @@ window.addEventListener('blur', () => { cameraDir.keys = {}; });
 let lastT = performance.now();
 const fpsEl = Object.assign(document.createElement('div'), { id: 'fps', className: 'hidden' });
 document.body.appendChild(fpsEl);
+if (localGet('aa.fps') === '1') fpsEl.classList.remove('hidden');
 let wallTime = 0;
 let fpsAcc = 0, fpsN = 0, fps = 60;
 const lightCol = new THREE.Color();
@@ -435,7 +546,7 @@ const AGE_GRADE = {
 const gradeCur = { gain: new THREE.Vector3(1, 1, 1), lift: new THREE.Vector3(), sat: 1.1, con: 1.08, ca: 0.0007 };
 const _px = new Uint8Array(4);
 function syncGPU() { const g = R.gl.getContext(); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, _px); }
-window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, refl, weather, TEAM_RIM, get fps() { return fps; }, howto: (on) => showHowTo(on), sealife,
+window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, get refl() { return refl; }, weather, TEAM_RIM, get fps() { return fps; }, howto: (on) => showHowTo(on), sealife,
   // test fast-forward: advance the sim AND age its effects (plain G.update leaves every spray puff frozen in place)
   ff: (dt) => { G.update(dt); const t = G.time; wakes.update(dt, t); fx.update(dt, t); particles.update(dt); ocean.decals.update(dt, t); } };
 
@@ -477,7 +588,7 @@ function tick(dt, draw) {
   if (fpsAcc > 1) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; if (!fpsEl.classList.contains('hidden')) { const off = [R.ao && !R.ao.enabled && 'AO', R.refl && !R.refl.uniforms.uReflOn.value && 'reflections', R.sun && R.sun.shadow.mapSize.x < 2048 && R.q.shadows >= 2048 && 'shadow detail', R.smaa && !R.smaa.enabled && 'AA', R.safeMode && 'post FX'].filter(Boolean);
     fpsEl.textContent = `${fps.toFixed(0)} fps · ${(R.gl.getPixelRatio() * 100).toFixed(0)}% res · ${R.gl.info.render.calls} draws${off.length ? ' · off: ' + off.join(', ') : ''}`; } }
   if (howtoPending && mode === 'play' && !cameraDir.cine && G && G.time > 1) { howtoPending = false; showHowTo(true); }
-  if (G && !howtoOpen) G.update(dt);
+  if (G && !howtoOpen && !optionsOpen) G.update(dt);
   const gdt = G ? G.dt : dt;
   const t = G ? G.time : wallTime;
 

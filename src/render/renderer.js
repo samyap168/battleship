@@ -144,7 +144,7 @@ export class Renderer {
     r.toneMapping = THREE.ACESFilmicToneMapping;
     r.toneMappingExposure = 0.9;
     r.outputColorSpace = THREE.SRGBColorSpace;
-    r.shadowMap.enabled = this.q.shadows > 0;
+    r.shadowMap.enabled = true; // always on: the sun's castShadow flag is what Low turns off, so the preset can change live
     r.shadowMap.type = THREE.PCFShadowMap;
     r.shadowMap.autoUpdate = false; r.shadowMap.needsUpdate = true; // refreshed every other frame in render()
     container.appendChild(r.domElement);
@@ -156,13 +156,8 @@ export class Renderer {
 
     const composer = new EffectComposer(r);
     composer.addPass(new RenderPass(this.scene, this.camera));
-    if (this.q.ao) {
-      this.ao = new SolidGTAOPass(this.scene, this.camera, Math.round(window.innerWidth / 2), Math.round(window.innerHeight / 2));
-      this.ao.updateGtaoMaterial({ radius: 5.5, distanceExponent: 1.4, thickness: 3, scale: 1.25, samples: 12, distanceFallOff: 1 });
-      this.ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
-      this.ao.blendIntensity = 0.9;
-      composer.addPass(this.ao);
-    }
+    this.composer = composer;
+    if (this.q.ao) composer.addPass(this._makeAO());
     // NaN/Inf guard: one bad pixel (undefined math on some GPU drivers) must never reach the
     // bloom mip chain, which smears it across the whole frame as a milky veil. isnan()/isinf()
     // are NOT reliable here: D3D shader compilers (Chrome/Edge on Windows via ANGLE) optimise
@@ -200,10 +195,39 @@ export class Renderer {
     this.grade = new ShaderPass(GradeShader);
     composer.addPass(this.grade);
     if (this.q.smaa) { this.smaa = new SMAAPass(); composer.addPass(this.smaa); }
-    this.composer = composer;
 
     this.shocks = []; // {x,y (ndc 0..1), t, life, str}
     window.addEventListener('resize', () => this.resize());
+    this.resize();
+  }
+
+  _makeAO() {
+    this.ao = new SolidGTAOPass(this.scene, this.camera, Math.round(window.innerWidth / 2), Math.round(window.innerHeight / 2));
+    this.ao.updateGtaoMaterial({ radius: 5.5, distanceExponent: 1.4, thickness: 3, scale: 1.25, samples: 12, distanceFallOff: 1 });
+    this.ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
+    this.ao.blendIntensity = 0.9;
+    return this.ao;
+  }
+
+  /** Switch graphics preset live (no reload, the match carries on): builds the passes a higher preset
+   *  needs on first use, toggles the rest, and resets what the frame-rate governor had shed. */
+  setQuality(name) {
+    const q = QUALITY[name]; if (!q) return;
+    this.q = q; this.qualityName = name;
+    const c = this.composer;
+    if (q.ao && !this.ao) c.insertPass(this._makeAO(), 1); // straight after the scene pass
+    if (this.ao) this.ao.enabled = !!q.ao;
+    if (q.smaa && !this.smaa) { this.smaa = new SMAAPass(); c.addPass(this.smaa); }
+    if (this.smaa) this.smaa.enabled = !!q.smaa;
+    this.bloom.enabled = !!q.bloom; this.rays.enabled = !!q.bloom;
+    if (this.sun) {
+      const want = q.shadows > 0;
+      if (this.sun.castShadow !== want) this.sun.castShadow = want; // programs re-link once, on the next frame
+      if (want && this.sun.shadow.mapSize.x !== q.shadows) { this.sun.shadow.mapSize.set(q.shadows, q.shadows); if (this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; } }
+      this.gl.shadowMap.needsUpdate = true;
+    }
+    this.strained = false; this.flatHits = 0; this.ftAvg = undefined; this.adaptT = 0;
+    this.gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.pixelRatio));
     this.resize();
   }
 

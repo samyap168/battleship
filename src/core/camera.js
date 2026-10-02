@@ -29,7 +29,7 @@ export class CameraDirector {
   /** Orbit the gameplay camera: dx/dy in screen pixels. */
   orbitBy(dx, dy) {
     this.yawGoal -= dx * 0.006;
-    this.tiltGoal = THREE.MathUtils.clamp(this.tiltGoal + dy * 0.18, -30, 22);
+    this.tiltGoal = THREE.MathUtils.clamp(this.tiltGoal + dy * 0.18, -30, 62); // zoomed in, enough range to swing from the waterline to nearly overhead
   }
   resetOrbit() { this.yawGoal = Math.round(this.yaw / (Math.PI * 2)) * Math.PI * 2; this.tiltGoal = 0; }
 
@@ -122,7 +122,7 @@ export class CameraDirector {
     let px = 0, pz = 0;
     if (this.keys.ArrowLeft) px -= 1; if (this.keys.ArrowRight) px += 1;
     if (this.keys.ArrowUp) pz -= 1; if (this.keys.ArrowDown) pz += 1;
-    if (this.mouse.inside && !this.locked) {
+    if (this.mouse.inside && !this.locked && !this.orbiting) {
       const m = 0.012;
       if (this.mouse.x < m) px -= 1; if (this.mouse.x > 1 - m) px += 1;
       if (this.mouse.y < m) pz -= 1; if (this.mouse.y > 1 - m) pz += 1;

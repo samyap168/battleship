@@ -30,12 +30,12 @@
   <div id="help" class="panel ornate hidden" style="z-index:4">
     <h3>COMMAND</h3>
     <div><kbd>Click</kbd> (left or right) sail to / attack target</div>
-    <div><kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> <b>hold to aim</b>, release to fire at the cursor · <kbd>RMB</kbd> cancels</div>
+    <div><kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> <b>hold to aim</b>, release to fire at the cursor · or <b>click a skill icon</b> to fire at the best target (<kbd>Shift</kbd>+click to aim by hand)</div>
     <div><b>Orange rings</b> on the water are incoming enemy salvos and strikes: sail out of them</div>
     <div><kbd>T</kbd> advance to the next age · <kbd>G</kbd> rally allies to the cursor</div>
     <div><kbd>Ctrl</kbd>+<kbd>1-5</kbd> buy armory upgrades</div>
     <div><kbd>Space</kbd> center camera · <kbd>Y</kbd> free camera · <kbd>C</kbd> reset orbit</div>
-    <div><kbd>Wheel</kbd> zoom · <kbd>Middle-drag</kbd> / <kbd>Shift</kbd>+drag / <kbd>Z</kbd><kbd>X</kbd> orbit</div>
+    <div><kbd>Wheel</kbd> zoom · <b><kbd>Right-drag</kbd></b> orbit 360° around your ship (also <kbd>Middle-drag</kbd>, <kbd>Shift</kbd>+drag, <kbd>Z</kbd><kbd>X</kbd>) · <kbd>Esc</kbd> options</div>
     <div><kbd>Tab</kbd> scoreboard · <kbd>Alt</kbd> gun range · <kbd>H</kbd> how to play</div>
     <div><kbd>S</kbd> stop · <kbd>M</kbd> mute · <kbd>F3</kbd> performance</div>
     <div class="ages">Earn gold from gunboats, captains, forts and trade ports. Each age reforges your hull:
@@ -68,7 +68,7 @@
           <div class="d">Push with your gunboats. Break <b>two forts</b> in a lane to expose the enemy <b>citadel</b>, then sink it.</div>
         </div>
       </div>
-      <div class="ht-cam"><span>CAMERA</span> <kbd>Wheel</kbd> zoom · <kbd>Middle-drag</kbd> or <kbd>Shift</kbd>+drag orbit · <kbd>Z</kbd><kbd>X</kbd> rotate · <kbd>C</kbd> reset · <kbd>Space</kbd> centre on ship</div>
+      <div class="ht-cam"><span>CAMERA</span> <kbd>Wheel</kbd> zoom · <kbd>Right-drag</kbd> orbit · <kbd>Z</kbd><kbd>X</kbd> rotate · <kbd>C</kbd> reset · <kbd>Space</kbd> centre on ship</div>
       <div class="ht-foot">
         <button class="btn-primary" id="howtoGo">SET SAIL</button>
         <button class="btn-ghost" id="howtoMore">All controls</button>
@@ -77,6 +77,27 @@
     </div>
   </div>
   <button id="howtoBtn" class="hidden" title="How to play (H)">?</button>
+  <button id="optBtn" class="hidden" title="Options (Esc)">&#9881;</button>
+
+  <div id="options" class="hidden">
+    <div class="panel ornate op-box">
+      <div class="op-title">OPTIONS</div>
+      <div class="op-sub">The battle is paused</div>
+      <div class="op-row"><div class="lbl">Graphics</div>
+        <div class="seg" id="optQual"><button data-v="low">Low</button><button data-v="medium">Medium</button><button data-v="high">Ultra</button></div></div>
+      <div class="op-note" id="optQualNote"></div>
+      <div class="op-row"><div class="lbl">Master volume</div><input type="range" id="optMaster" min="0" max="100" /></div>
+      <div class="op-row"><div class="lbl">Music</div><input type="range" id="optMusic" min="0" max="100" /></div>
+      <div class="op-row"><div class="lbl">Effects</div><input type="range" id="optSfx" min="0" max="100" /></div>
+      <div class="op-row"><div class="lbl">Performance overlay</div>
+        <div class="seg" id="optFps"><button data-v="0">Off</button><button data-v="1">On</button></div></div>
+      <div class="op-btns">
+        <button class="btn-primary" id="optResume">RESUME</button>
+        <button class="btn-ghost" id="optHow">HOW TO PLAY</button>
+        <button class="btn-ghost" id="optQuit">QUIT TO MENU</button>
+      </div>
+    </div>
+  </div>
 
   <div id="loading"><div class="t">ARMADA ASCENSION</div><div class="p"><i></i></div><div class="s">Loading</div><div class="tip" id="tip0"></div></div>
   <script type="module" src="/src/main.js"></script>

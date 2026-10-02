@@ -145,7 +145,7 @@ export class HUD {
       const i = +el.dataset.i;
       el.addEventListener('mouseenter', () => { this.hoverAbility = i; this.showTip(el, this.abilityTip(p.abilities[i])); });
       el.addEventListener('mouseleave', () => { this.hoverAbility = -1; this.hideTip(); });
-      el.addEventListener('click', () => this.handlers.castButton && this.handlers.castButton(i));
+      el.addEventListener('click', (e) => this.handlers.castButton && this.handlers.castButton(i, e.shiftKey));
     });
     this.abEls = [...box.querySelectorAll('.ab')];
   }
