@@ -3,7 +3,7 @@ import './ui/style.css';
 import { Renderer } from './render/renderer.js';
 import { Sky, MENU_TIME } from './render/sky.js';
 import { Ocean } from './render/ocean.js';
-import { Environment } from './render/environment.js';
+import { Environment, SEE_THROUGH } from './render/environment.js';
 import { Particles } from './render/particles.js';
 import { FX } from './render/fx.js';
 import { ISLANDS, SCENERY, BOUNDS } from './game/map.js';
@@ -663,6 +663,7 @@ function tick(dt, draw) {
     }
   }
   const f = cameraDir.focus;
+  SEE_THROUGH.uSeeCam.value.copy(R.camera.position); SEE_THROUGH.uSeeFoc.value.copy(f); SEE_THROUGH.uSeeOn.value = G && mode === 'play' && !cameraDir.cine ? 1 : 0;
   if (G) { G.listener.x = f.x; G.listener.z = f.z; G.viewScale = 1.15 + THREE.MathUtils.smoothstep(cameraDir.dist, 160, 290) * 0.25; /* captains always read a size above gunboats */ }
   audio.setListener(f.x, f.z, cameraDir.dist);
 

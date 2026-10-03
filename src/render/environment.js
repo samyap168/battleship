@@ -289,6 +289,7 @@ function karstGeometry(r, h, seed) {
 // undercut wave notch at the waterline, rounded jungle crown.
 const LIME = new THREE.Color(0.25, 0.285, 0.27), LIME_D = new THREE.Color(0.11, 0.13, 0.12), STAIN = new THREE.Color(0.08, 0.085, 0.08);
 const CANOPY = new THREE.Color(0.07, 0.19, 0.05), CANOPY_L = new THREE.Color(0.2, 0.34, 0.08), WET = new THREE.Color(0.1, 0.1, 0.09);
+export const SEE_THROUGH = { uSeeCam: { value: new THREE.Vector3() }, uSeeFoc: { value: new THREE.Vector3() }, uSeeOn: { value: 0 } };
 export function karstTower(r, h, seed, lean = 0) {
   r = Math.min(r, h * 0.26 + 2); // limestone towers are tall and slim: no squat mesas at any depth
   const radial = 36, rows = 26;
@@ -412,6 +413,32 @@ export class Environment {
     [islandMat, trunkMat, leafMat, stoneMat, roofMat].forEach(applyCloudShadow);
     applyFoliage(leafMat);
     applyTerrainDetail(islandMat);
+    // see-through: rock standing between the lens and the followed ship dissolves (screen-door) inside a
+    // cylinder around the line of sight. One shared uniform, no per-island materials, shadows unaffected.
+    {
+      const prevC = islandMat.onBeforeCompile;
+      islandMat.onBeforeCompile = (sh, r) => {
+        if (prevC) prevC(sh, r);
+        Object.assign(sh.uniforms, SEE_THROUGH);
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vSeeW;')
+          .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvSeeW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vSeeW; uniform vec3 uSeeCam; uniform vec3 uSeeFoc; uniform float uSeeOn;')
+          .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+          if (uSeeOn > 0.5 && vSeeW.y > 2.0) {
+            vec3 ray = uSeeFoc - uSeeCam; float rl = length(ray); vec3 rd = ray / rl;
+            vec3 rel = vSeeW - uSeeCam; float along = dot(rel, rd);
+            if (along > 4.0 && along < rl - 10.0) {
+              float lat = length(rel - rd * along);
+              float keep = smoothstep(7.0, 16.0, lat);
+              float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+              if (ign > keep) discard;
+            }
+          }`);
+      };
+      const k0 = islandMat.customProgramCacheKey ? islandMat.customProgramCacheKey.bind(islandMat) : () => '';
+      islandMat.customProgramCacheKey = () => k0() + '|see';
+      islandMat.needsUpdate = true;
+    }
 
     const { trunk, crown } = treeGeometries();
     const trees = [];
