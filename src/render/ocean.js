@@ -50,13 +50,64 @@ function buildOceanGeometry(segments = 300, radius = 3200) {
   return g;
 }
 
+// Isotropic band-limited slope field (tileable): replaces the old sine-ripple stack, whose crossing
+// sinusoids drew a woven diamond lattice across the surface.
+export function makeDetailTexture(size = 256) {
+  const data = new Uint8Array(size * size * 4);
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  // Isotropic band-limited slope field. Wave vectors are integers (tileable)
+  // but spread over all angles and log-spaced radii, so no axis-aligned lattice.
+  const comps = [];
+  const seen = new Set();
+  while (comps.length < 380) {
+    const kk = 4 * Math.pow(size * 0.27 / 4, rnd());      // 4 .. ~70 cycles per tile
+    const a = rnd() * Math.PI * 2;
+    const kx = Math.round(Math.cos(a) * kk), ky = Math.round(Math.sin(a) * kk);
+    const key = kx + ',' + ky;
+    if ((kx === 0 && ky === 0) || seen.has(key) || seen.has(-kx + ',' + -ky)) continue;
+    seen.add(key);
+    const k = Math.hypot(kx, ky);
+    // height ~ k^-2.1 gives a slope spectrum close to a developed sea at these scales
+    comps.push({ kx, ky, a: Math.pow(k, -2.1) * Math.sqrt(k), p: rnd() * Math.PI * 2 });
+  }
+  const sx = new Float32Array(size * size), sy = new Float32Array(size * size);
+  const row = new Float32Array(size), colCos = new Float32Array(size), colSin = new Float32Array(size);
+  for (const c of comps) {
+    for (let x = 0; x < size; x++) { const t = (2 * Math.PI * c.kx * x) / size; colCos[x] = Math.cos(t); colSin[x] = Math.sin(t); }
+    for (let y = 0; y < size; y++) {
+      const ty = (2 * Math.PI * c.ky * y) / size + c.p;
+      const cy = Math.cos(ty), sy_ = Math.sin(ty);
+      for (let x = 0; x < size; x++) {
+        // sin(tx + ty) = sin(tx)cos(ty) + cos(tx)sin(ty)
+        const d = -(colSin[x] * cy + colCos[x] * sy_) * c.a;
+        sx[y * size + x] += d * c.kx; sy[y * size + x] += d * c.ky;
+      }
+    }
+  }
+  void row;
+  let sum2 = 0;
+  for (let i = 0; i < size * size; i++) sum2 += sx[i] * sx[i] + sy[i] * sy[i];
+  const norm = Math.sqrt(sum2 / (size * size) / 2) * 3.2;
+  for (let i = 0; i < size * size; i++) {
+    data[i * 4] = Math.round(Math.min(Math.max(sx[i] / norm * 0.5 + 0.5, 0), 1) * 255);
+    data[i * 4 + 1] = Math.round(Math.min(Math.max(sy[i] / norm * 0.5 + 0.5, 0), 1) * 255);
+    data[i * 4 + 2] = 128; data[i * 4 + 3] = 255;
+  }
+  const t = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true; t.anisotropy = 8; t.needsUpdate = true;
+  return t;
+}
+
 export class Ocean {
   constructor(scene, quality = 'high') {
     this.uniforms = {
       uTime: { value: 0 },
       uIslands: { value: Array.from({ length: MAX_ISLANDS }, () => new THREE.Vector4(1e5, 1e5, 0, 0)) },
       uIslandCount: { value: 0 },
-      uRipples: { value: 10 }, uOct: { value: 4 },
+      uRipples: { value: 10 }, uOct: { value: 4 }, tDetail: { value: makeDetailTexture(256) },
       uSunDir: { value: new THREE.Vector3(0, 1, 0) },
       uSunColor: { value: new THREE.Color(1, 1, 1) },
       uDeep: { value: new THREE.Color(0.004, 0.022, 0.04) },
@@ -93,7 +144,7 @@ vWaveH = gD.y; vGrid = wpos0.xz; vOW = wpos0 + gD;`);
         .replace('#include <common>', `#include <common>
 uniform float uTime; uniform vec4 uIslands[${MAX_ISLANDS}]; uniform int uIslandCount; uniform int uRipples;
 uniform vec3 uSunDir, uSunColor, uDeep, uShallow, uSSS; uniform float uBodyI;
-uniform sampler2D tReflect; uniform mat4 uReflMat; uniform float uReflOn;
+uniform sampler2D tReflect; uniform mat4 uReflMat; uniform float uReflOn; uniform sampler2D tDetail;
 varying vec3 vOW; varying float vWaveH; varying vec2 vGrid;
 ${WAVES_GLSL}
 ${NOISE_GLSL}`)
@@ -103,17 +154,17 @@ vec3 wN = vec3(0.0, 1.0, 0.0);
 gerstnerWave(vGrid, uTime, wN);
 float camDist = length(cameraPosition - vOW);
 float detailFade = 1.0 - smoothstep(180.0, 900.0, camDist);
-// high-frequency detail ripples (normal only): golden-angle directions avoid grid-like interference
-for (int i = 0; i < 10; i++) {
-  if (i >= uRipples) break; // fewer ripples on weaker presets: this loop is the sea's biggest per-pixel cost
-  float fi = float(i);
-  float ang = fi * 2.39996 + 0.7;
-  vec2 D = vec2(cos(ang), sin(ang));
-  float L = 7.5 * pow(0.78, fi);
-  float k = 6.2831 / L;
-  float ph = k * dot(D, vOW.xz) - sqrt(9.81 * k) * 0.75 * uTime + fi * 1.93;
-  float slope = 0.3 * (L * 0.03) * k * detailFade * (0.6 + 0.4 * sin(fi * 3.1 + uTime * 0.3));
-  wN.xz -= D * slope * cos(ph) * 0.35;
+// capillary detail (normal only): three tiled isotropic slope layers, each rotated by its own angle and scaled
+// incommensurately so no lattice lines up; slopes are rotated back to world space. Cheaper than the old
+// sine-ripple loop and free of the woven diamond pattern crossing sinusoids drew.
+{
+  const mat2 R1 = mat2(0.8776, 0.4794, -0.4794, 0.8776), R2 = mat2(0.1665, 0.9861, -0.9861, 0.1665), R3 = mat2(-0.6663, 0.7457, -0.7457, -0.6663);
+  vec2 wd = vec2(0.82, 0.57);
+  vec2 d1 = transpose(R1) * (texture2D(tDetail, R1 * vOW.xz / 11.3 + wd * uTime * 0.017).xy * 2.0 - 1.0);
+  vec2 d2 = transpose(R2) * (texture2D(tDetail, R2 * vOW.xz / 3.7 + vec2(-wd.y, wd.x) * uTime * 0.031 + 0.37).xy * 2.0 - 1.0);
+  vec2 det = d1 * 0.62 + d2 * 0.44;
+  if (uRipples >= 6) det += 0.24 * (transpose(R3) * (texture2D(tDetail, R3 * vOW.xz / 1.37 + vec2(uTime * 0.043, -uTime * 0.037) + 0.71).xy * 2.0 - 1.0));
+  wN.xz -= det * 0.2 * detailFade;
 }
 wN = normalize(wN);
 vec3 V = normalize(cameraPosition - vOW);
@@ -189,7 +240,7 @@ vec3 oc = gl_FragColor.rgb; // a NaN / Inf from any term (bit test: D3D folds is
 if ((floatBitsToUint(oc.r) & 0x7f800000u) == 0x7f800000u || (floatBitsToUint(oc.g) & 0x7f800000u) == 0x7f800000u || (floatBitsToUint(oc.b) & 0x7f800000u) == 0x7f800000u) oc = uDeep * 4.0;
 gl_FragColor.rgb = min(oc, vec3(1.35)); // tame sun-glint fireflies before bloom`);
     };
-    mat.customProgramCacheKey = () => 'ocean-v3';
+    mat.customProgramCacheKey = () => 'ocean-v4';
     applyCloudShadow(mat);
     this.material = mat;
     this.mesh = new THREE.Mesh(buildOceanGeometry(quality === 'low' ? 170 : quality === 'medium' ? 240 : 300), mat);
