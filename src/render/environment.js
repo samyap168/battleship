@@ -314,6 +314,8 @@ export function karstTower(r, h, seed, lean = 0) {
     const cs = 0.6 + 0.26 * (Math.sin(seed * 6.1) * 0.5 + 0.5), cp = 2 + 4 * (Math.sin(seed * 9.7) * 0.5 + 0.5);
     const c = Math.max(0, (y - cs) / (1 - cs));
     rad *= Math.sqrt(Math.max(0.0, 1 - Math.pow(c, cp) * 0.97));
+    // roughly one tower in three has a mushroom overhang high up (undercut cliff, shaded shelf)
+    if (Math.sin(seed * 4.4 + 1.3) > 0.4) rad *= 1 + 0.3 * Math.exp(-(((y - 0.66) / 0.1) ** 2));
     // wave-cut notch
     rad *= 1 - 0.14 * Math.exp(-Math.pow((y * h - 1.6) / 1.2, 2));
     // vertical fluting + horizontal strata ledges
