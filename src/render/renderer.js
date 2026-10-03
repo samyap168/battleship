@@ -133,6 +133,7 @@ export const QUALITY = {
   high: { pixelRatio: 1.5, shadows: 2048, bloom: true, smaa: true, ao: true },
   medium: { pixelRatio: 1.0, shadows: 1024, bloom: true, smaa: true },
   low: { pixelRatio: 0.85, shadows: 0, bloom: false, smaa: false },
+  safe: { pixelRatio: 0.85, shadows: 0, bloom: false, smaa: false }, // compatibility: like Low, plus plain water and no sky-reflection map (set up in main.js)
 };
 
 export class Renderer {
@@ -320,7 +321,7 @@ export class Renderer {
    *  Something is blamed only if putting it back brings the wash back, so a bright flash or a coincidence never
    *  costs the player an effect. Confirmed culprits are remembered for the next launch. */
   static FX_PASSES = ['rays', 'bloom', 'nanguard', 'ao', 'smaa'];
-  static SCENE_STEPS = ['refl', 'env', 'sea']; // main.js registers { live(), set(off) } for each in this.sceneSteps
+  static SCENE_STEPS = ['refl', 'env', 'decals', 'shore', 'sparks', 'sea']; // main.js registers { live(), set(off) } for each in this.sceneSteps
 
   _fxOff(name, off) {
     if (name === 'rays') this.raysBlocked = off;
@@ -345,14 +346,15 @@ export class Renderer {
 
   _sample() {
     const g = this.gl.getContext(), W = g.drawingBufferWidth, H = g.drawingBufferHeight, px = new Uint8Array(4);
-    let mn = 255, mx = 0, sum = 0, n = 0, warm = 0;
-    for (let i = 1; i <= 4; i++) for (let j = 1; j <= 3; j++) {
-      g.readPixels(Math.floor((W * i) / 5), Math.floor((H * (j + 0.6)) / 5), 1, 1, g.RGBA, g.UNSIGNED_BYTE, px);
+    let mn = 255, mx = 0, sum = 0, n = 0, warm = 0, white = 0;
+    for (let i = 1; i <= 5; i++) for (let j = 1; j <= 4; j++) { // 20 points across the middle of the view
+      g.readPixels(Math.floor((W * (i * 0.16 + 0.1))), Math.floor(H * (0.22 + j * 0.13)), 1, 1, g.RGBA, g.UNSIGNED_BYTE, px);
       const l = (px[0] + px[1] + px[2]) / 3; mn = Math.min(mn, l); mx = Math.max(mx, l); sum += l; n++;
       if (l > 165 && px[0] >= px[2] - 12) warm++; // bright and not blue: the sea should be dark teal
+      if (Math.min(px[0], px[1], px[2]) >= 222) white++; // pure white: nothing in this game fills a third of the view with it
     }
-    const mean = sum / n, spread = mx - mn, warmFrac = warm / n;
-    return { mean, spread, warmFrac, bad: (spread < 6 && (mean > 205 || mean < 6)) || (mean > 175 && spread < 60) || warmFrac >= 0.58 };
+    const mean = sum / n, spread = mx - mn, warmFrac = warm / n, whiteFrac = white / n;
+    return { mean, spread, warmFrac, whiteFrac, bad: (spread < 6 && (mean > 205 || mean < 6)) || (mean > 175 && spread < 60) || warmFrac >= 0.58 || whiteFrac >= 0.3 };
   }
 
   selfCheck() {

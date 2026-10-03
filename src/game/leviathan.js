@@ -53,11 +53,11 @@ function serpentMaterials() {
   vec3 c = mix(diffuseColor.rgb, vec3(0.012, 0.07, 0.08), dors * 0.85);
   float saddle = step(0.5, fract(vInst * 0.618)) * smoothstep(0.35, 0.9, vSP.y) * (1.0 - smoothstep(0.35, 0.95, abs(vSP.z)));
   c = mix(c, vec3(0.006, 0.03, 0.035), saddle * 0.75);
-  c = mix(c, vec3(0.46, 0.52, 0.38), smoothstep(-0.05, -0.65, vSP.y) * 0.55);
+  c = mix(c, vec3(0.46, 0.52, 0.38), (1.0 - smoothstep(-0.65, -0.05, vSP.y)) * 0.55);
   diffuseColor.rgb = c;
 }`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-totalEmissiveRadiance += vec3(0.1, 0.95, 0.85) * exp(-pow((abs(vSP.x) - 0.93) / 0.05, 2.0)) * smoothstep(0.5, 0.1, abs(vSP.y)) * 0.9;`);
+totalEmissiveRadiance += vec3(0.1, 0.95, 0.85) * exp(-pow((abs(vSP.x) - 0.93) / 0.05, 2.0)) * (1.0 - smoothstep(0.1, 0.5, abs(vSP.y))) * 0.9;`);
   };
   skin.customProgramCacheKey = () => 'leviathan-skin';
   const belly = applyCloudShadow(new THREE.MeshStandardMaterial({ color: 0xc9c08a, roughness: 0.55 }));

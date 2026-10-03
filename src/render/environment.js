@@ -512,6 +512,7 @@ export class Environment {
     const shore = new THREE.Mesh(shoreRibbon(shores), shoreMat);
     shore.renderOrder = 1; shore.frustumCulled = false;
     this.group.add(shore);
+    this.shore = shore;
     const inst = (geo, mat, list, fn, shadow = true) => {
       if (!list.length) return null;
       const im = new THREE.InstancedMesh(geo, mat, list.length);

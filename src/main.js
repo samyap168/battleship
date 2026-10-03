@@ -97,14 +97,14 @@ R.onSceneWash = () => { // not the post chain: something in the scene itself is 
 };
 R.onDegrade = (name, list) => {
   localSet('aa.fxoff', list.join(','));
-  const label = { rays: 'light shafts', bloom: 'bloom glow', nanguard: 'the NaN guard', ao: 'ambient occlusion', smaa: 'anti-aliasing', safe: 'all post-processing', refl: 'water reflections', env: 'sky lighting', sea: 'the water shader (plain water instead)' }[name] || name;
+  const label = { rays: 'light shafts', bloom: 'bloom glow', nanguard: 'the NaN guard', ao: 'ambient occlusion', smaa: 'anti-aliasing', safe: 'all post-processing', refl: 'water reflections', env: 'sky lighting', decals: 'wake and foam marks', shore: 'shoreline foam', sparks: 'smoke and spark effects', sea: 'the water shader (plain water instead)' }[name] || name;
   try { hud.hint(`Your GPU washed out the picture, so <b>${label}</b> ${name === 'safe' ? 'is' : 'was'} switched off. <kbd>Esc</kbd> → Graphics to try again.`, 9000); } catch { /* hud not up yet */ }
 };
 sky.setTime(MENU_TIME, 0);
 sky.updateEnv(0, true);
 await step(40, 'Raising the tides');
-const ocean = new Ocean(scene, settings.quality);
-ocean.setQuality(settings.quality);
+const ocean = new Ocean(scene, settings.quality === 'safe' ? 'low' : settings.quality);
+ocean.setQuality(settings.quality === 'safe' ? 'low' : settings.quality);
 await step(58, 'Charting the archipelago');
 const env = new Environment(scene, ISLANDS, SCENERY);
 const birds = new Birds(scene, ISLANDS);
@@ -134,9 +134,12 @@ const hud = new HUD($('#ui'), $('#overlay'));
 R.sceneSteps = {
   refl: { live: () => !!(refl && refl.uniforms.uReflOn.value), set: (off) => { if (refl) refl.uniforms.uReflOn.value = off ? 0 : (settings.quality === 'high' ? 1 : 0); } },
   env: { live: () => !sky.envBlocked && !!scene.environment, set: (off) => { sky.envBlocked = off; scene.environment = off ? null : (sky.envRT ? sky.envRT.texture : null); } },
+  decals: { live: () => ocean.decals.mesh.visible, set: (off) => { ocean.decals.mesh.visible = !off; } },
+  shore: { live: () => env.shore.visible, set: (off) => { env.shore.visible = !off; } },
+  sparks: { live: () => fx.p.alpha.points.visible || fx.p.add.points.visible, set: (off) => { fx.p.alpha.points.visible = !off; fx.p.add.points.visible = !off; } },
   sea: { live: () => ocean.mesh.material === ocean.fullMat, set: (off) => ocean.setSafe(off) },
 };
-R.restoreFxOff((localGet('aa.fxoff') || '').split(',').filter(Boolean));
+R.restoreFxOff([...new Set([...(localGet('aa.fxoff') || '').split(',').filter(Boolean), ...(settings.quality === 'safe' ? ['sea', 'env'] : [])])]);
 const weather = new Weather(scene, fx, R, audio);
 await step(70, 'Photographing the fleet');
 renderThumbnails();
@@ -302,20 +305,21 @@ const QUALITY_NOTE = {
   low: 'Fastest. No shadows, bloom or anti-aliasing; for older laptops and integrated graphics.',
   medium: 'Balanced. Shadows, bloom and smooth edges.',
   high: 'Best looking. Adds water reflections, ambient occlusion and a sharper image; needs a decent graphics card.',
+  safe: 'Compatibility. Plain water, no sky-reflection map, no post effects. Use this if the sea looks white or cream on your graphics card.',
 };
 let optionsOpen = false, quitArmed = 0;
 function applyQuality(name) {
   const was = settings.quality;
   settings.quality = name; localSet('aa.quality', name);
-  R.restoreFxOff([]); localSet('aa.fxoff', ''); // a deliberate change gets a fresh look: the watchdog re-tests it
-  R.setQuality(name); ocean.setQuality(name);
+  R.restoreFxOff(name === 'safe' ? ['sea', 'env'] : []); localSet('aa.fxoff', name === 'safe' ? 'sea,env' : ''); // a deliberate change gets a fresh look (the watchdog re-tests it); Compatibility starts with plain water and no sky map
+  R.setQuality(name); ocean.setQuality(name === 'safe' ? 'low' : name);
   const wantRefl = name === 'high' && params.get('refl') !== '0';
   if (wantRefl && !refl) {
     makeReflections();
     if (G) { G.reflect = reflectable; for (const u of G.units) if (u.rig) reflectable(u.rig.root); if (G.boss && G.boss.rig) reflectable(G.boss.rig.root); } // ships already afloat join the mirror too
   }
   if (refl) refl.uniforms.uReflOn.value = wantRefl && !(R.fxOff || []).includes('refl') ? 1 : 0;
-  if (was !== name && G && mode === 'play') hud.hint(`Graphics: <b>${name === 'high' ? 'Ultra' : name === 'medium' ? 'Medium' : 'Low'}</b>`, 1800);
+  if (was !== name && G && mode === 'play') hud.hint(`Graphics: <b>${name === 'high' ? 'Ultra' : name === 'medium' ? 'Medium' : name === 'safe' ? 'Compatibility' : 'Low'}</b>`, 1800);
 }
 function syncOptions() {
   document.querySelectorAll('#optQual button').forEach((b) => b.classList.toggle('on', b.dataset.v === settings.quality));
