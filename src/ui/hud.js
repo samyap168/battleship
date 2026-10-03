@@ -73,6 +73,8 @@ export class HUD {
   // ------------------------------------------------------------------ build
   mount(G) {
     this.G = G;
+    // a new match starts clean: queued banners/hints from the last one must not leak into it
+    this.annQueue = []; this.annBusy = false; this.annRect = null; if (this.hintQ) this.hintQ.length = 0; clearTimeout(this.hintT);
     const p = G.player;
     this.root.innerHTML = `
       <div id="topbar" class="panel ornate">

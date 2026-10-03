@@ -19,8 +19,8 @@ const ringMat = (color) => new THREE.ShaderMaterial({
       gl_Position = projectionMatrix * viewMatrix * wp; }`,
   fragmentShader: `uniform vec3 uColor; uniform float uK, uAlpha, uWidth; varying vec2 vUv;
     void main(){ float r = length(vUv * 2.0 - 1.0);
-      float ring = 1.0 - smoothstep(0.0, uWidth, abs(r - 0.92));
-      float fill = (1.0 - smoothstep(0.0, 0.92, r)) * 0.12;
+      float d = (r - 0.92) / (uWidth * 0.75); float ring = exp(-d * d) * 0.85; // soft gaussian edge, no hard bright hoop
+      float fill = pow(1.0 - smoothstep(0.0, 0.92, r), 2.0) * 0.1;
       float a = (ring + fill) * uAlpha * (1.0 - uK);
       if (r > 1.0) discard;
       gl_FragColor = vec4(uColor * a, a); }`,
