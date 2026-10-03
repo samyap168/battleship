@@ -228,6 +228,7 @@ if (uReflOn > 0.5) {
   vec3 refl = texture2D(tReflect, clamp(ruv, 0.001, 0.999)).rgb * 0.5
     + texture2D(tReflect, clamp(ruv + vec2(0.0, st), 0.001, 0.999)).rgb * 0.25
     + texture2D(tReflect, clamp(ruv - vec2(0.0, st), 0.001, 0.999)).rgb * 0.25;
+  refl = mix(vec3(dot(refl, vec3(0.299, 0.587, 0.114))), refl, 0.78); // warm sunset skies read cream on water: keep most of the colour, lose the pastel wash
   float F = (0.03 + 0.97 * pow(max(1.0 - max(dot(wN, V), 0.0), 0.0), 4.0)) * (1.0 - foam);
   reflectedLight.indirectSpecular = refl * F * 1.3;
   // energy conservation: where the water mirrors, it scatters less -> true-colour reflections
@@ -240,7 +241,7 @@ vec3 oc = gl_FragColor.rgb; // a NaN / Inf from any term (bit test: D3D folds is
 if ((floatBitsToUint(oc.r) & 0x7f800000u) == 0x7f800000u || (floatBitsToUint(oc.g) & 0x7f800000u) == 0x7f800000u || (floatBitsToUint(oc.b) & 0x7f800000u) == 0x7f800000u) oc = uDeep * 4.0;
 gl_FragColor.rgb = min(oc, vec3(1.35)); // tame sun-glint fireflies before bloom`);
     };
-    mat.customProgramCacheKey = () => 'ocean-v4';
+    mat.customProgramCacheKey = () => 'ocean-v5';
     applyCloudShadow(mat);
     this.material = mat;
     this.mesh = new THREE.Mesh(buildOceanGeometry(quality === 'low' ? 170 : quality === 'medium' ? 240 : 300), mat);
