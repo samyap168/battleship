@@ -74,7 +74,8 @@ export class HUD {
   mount(G) {
     this.G = G;
     // a new match starts clean: queued banners/hints from the last one must not leak into it
-    this.annQueue = []; this.annBusy = false; this.annRect = null; if (this.hintQ) this.hintQ.length = 0; clearTimeout(this.hintT);
+    this.annQueue = []; this.annBusy = false; this.annRect = null; if (this.hintQ) this.hintQ.length = 0; clearTimeout(this.hintT); this.hintBusy = false;
+    this.annEpoch = (this.annEpoch || 0) + 1; // banner timers from the previous match see a stale epoch and do nothing
     const p = G.player;
     this.root.innerHTML = `
       <div id="topbar" class="panel ornate">
@@ -230,8 +231,9 @@ export class HUD {
     const br = box.getBoundingClientRect(), bw = el.offsetWidth, bh = el.offsetHeight;
     const l = br.left + (br.width - bw) / 2, t = br.top + el.offsetTop;
     this.annRect = { l: l - 20, r: l + bw + 20, t: t - 14, b: t + bh + 34 }; // names draw ~10 px above their bar
+    const ep = this.annEpoch;
     setTimeout(() => el.classList.add('out'), a.size ? 2000 : 2600);
-    setTimeout(() => { this.annRect = null; this.nextAnnounce(); }, a.size ? 2500 : 3100);
+    setTimeout(() => { if (ep !== this.annEpoch) return; this.annRect = null; this.nextAnnounce(); }, a.size ? 2500 : 3100);
   }
   feed(html) {
     const box = this.$('feed');

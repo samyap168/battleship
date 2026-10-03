@@ -656,14 +656,8 @@ function tick(dt, draw) {
 
   // camera + listener
   const p = G && G.player;
+  cameraDir.obstacles = G && mode === 'play' && !cameraDir.cine ? G.obstacles : null;
   cameraDir.update(dt, p && p.alive ? p : null);
-  if (G && mode === 'play' && !cameraDir.cine) { // never let the lens sit inside a rock or fort: ease it out to the island's rim
-    const cp = R.camera.position;
-    for (const o of G.obstacles) {
-      const dx = cp.x - o.x, dz = cp.z - o.z, d = Math.hypot(dx, dz), lim = o.r * 0.9;
-      if (d < lim && cp.y < 60) { const k = (lim - d) * Math.min(1, dt * 6) / (d || 1); cp.x += (dx || 1) * k; cp.z += dz * k; }
-    }
-  }
   const f = cameraDir.focus;
   SEE_THROUGH.uSeeCam.value.copy(R.camera.position); SEE_THROUGH.uSeeFoc.value.copy(f); SEE_THROUGH.uSeeOn.value = G && mode === 'play' && !cameraDir.cine ? 1 : 0;
   if (G) { G.listener.x = f.x; G.listener.z = f.z; G.viewScale = 1.15 + THREE.MathUtils.smoothstep(cameraDir.dist, 160, 290) * 0.25; /* captains always read a size above gunboats */ }

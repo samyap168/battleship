@@ -57,7 +57,7 @@ function serpentMaterials() {
   diffuseColor.rgb = c;
 }`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-totalEmissiveRadiance += vec3(0.1, 0.95, 0.85) * exp(-pow((abs(vSP.x) - 0.93) / 0.05, 2.0)) * (1.0 - smoothstep(0.1, 0.5, abs(vSP.y))) * 0.9;`);
+totalEmissiveRadiance += vec3(0.1, 0.95, 0.85) * exp(-(((abs(vSP.x) - 0.93) / 0.05) * ((abs(vSP.x) - 0.93) / 0.05))) * (1.0 - smoothstep(0.1, 0.5, abs(vSP.y))) * 0.9;`);
   };
   skin.customProgramCacheKey = () => 'leviathan-skin';
   const belly = applyCloudShadow(new THREE.MeshStandardMaterial({ color: 0xc9c08a, roughness: 0.55 }));

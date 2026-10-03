@@ -156,6 +156,12 @@ export class CameraDirector {
     const s = this.trauma * this.trauma;
     const n = (f, o) => Math.sin(this.t * f + o) * 0.6 + Math.sin(this.t * f * 2.3 + o * 3.1) * 0.4;
     x += n(37, 0) * s * 4; y += n(41, 1) * s * 3; z += n(33, 2) * s * 4;
+    if (this.obstacles && y < 60) { // never let the lens sit inside a rock or fort: slide it out to the rim
+      for (const o of this.obstacles) {
+        const dx = x - o.x, dz = z - o.z, d = Math.hypot(dx, dz), lim = o.r * 0.9;
+        if (d < lim) { const k = d > 1e-3 ? lim / d : 0; x = o.x + (k ? dx * k : lim); z = o.z + (k ? dz * k : 0); }
+      }
+    }
     cam.position.set(x, y, z);
     cam.lookAt(this.focus.x + n(29, 4) * s * 1.5, lookY, this.focus.z + n(31, 5) * s * 1.5);
     cam.rotateZ(n(23, 6) * s * 0.03);
