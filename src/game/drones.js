@@ -133,7 +133,7 @@ export class Drones {
       }
     }
     for (const [k, im] of Object.entries(this.inst)) {
-      im.count = counts[k];
+      im.count = Math.min(counts[k], im.instanceMatrix.count);
       im.instanceMatrix.needsUpdate = true;
       if (im.instanceColor) im.instanceColor.needsUpdate = true;
     }

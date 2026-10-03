@@ -171,7 +171,7 @@ export class Game {
 
   // ---------------------------------------------------------------- economy
   ageUp(h, hullId) {
-    if (!h.canAgeUp() || !HULLS[hullId] || HULLS[hullId].age !== h.age + 1) return false;
+    if (!h.alive || !h.canAgeUp() || !HULLS[hullId] || HULLS[hullId].age !== h.age + 1) return false;
     const cost = h.nextAgeCost();
     if (h.gold < cost) return false;
     h.gold -= cost;

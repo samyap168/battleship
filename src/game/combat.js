@@ -410,7 +410,7 @@ export class Combat {
       _m.compose(_p.set(p.x, p.y, p.z), _q, _s);
       im.setMatrixAt(c, _m);
     }
-    for (const [k, im] of Object.entries(this.inst)) { im.count = counts[k] || 0; im.instanceMatrix.needsUpdate = true; }
+    for (const [k, im] of Object.entries(this.inst)) { im.count = Math.min(counts[k] || 0, im.instanceMatrix.count); im.instanceMatrix.needsUpdate = true; }
 
     // mines
     let mc = 0;
