@@ -537,7 +537,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key.toLowerCase() === 'h' || e.key === 'F1') { e.preventDefault(); showHowTo(true); return; }
   const k = e.key.toLowerCase();
   if (e.ctrlKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); hud.handlers.buy(UPGRADES[+e.key - 1].id); return; }
-  if (hud.modalOpen && k === 'escape') { hud.closeModal(); return; }
+  if (hud.modalOpen && k === 'escape') { if (!G.over) hud.closeModal(); return; } // the result screen lives in the modal root: Esc must not delete SAIL AGAIN
   if (k === 'escape') { if (hud.aiming >= 0) hud.aiming = -1; else showOptions(true); return; }
   if (e.repeat) return;
   const idx = ['q', 'w', 'e', 'r'].indexOf(k);
@@ -567,7 +567,10 @@ window.addEventListener('keyup', (e) => {
   if (e.key === 'Tab') hud.toggleScoreboard(false);
   if (e.key === 'Alt') hud.showRange = false;
 });
-window.addEventListener('blur', () => { cameraDir.keys = {}; });
+window.addEventListener('blur', () => { // alt-tab with something held: let go of everything
+  cameraDir.keys = {}; hud.showRange = false; hud.aiming = -1; if (hud.toggleScoreboard) hud.toggleScoreboard(false);
+  orbitDrag = null; rightDrag = null; cameraDir.orbiting = false;
+});
 
 // ---------------------------------------------------------------------------
 // Frame loop

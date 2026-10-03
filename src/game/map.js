@@ -185,7 +185,8 @@ export class NavGrid {
     for (let c = goal; c !== -1; c = this.from[c]) cells.push(c);
     cells.reverse();
     const pts = cells.map((c) => this.center(c));
-    pts[pts.length - 1] = { x: tx, z: tz };
+    // the last waypoint is the click itself, unless that is inside an island: then stop at the nearest water (a goal inside an obstacle was never reached)
+    pts[pts.length - 1] = segmentBlocked(this.obs, tx, tz, tx, tz, this.pad - 3) ? pts[pts.length - 1] : { x: tx, z: tz };
     // string-pull smoothing
     const out = [];
     let ax = sx, az = sz, i = 0;

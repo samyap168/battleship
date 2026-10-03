@@ -98,7 +98,11 @@ export class Wakes {
     } else if (tr.pts.length) { const p = tr.pts[0]; p.x = x; p.z = z; p.s = speed01; }
   }
 
+  /** Drop every trail (a new match restarts the clock, so old trails would never expire and would hog all 80 slots). */
+  reset() { for (const tr of this.trails.values()) { this.clearSlot(tr.slot); this.free.push(tr.slot); } this.trails.clear(); }
+
   update(dt, t) {
+    if (t < this.time - 0.5) this.reset(); // the clock went backwards: a new match
     this.time = t;
     this.uniforms.uTime.value = t;
     const life = SAMPLES * 0.1;

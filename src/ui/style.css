@@ -170,7 +170,7 @@ b { font-weight: 700; }
 #loading .s { margin-top: 12px; font-size: 13px; letter-spacing: .2em; color: var(--dim); text-transform: uppercase; }
 
 /* ---------- end screen */
-#end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse 62% 78% at 50% 52%, rgba(4,6,10,.8), rgba(4,6,10,.56) 62%, rgba(4,6,10,.3)); animation: fadeIn 1s; z-index: 5; } /* darkest behind the scoreboard, clear at the edges so the burning ruin shows */
+#end { position: absolute; inset: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: radial-gradient(ellipse 62% 78% at 50% 52%, rgba(4,6,10,.8), rgba(4,6,10,.56) 62%, rgba(4,6,10,.3)); animation: fadeIn 1s; z-index: 5; } /* darkest behind the scoreboard, clear at the edges so the burning ruin shows */
 #end h1 { font-family: var(--font-title); font-size: 96px; letter-spacing: .25em; margin: 0; }
 #end h1.win { background: linear-gradient(180deg, #fff6df, #e8c47a); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 30px rgba(232,196,122,.5)); }
 #end h1.lose { color: #b9b1a6; text-shadow: 0 0 40px rgba(255,60,40,.5); }
@@ -341,3 +341,7 @@ body.cinematic #howtoBtn { display: none; }
 #options .op-btns { margin-top: 12px; display: flex; flex-direction: column; align-items: center; }
 #options .op-btns .btn-primary { margin-top: 12px; width: 300px; padding: 13px 20px; font-size: 19px; } #options .op-btns .btn-ghost { width: 300px; margin-top: 8px; }
 #options .op-btns .btn-ghost.confirm { border-color: #d96a5a; color: #ff9a8a; }
+
+/* result screen on short windows: scroll instead of clipping SAIL AGAIN off the bottom */
+#end > :first-child { margin-top: auto; } #end > :last-child { margin-bottom: auto; padding-bottom: 14px; }
+@media (max-height: 760px) { #end h1 { font-size: 56px; } #end .sub { margin-bottom: 10px; font-size: 15px; } #end .panel { padding: 8px 14px; } #end td { padding: 3px 12px; } }

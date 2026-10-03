@@ -355,6 +355,7 @@ export class Game {
 
   endMatch(winner, reason) {
     if (this.over) return;
+    if (this.opts && this.opts.spectate) { this.time = Math.min(this.time, 340); return; } // the menu showreel never ends: no result screen or fanfare behind the menu
     this.over = true; this.winner = winner;
     if (this.audio.setSubmerged) this.audio.setSubmerged(false);
     this.slowmo = 1.8;
