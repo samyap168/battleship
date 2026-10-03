@@ -142,7 +142,7 @@ export class HUD {
     const p = this.G.player;
     const box = this.$('abilities');
     box.innerHTML = p.abilities.map((ab, i) => `
-      <div class="ab" data-i="${i}">${abilityIcon(ab)}<div class="cd"></div><div class="cdt"></div><div class="key">${KEYS[i]}</div>${ab.minLevel ? `<div class="lock hidden">LV ${ab.minLevel}</div>` : ''}</div>`).join('');
+      <div class="ab" data-i="${i}">${abilityIcon(ab)}<div class="cd"></div><div class="cdt"></div><div class="key">${KEYS[i]}</div><div class="nm">${esc(ab.name || '')}</div>${ab.minLevel ? `<div class="lock hidden">LV ${ab.minLevel}</div>` : ''}</div>`).join('');
     box.querySelectorAll('.ab').forEach((el) => {
       const i = +el.dataset.i;
       el.addEventListener('mouseenter', () => { this.hoverAbility = i; this.showTip(el, this.abilityTip(p.abilities[i])); });
