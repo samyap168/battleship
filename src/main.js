@@ -154,7 +154,11 @@ const raycaster = new THREE.Raycaster();
 const waterPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
 function startGame(spectate) {
-  if (worldGroup) scene.remove(worldGroup);
+  if (worldGroup) {
+    scene.remove(worldGroup);
+    // free the previous match's GPU buffers (geometries re-upload on demand if a cached one is reused)
+    worldGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.isInstancedMesh) o.dispose(); });
+  }
   worldGroup = new THREE.Group();
   scene.add(worldGroup);
   audio.setFinale(false);
