@@ -11,6 +11,8 @@ canvas { display: block; }
 #ui { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
 #ui * { pointer-events: auto; }
 #ui .passthru, #ui .passthru * { pointer-events: none; }
+/* wrappers that only lay panels out must not eat clicks meant for the sea (the empty box above the shorter bottom panels did) */
+#ui #command { pointer-events: none; } #ui #command > * { pointer-events: auto; }
 .hidden { display: none !important; }
 b { font-weight: 700; }
 .dim { color: var(--dim); }

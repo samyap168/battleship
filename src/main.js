@@ -417,6 +417,22 @@ let castHinted = false;
 hud.on('minimapLook', (x, z) => { cameraDir.locked = false; cameraDir.goal.set(x, 0, z); });
 hud.on('minimapMove', (x, z) => { if (G && G.player && G.player.alive) { G.player.commandMove(x, z); moveMarker(x, z); } });
 
+// Cursor -> a point on the sea. A ray that points above the horizon (zoomed in low, cursor over the sky) never meets
+// the water, which used to leave the previous click point in place, so the upper part of the screen could not be clicked.
+// Now it aims at the far sea in that direction, and every point is kept inside the playable map.
+const _gn = new THREE.Vector2(), _gh = new THREE.Vector3();
+function groundAt(cx, cy) {
+  _gn.set((cx / window.innerWidth) * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(_gn, R.camera);
+  const ray = raycaster.ray, cam = ray.origin;
+  let ok = ray.intersectPlane(waterPlane, _gh) && _gh.distanceTo(cam) < 2400;
+  if (!ok) { // sky, or a grazing ray that lands absurdly far away: head for the sea along the ray's heading
+    const hx = ray.direction.x, hz = ray.direction.z, hl = Math.hypot(hx, hz) || 1;
+    _gh.set(cam.x + (hx / hl) * 1400, 0, cam.z + (hz / hl) * 1400);
+  }
+  mouse.ground.set(THREE.MathUtils.clamp(_gh.x, -BOUNDS.x, BOUNDS.x), 0, THREE.MathUtils.clamp(_gh.z, -BOUNDS.z, BOUNDS.z));
+}
+
 function moveMarker(x, z, attack = false) {
   fx.ring(x, z, 1, 7, attack ? 0xff5040 : 0x9dffb0, 0.45, 0.2);
   ocean.decals.add(x, z, 4, 0.8, 1, 0.7, 2);
@@ -473,7 +489,7 @@ window.addEventListener('pointerup', (e) => {
   orbitDrag = null;
   if (rightDrag && e.button === 2) {
     const d = rightDrag; rightDrag = null; cameraDir.orbiting = false;
-    if (!d.moved && mode === 'play' && G && G.player && !G.over) commandAtCursor(); // a plain right-click: sail / attack
+    if (!d.moved && mode === 'play' && G && G.player && !G.over) commandAtCursor(e); // a plain right-click: sail / attack
   }
 });
 window.addEventListener('pointercancel', () => { orbitDrag = null; rightDrag = null; cameraDir.orbiting = false; });
@@ -489,11 +505,12 @@ canvas.addEventListener('pointerdown', (e) => {
     if (e.button === 0) playerCast(i);
     return;
   }
-  if (e.button === 0) commandAtCursor(); // left click: sail / attack at once (right click acts on release, so a drag can orbit)
+  if (e.button === 0) commandAtCursor(e); // left click: sail / attack at once (right click acts on release, so a drag can orbit)
 });
-function commandAtCursor() {
+function commandAtCursor(e) {
   const p = G && G.player;
   if (!p || !p.alive) return;
+  if (e) { mouse.x = e.clientX; mouse.y = e.clientY; groundAt(mouse.x, mouse.y); } // the exact spot clicked, not last frame's
   const u = pickUnit(mouse.ground.x, mouse.ground.z, p.team);
   if (u) { p.commandAttack(u); moveMarker(u.x, u.z, true); }
   else { p.commandMove(mouse.ground.x, mouse.ground.z); moveMarker(mouse.ground.x, mouse.ground.z); }
@@ -659,9 +676,7 @@ function tick(dt, draw) {
   particles.update(gdt);
 
   // mouse ground point
-  const ndc = new THREE.Vector2((mouse.x / window.innerWidth) * 2 - 1, -(mouse.y / window.innerHeight) * 2 + 1);
-  raycaster.setFromCamera(ndc, R.camera);
-  raycaster.ray.intersectPlane(waterPlane, mouse.ground);
+  groundAt(mouse.x, mouse.y);
   hud.cursor = mouse.ground;
 
   // cinematic grading reacting to player state
