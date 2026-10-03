@@ -88,8 +88,7 @@ await step(22, 'Painting the sky');
 const sky = new Sky(R.gl, scene);
 R.sun = sky.sun; // adaptive quality can halve the shadow map on a struggling GPU
 R.setQuality(settings.quality); // applies the preset to the sun (Low: no shadow casting)
-// Passes a previous launch proved broken on this GPU stay off; the watchdog finds new ones within a second.
-R.restoreFxOff((localGet('aa.fxoff') || '').split(',').filter(Boolean));
+// Things a previous launch proved broken on this GPU stay off (restored once the scene exists, below); the watchdog finds new ones within a second.
 let sceneWashActed = false;
 R.onSceneWash = () => { // not the post chain: something in the scene itself is washing the view out. Low removes reflections and shadows, the usual suspects.
   if (sceneWashActed || settings.quality === 'low') return;
@@ -98,13 +97,14 @@ R.onSceneWash = () => { // not the post chain: something in the scene itself is 
 };
 R.onDegrade = (name, list) => {
   localSet('aa.fxoff', list.join(','));
-  const label = { rays: 'light shafts', bloom: 'bloom glow', nanguard: 'the NaN guard', ao: 'ambient occlusion', smaa: 'anti-aliasing', safe: 'all post-processing' }[name] || name;
+  const label = { rays: 'light shafts', bloom: 'bloom glow', nanguard: 'the NaN guard', ao: 'ambient occlusion', smaa: 'anti-aliasing', safe: 'all post-processing', refl: 'water reflections', env: 'sky lighting', sea: 'the water shader (plain water instead)' }[name] || name;
   try { hud.hint(`Your GPU washed out the picture, so <b>${label}</b> ${name === 'safe' ? 'is' : 'was'} switched off. <kbd>Esc</kbd> → Graphics to try again.`, 9000); } catch { /* hud not up yet */ }
 };
 sky.setTime(MENU_TIME, 0);
 sky.updateEnv(0, true);
 await step(40, 'Raising the tides');
 const ocean = new Ocean(scene, settings.quality);
+ocean.setQuality(settings.quality);
 await step(58, 'Charting the archipelago');
 const env = new Environment(scene, ISLANDS, SCENERY);
 const birds = new Birds(scene, ISLANDS);
@@ -130,6 +130,13 @@ if (settings.quality === 'high' && params.get('refl') !== '0') makeReflections()
 const cameraDir = new CameraDirector(R.camera);
 fx.onShake = (a, x, z) => cameraDir.addTrauma(a, x, z);
 const hud = new HUD($('#ui'), $('#overlay'));
+// Scene-level switches the GPU watchdog can pull when the picture washes out (post passes are handled inside the renderer).
+R.sceneSteps = {
+  refl: { live: () => !!(refl && refl.uniforms.uReflOn.value), set: (off) => { if (refl) refl.uniforms.uReflOn.value = off ? 0 : (settings.quality === 'high' ? 1 : 0); } },
+  env: { live: () => !sky.envBlocked && !!scene.environment, set: (off) => { sky.envBlocked = off; scene.environment = off ? null : (sky.envRT ? sky.envRT.texture : null); } },
+  sea: { live: () => ocean.mesh.material === ocean.fullMat, set: (off) => ocean.setSafe(off) },
+};
+R.restoreFxOff((localGet('aa.fxoff') || '').split(',').filter(Boolean));
 const weather = new Weather(scene, fx, R, audio);
 await step(70, 'Photographing the fleet');
 renderThumbnails();
@@ -301,13 +308,13 @@ function applyQuality(name) {
   const was = settings.quality;
   settings.quality = name; localSet('aa.quality', name);
   R.restoreFxOff([]); localSet('aa.fxoff', ''); // a deliberate change gets a fresh look: the watchdog re-tests it
-  R.setQuality(name);
+  R.setQuality(name); ocean.setQuality(name);
   const wantRefl = name === 'high' && params.get('refl') !== '0';
   if (wantRefl && !refl) {
     makeReflections();
     if (G) { G.reflect = reflectable; for (const u of G.units) if (u.rig) reflectable(u.rig.root); if (G.boss && G.boss.rig) reflectable(G.boss.rig.root); } // ships already afloat join the mirror too
   }
-  if (refl) refl.uniforms.uReflOn.value = wantRefl ? 1 : 0;
+  if (refl) refl.uniforms.uReflOn.value = wantRefl && !(R.fxOff || []).includes('refl') ? 1 : 0;
   if (was !== name && G && mode === 'play') hud.hint(`Graphics: <b>${name === 'high' ? 'Ultra' : name === 'medium' ? 'Medium' : 'Low'}</b>`, 1800);
 }
 function syncOptions() {
@@ -543,6 +550,15 @@ window.addEventListener('blur', () => { cameraDir.keys = {}; });
 // ---------------------------------------------------------------------------
 // Frame loop
 let lastT = performance.now();
+// What the player's GPU is, for the F3 line (the first thing needed when a driver misbehaves)
+const gpuInfo = (() => {
+  try {
+    const g = R.gl.getContext(), e = g.getExtension('WEBGL_debug_renderer_info');
+    const name = String(e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER)).replace(/^ANGLE \(/, '').replace(/, or similar\)$|\)$/, '').slice(0, 90);
+    const hp = g.getShaderPrecisionFormat(g.FRAGMENT_SHADER, g.HIGH_FLOAT);
+    return `${name} · highp ${hp ? hp.precision : '?'} · half-float RT ${R.gl.extensions.has('EXT_color_buffer_half_float') || R.gl.extensions.has('EXT_color_buffer_float') ? 'yes' : 'NO'}`;
+  } catch { return 'gpu ?'; }
+})();
 const fpsEl = Object.assign(document.createElement('div'), { id: 'fps', className: 'hidden' });
 document.body.appendChild(fpsEl);
 if (localGet('aa.fps') === '1') fpsEl.classList.remove('hidden');
@@ -600,7 +616,7 @@ function tick(dt, draw) {
   wallTime += dt;
   fpsAcc += dt; fpsN++;
   if (fpsAcc > 1) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; if (!fpsEl.classList.contains('hidden')) { const off = [R.ao && !R.ao.enabled && 'AO', R.refl && !R.refl.uniforms.uReflOn.value && 'reflections', R.sun && R.sun.shadow.mapSize.x < 2048 && R.q.shadows >= 2048 && 'shadow detail', R.smaa && !R.smaa.enabled && 'AA', R.safeMode && 'post FX', ...(R.fxOff || []).map((n) => 'GPU-blocked ' + n)].filter(Boolean);
-    fpsEl.textContent = `${fps.toFixed(0)} fps · ${(R.gl.getPixelRatio() * 100).toFixed(0)}% res · ${R.gl.info.render.calls} draws${off.length ? ' · off: ' + off.join(', ') : ''}`; } }
+    fpsEl.textContent = `${fps.toFixed(0)} fps · ${(R.gl.getPixelRatio() * 100).toFixed(0)}% res · ${R.gl.info.render.calls} draws${off.length ? ' · off: ' + off.join(', ') : ''} · ${gpuInfo}`; } }
   if (howtoPending && mode === 'play' && !cameraDir.cine && G && G.time > 1) { howtoPending = false; showHowTo(true); }
   if (G && !howtoOpen && !optionsOpen) G.update(dt);
   const gdt = G ? G.dt : dt;

@@ -11,10 +11,11 @@ float oNoise(vec2 p) {
   vec2 u = f * f * (3.0 - 2.0 * f);
   return mix(mix(oHash(i), oHash(i + vec2(1, 0)), u.x), mix(oHash(i + vec2(0, 1)), oHash(i + vec2(1, 1)), u.x), u.y);
 }
+uniform int uOct; // 4 on Ultra, fewer on weaker presets
 float oFbm(vec2 p) {
-  float v = 0.0, a = 0.5;
-  for (int i = 0; i < 4; i++) { v += a * oNoise(p); p = p * 2.07 + 13.1; a *= 0.5; }
-  return v;
+  float v = 0.0, a = 0.5, tot = 0.0;
+  for (int i = 0; i < 4; i++) { if (i >= uOct) break; v += a * oNoise(p); tot += a; p = p * 2.07 + 13.1; a *= 0.5; }
+  return v * (0.9375 / tot);
 }
 `;
 
@@ -55,6 +56,7 @@ export class Ocean {
       uTime: { value: 0 },
       uIslands: { value: Array.from({ length: MAX_ISLANDS }, () => new THREE.Vector4(1e5, 1e5, 0, 0)) },
       uIslandCount: { value: 0 },
+      uRipples: { value: 10 }, uOct: { value: 4 },
       uSunDir: { value: new THREE.Vector3(0, 1, 0) },
       uSunColor: { value: new THREE.Color(1, 1, 1) },
       uDeep: { value: new THREE.Color(0.004, 0.022, 0.04) },
@@ -89,7 +91,7 @@ vWaveH = gD.y; vGrid = wpos0.xz; vOW = wpos0 + gD;`);
 
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>
-uniform float uTime; uniform vec4 uIslands[${MAX_ISLANDS}]; uniform int uIslandCount;
+uniform float uTime; uniform vec4 uIslands[${MAX_ISLANDS}]; uniform int uIslandCount; uniform int uRipples;
 uniform vec3 uSunDir, uSunColor, uDeep, uShallow, uSSS; uniform float uBodyI;
 uniform sampler2D tReflect; uniform mat4 uReflMat; uniform float uReflOn;
 varying vec3 vOW; varying float vWaveH; varying vec2 vGrid;
@@ -103,6 +105,7 @@ float camDist = length(cameraPosition - vOW);
 float detailFade = 1.0 - smoothstep(180.0, 900.0, camDist);
 // high-frequency detail ripples (normal only): golden-angle directions avoid grid-like interference
 for (int i = 0; i < 10; i++) {
+  if (i >= uRipples) break; // fewer ripples on weaker presets: this loop is the sea's biggest per-pixel cost
   float fi = float(i);
   float ang = fi * 2.39996 + 0.7;
   vec2 D = vec2(cos(ang), sin(ang));
@@ -156,7 +159,7 @@ vec3 body = vec3(0.006, 0.042, 0.058) * (0.45 + 0.9 * sunUp) * (0.6 + 0.4 * faci
 body = mix(body, uShallow * 0.35, shallow * 0.6);
 totalEmissiveRadiance += body * (1.0 - foam);`)
         .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
-reflectedLight.directSpecular *= 0.32; // soften the sun road so combat stays readable
+reflectedLight.directSpecular = min(reflectedLight.directSpecular, vec3(4.0)) * 0.32; // soften the sun road so combat stays readable (and cap the GGX peak: a driver that overflows it would blow the whole sea out)
 if (uReflOn > 0.5) {
   // planar reflection (islands, forts, ships, explosions, sky) replaces the env-map reflection
   vec4 rc = uReflMat * vec4(vOW.x, 0.0, vOW.z, 1.0);
@@ -179,14 +182,19 @@ if (uReflOn > 0.5) {
   // energy conservation: where the water mirrors, it scatters less -> true-colour reflections
   reflectedLight.directDiffuse *= 1.0 - F; reflectedLight.indirectDiffuse *= 1.0 - F;
   totalEmissiveRadiance *= 1.0 - F * 0.85;
-}`)
+}
+reflectedLight.indirectSpecular = min(reflectedLight.indirectSpecular, vec3(0.7)); // sky reflection never needs more than this; an overbright environment map must not turn the sea cream`)
         .replace('#include <opaque_fragment>', `#include <opaque_fragment>
-gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(1.35)); // tame sun-glint fireflies before bloom`);
+vec3 oc = gl_FragColor.rgb; // a NaN / Inf from any term (bit test: D3D folds isnan away) becomes deep water, not a white flash
+if ((floatBitsToUint(oc.r) & 0x7f800000u) == 0x7f800000u || (floatBitsToUint(oc.g) & 0x7f800000u) == 0x7f800000u || (floatBitsToUint(oc.b) & 0x7f800000u) == 0x7f800000u) oc = uDeep * 4.0;
+gl_FragColor.rgb = min(oc, vec3(1.35)); // tame sun-glint fireflies before bloom`);
     };
     mat.customProgramCacheKey = () => 'ocean-v3';
     applyCloudShadow(mat);
     this.material = mat;
     this.mesh = new THREE.Mesh(buildOceanGeometry(quality === 'low' ? 170 : quality === 'medium' ? 240 : 300), mat);
+    this.fullMat = mat;
+    this.safeMat = new THREE.MeshStandardMaterial({ color: 0x0e4d5c, roughness: 0.32, metalness: 0 }); // emergency sea: plain lit water, no custom shader
     this.mesh.receiveShadow = true;
     this.mesh.frustumCulled = false;
     this.mesh.userData.noAO = true;
@@ -202,6 +210,15 @@ gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(1.35)); // tame sun-glint fireflie
     this.uniforms.uReflOn.value = 1;
     u.uReflOn = this.uniforms.uReflOn; // one toggle for both
   }
+
+  /** Scale the sea shader's per-pixel work to the graphics preset (live: these are loop bounds, not recompiles). */
+  setQuality(name) {
+    const lv = name === 'low' ? [3, 2] : name === 'medium' ? [6, 3] : [10, 4];
+    this.uniforms.uRipples.value = lv[0]; this.uniforms.uOct.value = lv[1];
+  }
+
+  /** GPU watchdog fallback: swap the custom sea shader for plain lit water (flat, but never washed out). */
+  setSafe(on) { this.mesh.material = on ? this.safeMat : this.fullMat; }
 
   setIslands(list) { this.islands = list; this.cullT = 0; }
 

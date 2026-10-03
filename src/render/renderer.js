@@ -313,12 +313,14 @@ export class Renderer {
     this.selfCheck();
   }
 
-  /** Watchdog for the post-processing chain. Some GPU / driver combinations turn the whole frame into a
-   *  flat or washed-out cream (a pass misbehaving), which looks like thick fog over everything. This samples
-   *  the finished frame, and when contrast has gone it finds the culprit by switching one pass off at a time:
-   *  a pass is blamed only if putting it back brings the wash back, so a bright flash or a lone coincidence
-   *  never costs the player an effect. A confirmed culprit is remembered for next launch. */
+  /** Watchdog for washed-out frames. Some GPU / driver combinations turn the sea (and, through bloom, the whole
+   *  frame) into a flat or washed-out cream, which looks like thick fog over everything. This samples the finished
+   *  frame; when the picture has gone cream it hunts the culprit, one thing switched off at a time: first the post
+   *  passes, then the whole chain, then scene features (reflections, the sky lighting map, finally the sea shader).
+   *  Something is blamed only if putting it back brings the wash back, so a bright flash or a coincidence never
+   *  costs the player an effect. Confirmed culprits are remembered for the next launch. */
   static FX_PASSES = ['rays', 'bloom', 'nanguard', 'ao', 'smaa'];
+  static SCENE_STEPS = ['refl', 'env', 'sea']; // main.js registers { live(), set(off) } for each in this.sceneSteps
 
   _fxOff(name, off) {
     if (name === 'rays') this.raysBlocked = off;
@@ -327,56 +329,69 @@ export class Renderer {
     else if (name === 'ao') { this.aoBlocked = off; if (this.ao) this.ao.enabled = !off && !!this.q.ao; }
     else if (name === 'smaa') { this.smaaBlocked = off; if (this.smaa) this.smaa.enabled = !off && !!this.q.smaa; }
     else if (name === 'safe') this.safeMode = off;
+    else if (this.sceneSteps && this.sceneSteps[name]) this.sceneSteps[name].set(off);
   }
 
-  /** Apply the passes a previous launch found broken on this machine. */
+  _known(n) { return Renderer.FX_PASSES.includes(n) || n === 'safe' || (Renderer.SCENE_STEPS.includes(n) && this.sceneSteps && this.sceneSteps[n]); }
+
+  /** Apply what a previous launch found broken on this machine (an empty list clears everything). */
   restoreFxOff(list) {
     for (const n of Renderer.FX_PASSES) this._fxOff(n, false);
+    for (const n of Renderer.SCENE_STEPS) if (this.sceneSteps && this.sceneSteps[n]) this.sceneSteps[n].set(false);
     if (this.fxOff && this.fxOff.includes('safe')) this._fxOff('safe', false); // only the safe flag the watchdog itself set
     this.fxOff = [];
-    for (const n of list || []) if (Renderer.FX_PASSES.includes(n) || n === 'safe') { this._fxOff(n, true); this.fxOff.push(n); }
+    for (const n of list || []) if (this._known(n)) { this._fxOff(n, true); this.fxOff.push(n); }
   }
 
   _sample() {
     const g = this.gl.getContext(), W = g.drawingBufferWidth, H = g.drawingBufferHeight, px = new Uint8Array(4);
-    let mn = 255, mx = 0, sum = 0, n = 0;
+    let mn = 255, mx = 0, sum = 0, n = 0, warm = 0;
     for (let i = 1; i <= 4; i++) for (let j = 1; j <= 3; j++) {
       g.readPixels(Math.floor((W * i) / 5), Math.floor((H * (j + 0.6)) / 5), 1, 1, g.RGBA, g.UNSIGNED_BYTE, px);
       const l = (px[0] + px[1] + px[2]) / 3; mn = Math.min(mn, l); mx = Math.max(mx, l); sum += l; n++;
+      if (l > 165 && px[0] >= px[2] - 12) warm++; // bright and not blue: the sea should be dark teal
     }
-    const mean = sum / n, spread = mx - mn;
-    return { mean, spread, bad: (spread < 6 && (mean > 205 || mean < 6)) || (mean > 175 && spread < 60) }; // flat, or a cream veil with the contrast gone
+    const mean = sum / n, spread = mx - mn, warmFrac = warm / n;
+    return { mean, spread, warmFrac, bad: (spread < 6 && (mean > 205 || mean < 6)) || (mean > 175 && spread < 60) || warmFrac >= 0.58 };
   }
 
   selfCheck() {
     if (this.safeMode && !(this.wd && this.wd.state !== 'idle')) return;
+    if (this.noShock) return; // menu backdrop: not worth the risk of a false alarm
     this.checkT = (this.checkT || 0) + 1;
-    const wd = this.wd || (this.wd = { state: 'idle', hits: 0, i: 0, wait: 0, cool: 0 });
+    const wd = this.wd || (this.wd = { state: 'idle', hits: 0, i: 0, wait: 0, cool: 0, fails: 0 });
     if (wd.cool > 0) { wd.cool--; return; }
     if (wd.state === 'idle') {
       const every = this.checkT < 900 ? 8 : 45; // look hard while the match is starting
       if (this.checkT < 20 || this.checkT % every !== 0) return;
       const r = this._sample();
       wd.hits = r.bad ? wd.hits + 1 : 0;
-      if (wd.hits >= 2) { wd.hits = 0; wd.state = 'try'; wd.i = 0; wd.wait = 0; wd.found = null; this._tryNext(); }
+      if (wd.hits >= 2) { wd.hits = 0; wd.state = 'try'; wd.i = 0; wd.found = null; wd.scene = []; this._tryNext(); }
       return;
     }
     if (--wd.wait > 0) return; // let the changed chain render a few frames first
     const r = this._sample();
+    const confirmed = (name, list) => {
+      this._fxOff(name, true); for (const n of list) (this.fxOff ||= []).includes(n) || this.fxOff.push(n);
+      console.warn('[render] ' + name + ' washed out the picture on this GPU; switched off');
+      if (this.onDegrade) this.onDegrade(name, this.fxOff.slice());
+      wd.state = 'idle'; wd.cool = 120; wd.hits = 0; wd.fails = 0;
+    };
     if (wd.state === 'try') {
-      if (!r.bad) { // contrast is back with this pass off: put it back to be sure it is the cause
-        wd.found = wd.cur; this._fxOff(wd.cur, false); wd.state = 'confirm'; wd.wait = 9;
-      } else { this._fxOff(wd.cur, false); wd.i++; this._tryNext(); }
+      if (!r.bad) { wd.found = wd.cur; this._fxOff(wd.cur, false); wd.state = 'confirm'; wd.wait = 9; } // fixed: put it back to be sure
+      else { this._fxOff(wd.cur, false); wd.i++; this._tryNext(); }
     } else if (wd.state === 'confirm') {
-      if (r.bad) { // washed out again with it on: confirmed
-        this._fxOff(wd.found, true); (this.fxOff ||= []).includes(wd.found) || this.fxOff.push(wd.found);
-        console.warn('[render] ' + wd.found + ' washed out the frame on this GPU; switched off');
-        if (this.onDegrade) this.onDegrade(wd.found, this.fxOff.slice());
-      } // else it was a passing flash: nothing to do
-      wd.state = 'idle'; wd.cool = 120; wd.hits = 0;
+      if (r.bad) confirmed(wd.found, [wd.found]); else { wd.state = 'idle'; wd.cool = 120; wd.hits = 0; } // else a passing flash
     } else if (wd.state === 'safe') {
-      if (r.bad) { this.safeMode = false; wd.state = 'idle'; wd.cool = 600; console.warn('[render] washed-out frame persists in safe mode: the scene itself is bright'); if (this.onSceneWash) this.onSceneWash(); }
-      else { this.fxOff = ['safe']; console.warn('[render] post-processing washed out the frame; safe render mode'); if (this.onDegrade) this.onDegrade('safe', ['safe']); wd.state = 'idle'; wd.cool = 600; }
+      if (!r.bad) { this.fxOff = ['safe']; console.warn('[render] post-processing washed out the picture; safe render mode'); if (this.onDegrade) this.onDegrade('safe', ['safe']); wd.state = 'idle'; wd.cool = 600; wd.fails = 0; }
+      else { this.safeMode = false; wd.state = 'scene'; wd.si = 0; this._sceneNext(); } // not the post chain: try scene features
+    } else if (wd.state === 'scene') {
+      if (!r.bad) { const last = wd.scene[wd.scene.length - 1]; this._fxOff(last, false); wd.state = 'sceneConfirm'; wd.wait = 9; }
+      else { wd.si++; this._sceneNext(); }
+    } else if (wd.state === 'sceneConfirm') {
+      const last = wd.scene[wd.scene.length - 1];
+      if (r.bad) { for (const n of wd.scene.slice(0, -1)) this._fxOff(n, false); confirmed(last, [last]); } // keep only the step that mattered; earlier ones go back on (if they were needed too, the next check finds them)
+      else { for (const n of wd.scene) this._fxOff(n, false); wd.state = 'idle'; wd.cool = 120; wd.hits = 0; wd.scene = []; } // transient: undo everything
     }
   }
 
@@ -388,7 +403,20 @@ export class Renderer {
       if (live) { wd.cur = n; this._fxOff(n, true); wd.wait = 6; return; }
       wd.i++;
     }
-    // no single pass explains it: try the whole chain off
-    wd.state = 'safe'; this.safeMode = true; wd.wait = 6;
+    wd.state = 'safe'; this.safeMode = true; wd.wait = 6; // no single pass explains it: try the whole chain off
+  }
+
+  _sceneNext() { // scene features, switched off cumulatively (reflections, then the sky lighting map, then the sea shader)
+    const wd = this.wd, list = Renderer.SCENE_STEPS;
+    while (wd.si < list.length) {
+      const n = list[wd.si], st = this.sceneSteps && this.sceneSteps[n];
+      if (st && st.live()) { wd.scene.push(n); st.set(true); wd.wait = 8; return; }
+      wd.si++;
+    }
+    // nothing helped: undo it all and back off, so a genuinely bright scene is not re-tested every few seconds
+    for (const n of wd.scene) this._fxOff(n, false);
+    wd.scene = []; wd.state = 'idle'; wd.fails++; wd.cool = Math.min(900 * 2 ** wd.fails, 36000);
+    console.warn('[render] washed-out frame persists with every feature off: the scene itself is bright');
+    if (this.onSceneWash) this.onSceneWash();
   }
 }

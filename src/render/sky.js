@@ -182,7 +182,7 @@ export class Sky {
     this.uniforms.uCloudMul.value = 0.35; // softer cloud reflections on water
     this.envRT = this.pmrem.fromScene(this.envScene, 0, 0.1, 200);
     this.uniforms.uCloudMul.value = 1;
-    this.scene.environment = this.envRT.texture;
+    if (!this.envBlocked) this.scene.environment = this.envRT.texture; // envBlocked: the GPU watchdog found this map washing the scene out
     if (old) old.dispose();
   }
 }

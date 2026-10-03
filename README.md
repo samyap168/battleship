@@ -81,3 +81,13 @@ Each team's **era** is the median age of its captains. It evolves that team's gu
 ## Testing
 
 `node tests/play.mjs "6,60,180" prefix` boots a headless Chromium build (SwiftShader) and steps the simulation deterministically. It screenshots at the given match times and prints a match summary.
+
+## Graphics safeguards
+
+Real GPUs and drivers differ from the test rasteriser, so the renderer polices itself:
+
+- **Washed-out watchdog** (`Renderer.selfCheck`): samples the finished frame; a bright, warm, low-contrast picture (or a flat one) triggers a one-at-a-time hunt, first the post passes (light shafts, bloom, NaN guard, ambient occlusion, SMAA), then the whole post chain, then scene features (planar reflections, the sky lighting map, the sea shader, replaced by plain water). Something is blamed only if putting it back brings the wash back; confirmed culprits are remembered in `localStorage` (`aa.fxoff`) and named in an on-screen hint and in F3. Changing quality in Options clears them. `tests/washout.mjs` injects faults to prove it.
+- **F3** shows fps, resolution scale, anything switched off, and the GPU name, shader precision and half-float support, which is the first thing needed when a driver misbehaves.
+- **Context loss** (`tests/ctxloss.mjs`): the match pauses behind a notice and the lighting and shadow maps rebuild on restore.
+- **Frame-rate independence** (`tests/rate.mjs`): effect emitters run per second (`G.pulse`, `G.chance`), never per rendered frame.
+- **Sea cost**: the sea shader's ripple and noise loops scale with the graphics preset (3/2 on Low, 6/3 on Medium, 10/4 on Ultra).
