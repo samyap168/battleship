@@ -139,6 +139,7 @@ R.sceneSteps = {
   sparks: { live: () => fx.p.alpha.points.visible || fx.p.add.points.visible, set: (off) => { fx.p.alpha.points.visible = !off; fx.p.add.points.visible = !off; } },
   sea: { live: () => ocean.mesh.material === ocean.fullMat, set: (off) => ocean.setSafe(off) },
 };
+if (localGet('aa.fxv') !== '3') { localSet('aa.fxoff', ''); localSet('aa.fxv', '3'); } // verdicts from the older, weaker detector blamed the wrong things (bloom, post chain): start afresh
 R.restoreFxOff([...new Set([...(localGet('aa.fxoff') || '').split(',').filter(Boolean), ...(settings.quality === 'safe' ? ['sea', 'env'] : [])])]);
 const weather = new Weather(scene, fx, R, audio);
 await step(70, 'Photographing the fleet');

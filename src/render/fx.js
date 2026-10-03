@@ -103,7 +103,7 @@ export class FX {
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>
 varying float vHeat; varying vec3 vDbP;
-float dbH(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719))) * 43758.5453); }`)
+float dbH(vec3 p) { vec3 p3 = fract(floor(p) * 0.1031); p3 += dot(p3, p3.zyx + 31.32); return fract((p3.x + p3.y) * p3.z); }`)
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
 {
   float cr = dbH(vDbP) * 0.6 + dbH(vDbP * 2.3 + 1.7) * 0.4;

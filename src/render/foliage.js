@@ -4,7 +4,7 @@
 // leaves translucency glow. Bark (warm vertex colour) is left untouched.
 const GLSL = /* glsl */`
 varying vec3 vLfP; varying float vLeaf;
-vec3 lfH3(vec3 p) { p = vec3(dot(p, vec3(127.1, 311.7, 74.7)), dot(p, vec3(269.5, 183.3, 246.1)), dot(p, vec3(113.5, 271.9, 124.6))); return fract(sin(p) * 43758.5453); }
+vec3 lfH3(vec3 p) { vec3 p3 = fract(p * vec3(0.1031, 0.1030, 0.0973)); p3 += dot(p3, p3.yxz + 33.33); return fract((p3.xxy + p3.yxx) * p3.zyx); }
 // 2x2x2 cellular: returns (F1, F2, cell hash)
 vec3 lfCell(vec3 p) {
   vec3 b = floor(p - 0.5), f = p - b;
@@ -86,7 +86,7 @@ export function applyTerrainDetail(mat) {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
 varying vec3 vTdW; varying vec3 vTdN;
-float tdH(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+float tdH(vec3 p) { vec3 p3 = fract(p * 0.1031); p3 += dot(p3, p3.zyx + 31.32); return fract((p3.x + p3.y) * p3.z); }
 float tdN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(mix(tdH(i), tdH(i + vec3(1, 0, 0)), f.x), mix(tdH(i + vec3(0, 1, 0)), tdH(i + vec3(1, 1, 0)), f.x), f.y),
              mix(mix(tdH(i + vec3(0, 0, 1)), tdH(i + vec3(1, 0, 1)), f.x), mix(tdH(i + vec3(0, 1, 1)), tdH(i + vec3(1, 1, 1)), f.x), f.y), f.z); }`)

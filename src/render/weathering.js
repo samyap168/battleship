@@ -5,7 +5,7 @@
 
 const GLSL = /* glsl */ `
 varying vec3 vWxObj;
-float wxH(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+float wxH(vec3 p) { vec3 p3 = fract(p * 0.1031); p3 += dot(p3, p3.zyx + 31.32); return fract((p3.x + p3.y) * p3.z); }
 float wxN(vec3 p) {
   vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(mix(wxH(i), wxH(i + vec3(1, 0, 0)), f.x), mix(wxH(i + vec3(0, 1, 0)), wxH(i + vec3(1, 1, 0)), f.x), f.y),

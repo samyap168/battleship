@@ -47,13 +47,13 @@ const GradeShader = {
   vertexShader: /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse; uniform float uTime, uDamage, uDesat, uContrast, uSat, uVignette, uCA, uGrain, uFlash, uRain;
+    float gh(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
     float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-      float a = fract(sin(dot(i, vec2(127.1, 311.7))) * 43758.5), b = fract(sin(dot(i + vec2(1, 0), vec2(127.1, 311.7))) * 43758.5);
-      float cc = fract(sin(dot(i + vec2(0, 1), vec2(127.1, 311.7))) * 43758.5), d = fract(sin(dot(i + vec2(1, 1), vec2(127.1, 311.7))) * 43758.5);
+      float a = gh(i), b = gh(i + vec2(1, 0)), cc = gh(i + vec2(0, 1)), d = gh(i + vec2(1, 1));
       return mix(mix(a, b, f.x), mix(cc, d, f.x), f.y); }
     uniform vec2 uRes; uniform vec4 uShock[4]; uniform vec3 uLift, uGain;
     varying vec2 vUv;
-    float rnd(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + uTime * 7.13) * 43758.5453); }
+    float rnd(vec2 p){ return gh(floor(p) + vec2(fract(uTime) * 73.1, fract(uTime * 0.7) * 41.3)); }
     void main() {
       vec2 uv = vUv;
       float aspect = uRes.x / uRes.y;
@@ -309,7 +309,7 @@ export class Renderer {
       u.uShock.value[i].set(s.x, s.y, k * 0.28 * s.str, (1 - k) * s.str * THREE.MathUtils.smoothstep(k, 0.06, 0.3));
     }
     u.uFlash.value = Math.max(0, u.uFlash.value - dt * 2.5);
-    if (this.safeMode) { this.gl.toneMapping = THREE.ACESFilmicToneMapping; this.gl.render(this.scene, this.camera); if (this.wd && this.wd.state !== 'idle') this.selfCheck(); return; }
+    if (this.safeMode) { this.gl.toneMapping = THREE.ACESFilmicToneMapping; this.gl.render(this.scene, this.camera); this.selfCheck(); return; } // safe mode restored from an earlier launch must still be watched: the cause may be in the scene
     this.composer.render(dt);
     this.selfCheck();
   }
@@ -358,7 +358,6 @@ export class Renderer {
   }
 
   selfCheck() {
-    if (this.safeMode && !(this.wd && this.wd.state !== 'idle')) return;
     if (this.noShock) return; // menu backdrop: not worth the risk of a false alarm
     this.checkT = (this.checkT || 0) + 1;
     const wd = this.wd || (this.wd = { state: 'idle', hits: 0, i: 0, wait: 0, cool: 0, fails: 0 });
