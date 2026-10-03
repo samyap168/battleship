@@ -468,7 +468,7 @@ canvas.addEventListener('pointerdown', (e) => {
     rightDrag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false, id: e.pointerId };
     canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
   }
-  if (mode === 'play' && (e.button === 1 || (e.button === 0 && e.shiftKey))) {
+  if (mode === 'play' && (e.button === 1 || (e.button === 0 && e.shiftKey && hud.aiming < 0))) {
     orbitDrag = { x: e.clientX, y: e.clientY, id: e.pointerId };
     canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
     e.preventDefault(); e.stopImmediatePropagation();
@@ -541,6 +541,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key.toLowerCase() === 'h' || e.key === 'F1') { e.preventDefault(); showHowTo(true); return; }
   const k = e.key.toLowerCase();
   if (e.ctrlKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); hud.handlers.buy(UPGRADES[+e.key - 1].id); return; }
+  if (e.ctrlKey || e.metaKey) return; // browser chords (Ctrl+R, Cmd+C...) must not fire abilities
   if (hud.modalOpen && k === 'escape') { if (!G.over) hud.closeModal(); return; } // the result screen lives in the modal root: Esc must not delete SAIL AGAIN
   if (k === 'escape') { if (hud.aiming >= 0) hud.aiming = -1; else showOptions(true); return; }
   if (e.repeat) return;

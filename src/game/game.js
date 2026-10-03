@@ -308,7 +308,8 @@ export class Game {
     if (this.player && u.team === this.player.team && u !== this.player) this.ui.ping(u.x, u.z, '#ffb24a');
     this.ui.feed(`${killerName} sank <b style="color:${TEAMS[u.team].css}">${u.name}</b>${assisters.length ? ` <span class="dim">+${assisters.length}</span>` : ''}`);
     if (u === this.player) {
-      this.ui.death(u.respawn, killer); this.audio.stinger('warning'); this.slowmo = 0.7; this.fx.shake(0.6, u.x, u.z);
+      if (!this.over) { this.ui.death(u.respawn, killer); this.audio.stinger('warning'); this.slowmo = 0.7; }
+      this.fx.shake(0.6, u.x, u.z);
       if (!(this.coached ||= {}).death) { this.coached.death = true; setTimeout(() => this.ui.hint('Sunk ships recommission at your citadel · fight near your gunboats and forts, and <b>retreat below a third of your hull</b>', 8000), 2500); }
     }
   }
