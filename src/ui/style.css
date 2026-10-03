@@ -345,3 +345,16 @@ body.cinematic #howtoBtn { display: none; }
 /* result screen on short windows: scroll instead of clipping SAIL AGAIN off the bottom */
 #end > :first-child { margin-top: auto; } #end > :last-child { margin-bottom: auto; padding-bottom: 14px; }
 @media (max-height: 760px) { #end h1 { font-size: 56px; } #end .sub { margin-bottom: 10px; font-size: 15px; } #end .panel { padding: 8px 14px; } #end td { padding: 3px 12px; } }
+
+/* small windows: nothing overlaps (verified at 800x600 and 1024x640) */
+@media (max-width: 1100px) { #objectives { top: 78px; } }
+@media (max-width: 1000px) {
+  #command { transform: translateX(-50%) scale(.62); }
+  #minimap canvas { width: 150px; height: 92px; }
+  #shop { width: 170px; right: 10px; bottom: 10px; max-height: 60vh; overflow-y: auto; }
+  #minimap { left: 10px; bottom: 10px; }
+  #topbar .side { min-width: 150px; padding: 0 10px; }
+  #feed { width: 220px; }
+}
+@media (max-height: 640px) { #topbar { height: 48px; } #announce h1 { font-size: 28px; } }
+@media (max-width: 1100px) and (min-width: 1001px) { #minimap canvas { width: 200px; height: 122px; } }
