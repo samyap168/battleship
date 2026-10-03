@@ -531,6 +531,7 @@ function skipOpening() {
   return true;
 }
 window.addEventListener('keydown', (e) => {
+  if (/^F\d+$/.test(e.key) && e.key !== 'F1' && e.key !== 'F3') return; // F5 reload, F11 fullscreen, F12 devtools stay the browser's
   if (skipOpening()) { e.preventDefault(); return; }
   if (howtoOpen) { // any key starts (H toggles, Tab/Alt ignored so alt-tab does not dismiss it)
     if (e.key === 'Tab' || e.key === 'Alt' || e.key === 'Shift' || e.key === 'Control' || e.key === 'Meta') return;
