@@ -169,7 +169,10 @@ export class Hero extends Unit {
     this.setHull('frigate', true);
   }
   get hull() { return HULLS[this.hullId]; }
-  get abilities() { return this.hull.abilities.map((id) => ({ id, ...ABILITIES[id] })); }
+  get abilities() { // cached per hull: read many times a frame by the HUD and AI, so no per-access allocation
+    if (this._abHull !== this.hull) { this._abHull = this.hull; this._ab = this.hull.abilities.map((id) => ({ id, ...ABILITIES[id] })); }
+    return this._ab;
+  }
   get lvlMul() { return 1 + 0.07 * (this.level - 1); }
   get dmgMul() {
     let m = this.lvlMul * (1 + 0.1 * this.upg.gunnery);
