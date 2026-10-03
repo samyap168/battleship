@@ -170,7 +170,12 @@ function roof(P, w, l, h, x, y, z, ry = 0, col = SLATE, mat = 'paint') {
 }
 
 function coneRoof(P, r, h, x, y, z, seg = 10, mat = 'team', col = 0xffffff) {
-  P.add(mat, new THREE.ConeGeometry(r, h, seg, 1), col, M(x, y + h / 2, z));
+  // a flared, concave spire (eaves kick out, sides curve in) instead of a plain cone, with a dark eave rim and a brass finial:
+  // the plain cones read as toy party hats next to the pagoda roofs
+  const prof = [[1.05, 0], [0.99, 0.05], [0.82, 0.26], [0.6, 0.52], [0.36, 0.76], [0.14, 0.93], [0.02, 1]].map(([k, t]) => new THREE.Vector2(r * k, h * 0.92 * t));
+  P.add(mat, new THREE.LatheGeometry(prof, Math.max(8, seg)), col, M(x, y, z));
+  P.add('stone', new THREE.CylinderGeometry(r * 1.08, r * 1.04, h * 0.07, Math.max(8, seg)), STONE_DARK, M(x, y + h * 0.02, z));
+  P.add('brass', new THREE.ConeGeometry(Math.max(0.1, r * 0.07), h * 0.2, 6), 0xffffff, M(x, y + h * 0.92 + h * 0.08, z));
 }
 
 function roundTower(P, x, z, r, y0, y1, { roofH = 0, roofMat = 'team', crenel = true, seg = 10 } = {}) {
