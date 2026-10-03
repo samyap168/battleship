@@ -1602,6 +1602,16 @@ function buildMothership(ctx) {
     P.box('stealth', 0.5, 0.1, 0.12, x, wy + 0.3, z, 0x5a6068, 0, -PI / 4);
     P.box('stealth', 0.18, 0.14, 0.18, x, wy + 0.32, z, 0x7a8088);
   }
+  // wing-deck detail: raised vent grilles along the spine and four small point-defence stubs
+  for (const side of [-1, 1]) for (let i = 0; i < 6; i++) {
+    const z = -11.2 + i * 1.5;
+    P.box('stealthDark', 0.9, 0.1, 0.55, side * 2.4, wy + 0.2, z, 0x1c2024);
+    for (let k = 0; k < 3; k++) P.box('stealth', 0.8, 0.03, 0.05, side * 2.4, wy + 0.27, z - 0.18 + k * 0.18, 0x3a4047);
+  }
+  for (const [x, z] of [[-5.4, 2.4], [5.4, 2.4], [-5.4, -11.4], [5.4, -11.4]]) {
+    P.box('stealth', 0.5, 0.35, 0.5, x, wy + 0.3, z, C.graphite);
+    P.rod('stealth', 0.09, 0.07, [x, wy + 0.5, z], [x, wy + 0.85, z + 0.9], C.graphiteDark, 5);
+  }
   // bow: forward deck + laser turret
   const bd = hull.deckAt(11).y;
   P.add('teamGlow', prism([[-0.1, 7.6], [0.1, 7.6], [0.1, 15.5], [-0.1, 15.5]], bd + 0.0, null, bd + 0.04, { sides: false }), 0xffffff);
