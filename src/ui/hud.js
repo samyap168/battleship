@@ -481,7 +481,7 @@ export class HUD {
       this.thumbSet = true;
     }
     const hull = HULLS[p.hullId];
-    this.txt('shipname', `${p.name} · ${hull.name}`);
+    this.txt('shipname', hull.name); // the hull alone: 'You · Ship-of-the-Line Frigate' never fit the card
     this.txt('shipsub', `${AGES[p.age - 1].name} · ${hull.role}`);
     this.txt('lvl', String(p.level));
     const hpF = Math.max(0, p.hp / p.maxHp);

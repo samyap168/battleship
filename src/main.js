@@ -730,6 +730,11 @@ warm.traverse((o) => { o.frustumCulled = false; });
 scene.add(warm);
 // and the effects first seen at an age-up / big kill (their shader programs compile on first use)
 try { const wp = new THREE.Vector3(cameraDir.focus.x, 4, cameraDir.focus.z); fx.ageUp(wp, 0x9fd8ff); fx.megaExplosion(wp, 20); fx.emp(wp.x, wp.z, 20); } catch (e) { console.warn('[warmup]', e); }
+// compile in parallel where the driver allows (KHR_parallel_shader_compile): the loading bar keeps moving and the
+// tab does not freeze for the several seconds a D3D driver needs to build ~100 programs one after another
+await step(84, 'Compiling shaders');
+try { await Promise.race([R.gl.compileAsync(scene, R.camera), new Promise((r) => setTimeout(r, 25000))]); } catch (e) { console.warn('[warmup] async compile', e); }
+await step(90, 'Compiling shaders');
 R.render(0.016, 0); // a real frame (reflections, AO, shadows) compiles exactly the variants play uses
 scene.remove(warm);
 for (const m of sealife.meshes) { m.visible = false; m.frustumCulled = true; }

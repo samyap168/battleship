@@ -300,7 +300,7 @@ export class WaterDecals {
           float n = nz(vUv * 7.0 + vD1.z * 13.0) * 0.6 + nz(vUv * 17.0) * 0.4;
           float a;
           if (kind < 0.5) {         // foam blob
-            a = (1.0 - smoothstep(0.25, 1.0, r + n * 0.45)) * smoothstep(0.25, 0.55, n + (1.0 - age) * 0.5);
+            a = (1.0 - smoothstep(0.05, 1.0, r + n * 0.7)) * smoothstep(0.3, 0.75, n + (1.0 - age) * 0.45) * 0.72; // softer, lacier edge: the hard noise cut read as a snowflake sprite
           } else if (kind < 1.5) {  // expanding ring
             // torn, lacy foam front with a faint churned interior
             float n2 = nz(vUv * 23.0 + age * 3.0 + vD1.z * 5.0);
