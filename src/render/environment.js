@@ -415,13 +415,18 @@ export class Environment {
     applyTerrainDetail(islandMat);
     // see-through: rock standing between the lens and the followed ship dissolves (screen-door) inside a
     // cylinder around the line of sight. One shared uniform, no per-island materials, shadows unaffected.
-    {
-      const prevC = islandMat.onBeforeCompile;
-      islandMat.onBeforeCompile = (sh, r) => {
+    const seeThrough = (mat) => {
+      const prevC = mat.onBeforeCompile;
+      mat.onBeforeCompile = (sh, r) => {
         if (prevC) prevC(sh, r);
         Object.assign(sh.uniforms, SEE_THROUGH);
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vSeeW;')
-          .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvSeeW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+          .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
+          { vec4 sp = vec4(transformed, 1.0);
+          #ifdef USE_INSTANCING
+          sp = instanceMatrix * sp;
+          #endif
+          vSeeW = (modelMatrix * sp).xyz; }`);
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vSeeW; uniform vec3 uSeeCam; uniform vec3 uSeeFoc; uniform float uSeeOn;')
           .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
           if (uSeeOn > 0.5 && vSeeW.y > 2.0) {
@@ -435,10 +440,12 @@ export class Environment {
             }
           }`);
       };
-      const k0 = islandMat.customProgramCacheKey ? islandMat.customProgramCacheKey.bind(islandMat) : () => '';
-      islandMat.customProgramCacheKey = () => k0() + '|see';
-      islandMat.needsUpdate = true;
-    }
+      const k0 = mat.customProgramCacheKey ? mat.customProgramCacheKey.bind(mat) : () => '';
+      mat.customProgramCacheKey = () => k0() + '|see';
+      mat.needsUpdate = true;
+    };
+    // the rock, and everything growing or standing on it, dissolves together (no floating canopies)
+    [islandMat, leafMat, trunkMat, stoneMat, roofMat].forEach(seeThrough);
 
     const { trunk, crown } = treeGeometries();
     const trees = [];
