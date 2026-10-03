@@ -364,3 +364,5 @@ body.cinematic #howtoBtn { display: none; }
 .ab svg { margin-bottom: 8px; }
 @media (max-width: 1000px) { .ab .nm { display: none; } .ab svg { margin-bottom: 0; } }
 .ab:has(.lock:not(.hidden)) .nm { display: none; }
+.ab .nm { font-size: 8.5px; letter-spacing: 0; line-height: 9px; white-space: normal; overflow: visible; text-overflow: clip; bottom: 3px; }
+.ab svg { margin-bottom: 12px; }
