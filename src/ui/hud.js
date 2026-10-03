@@ -560,6 +560,7 @@ export class HUD {
       const s = proj(u.x, u.kind === 'hero' ? height * 0.82 + 2.5 : height + (u.kind === 'citadel' ? 18 : u.kind === 'tower' ? 8 : 5), u.z);
       if (!s || s.x < -50 || s.y < -50 || s.x > w + 50 || s.y > h + 50) continue;
       const hero = u.kind === 'hero', boss = u.kind === 'boss';
+      if (u.kind === 'creep' && u.hp >= u.maxHp * 0.999) continue; // untouched gunboats need no bar: the screen stays readable in big fights
       const bw = hero ? 74 : u.kind === 'creep' ? 34 : boss ? 180 : 96, bh = hero ? 8 : u.kind === 'creep' ? 4 : boss ? 10 : 8;
       const x0 = s.x - bw / 2;
       let y0 = s.y;
