@@ -68,7 +68,11 @@ function whaleGeometry() {
     let k = clamp01((-y - 0.15) / 0.55);
     if (u > 0.5 && y < -0.2) k *= 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(x * 16.0));
     const mottle = 0.85 + 0.3 * Math.abs(Math.sin(x * 3.1 + z * 1.7) * Math.sin(z * 2.3));
-    return mix(DARK, PALE, k).map((v) => v * mottle);
+    let col = mix(DARK, PALE, k).map((v) => v * mottle);
+    // old scars on the flanks and pale barnacle patches on the head: no two whales read as flat grey
+    const scar = Math.max(0, Math.sin(z * 2.1 + x * 7.0) * Math.sin(z * 0.7 - x * 3.0) - 0.82) * 4.0 * (y > -0.2 ? 1 : 0);
+    const barn = u > 0.72 ? Math.max(0, Math.sin(x * 13.0 + 1.0) * Math.sin(z * 8.0) - 0.6) * 2.0 * (y > -0.1 ? 1 : 0) : 0;
+    return mix(col, [0.5, 0.52, 0.5], Math.min(0.7, scar * 0.5 + barn * 0.8));
   });
 
   // small hooked dorsal fin, two thirds of the way back
