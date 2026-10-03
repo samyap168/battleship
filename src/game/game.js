@@ -310,7 +310,7 @@ export class Game {
     if (u === this.player) {
       if (!this.over) { this.ui.death(u.respawn, killer); this.audio.stinger('warning'); this.slowmo = 0.7; }
       this.fx.shake(0.6, u.x, u.z);
-      if (!(this.coached ||= {}).death) { this.coached.death = true; setTimeout(() => this.ui.hint('Sunk ships recommission at your citadel · fight near your gunboats and forts, and <b>retreat below a third of your hull</b>', 8000), 2500); }
+      if (!(this.coached ||= {}).death) { this.coached.death = true; setTimeout(() => this.ui.G === this && !this.over && this.ui.hint('Sunk ships recommission at your citadel · fight near your gunboats and forts, and <b>retreat below a third of your hull</b>', 8000), 2500); }
     }
   }
 

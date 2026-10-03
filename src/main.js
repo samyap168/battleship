@@ -230,8 +230,9 @@ function startGame(spectate) {
     cameraDir.locked = true;
     cameraDir.distGoal = cameraDir.dist = 150; // close enough that your hull reads as a ship, not a marker
     audio.stinger('matchStart');
-    setTimeout(() => hud.announce('ARMADA ASCENSION', `${TEAMS[settings.team].name} · Destroy the enemy citadel`, TEAMS[settings.team].css), 1200);
-    setTimeout(() => hud.hint('<kbd>Click</kbd> sail / attack &nbsp; <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> abilities at cursor &nbsp; <kbd>T</kbd> advance age &nbsp; <kbd>H</kbd> how to play', 9000), 7000);
+    const matchG = G; // timers from a previous match must not fire into the next one
+    setTimeout(() => matchG === G && hud.announce('ARMADA ASCENSION', `${TEAMS[settings.team].name} · Destroy the enemy citadel`, TEAMS[settings.team].css), 1200);
+    setTimeout(() => matchG === G && hud.hint('<kbd>Click</kbd> sail / attack &nbsp; <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> abilities at cursor &nbsp; <kbd>T</kbd> advance age &nbsp; <kbd>H</kbd> how to play', 9000), 7000);
   }
 }
 
