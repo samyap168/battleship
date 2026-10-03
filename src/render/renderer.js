@@ -31,6 +31,7 @@ const GradeShader = {
     tDiffuse: { value: null },
     uTime: { value: 0 },
     uRes: { value: new THREE.Vector2(1, 1) },
+    uTexel: { value: new THREE.Vector2(1, 1) }, uSharp: { value: 0 },
     uShock: { value: [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()] },
     uDamage: { value: 0 },
     uDesat: { value: 0 },
@@ -51,7 +52,7 @@ const GradeShader = {
     float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
       float a = gh(i), b = gh(i + vec2(1, 0)), cc = gh(i + vec2(0, 1)), d = gh(i + vec2(1, 1));
       return mix(mix(a, b, f.x), mix(cc, d, f.x), f.y); }
-    uniform vec2 uRes; uniform vec4 uShock[4]; uniform vec3 uLift, uGain;
+    uniform vec2 uRes; uniform vec2 uTexel; uniform float uSharp; uniform vec4 uShock[4]; uniform vec3 uLift, uGain;
     varying vec2 vUv;
     float rnd(vec2 p){ return gh(floor(p) + vec2(fract(uTime) * 73.1, fract(uTime * 0.7) * 41.3)); }
     void main() {
@@ -73,6 +74,10 @@ const GradeShader = {
       col.r = texture2D(tDiffuse, uv + off).r;
       col.g = texture2D(tDiffuse, uv).g;
       col.b = texture2D(tDiffuse, uv - off).b;
+      if (uSharp > 0.001) { // below native resolution (adaptive scaling): a light unsharp mask gives hulls and rigging their edges back
+        vec3 bl = (texture2D(tDiffuse, uv + vec2(uTexel.x, 0.0)).rgb + texture2D(tDiffuse, uv - vec2(uTexel.x, 0.0)).rgb + texture2D(tDiffuse, uv + vec2(0.0, uTexel.y)).rgb + texture2D(tDiffuse, uv - vec2(0.0, uTexel.y)).rgb) * 0.25;
+        col += clamp(col - bl, -0.12, 0.12) * uSharp * 3.0;
+      }
       // Grade: lift/gain, contrast around mid grey, saturation
       col = col * uGain + uLift * (1.0 - col);
       col = (col - 0.5) * uContrast + 0.5;
@@ -265,6 +270,9 @@ export class Renderer {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.grade.uniforms.uRes.value.set(w, h);
+    const gpr = this.gl.getPixelRatio();
+    this.grade.uniforms.uTexel.value.set(1 / (w * gpr), 1 / (h * gpr));
+    this.grade.uniforms.uSharp.value = Math.min(0.5, Math.max(0, (1 - gpr) * 1.1));
   }
 
   /** Screen-space shockwave at a world position. */
