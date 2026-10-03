@@ -90,4 +90,6 @@ Real GPUs and drivers differ from the test rasteriser, so the renderer polices i
 - **F3** shows fps, resolution scale, anything switched off, and the GPU name, shader precision and half-float support, which is the first thing needed when a driver misbehaves.
 - **Context loss** (`tests/ctxloss.mjs`): the match pauses behind a notice and the lighting and shadow maps rebuild on restore.
 - **Frame-rate independence** (`tests/rate.mjs`): effect emitters run per second (`G.pulse`, `G.chance`), never per rendered frame.
-- **Sea cost**: the sea shader's ripple and noise loops scale with the graphics preset (3/2 on Low, 6/3 on Medium, 10/4 on Ultra).
+- **No `fract(sin(x) * 43758)` hashes**: on AMD / Direct3D drivers `sin()` loses precision for large arguments, which turned the sea cream-white (confirmed fixed on a Radeon 840M). Every shader hash is a sine-free Hoskins-style hash.
+- **Sea detail**: fine ripples come from three rotated, incommensurate tiles of an isotropic slope texture, not a stack of crossing sine waves (those drew a woven diamond lattice). Layers: 2 on Low, 3 on Medium/Ultra; noise octaves 2/3/4.
+- **Sea cost**: the sea shader's detail layers and noise loops scale with the graphics preset.
