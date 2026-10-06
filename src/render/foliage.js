@@ -103,8 +103,10 @@ float tdN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
   // line up at the same heights across towers like a tiled texture
   vec2 cell = p.xz * 0.006;
   float dipA = tdN(vec3(cell, 3.1)) * 6.283, dip = 0.08 + tdN(vec3(cell, 7.7)) * 0.3;
-  float freq = 1.25 + tdN(vec3(cell, 11.3)) * 1.1;
-  float band = sin((p.y + dot(p.xz, vec2(cos(dipA), sin(dipA))) * dip) * freq + tdN(p * 0.25) * 5.0 + tdN(vec3(cell, 5.3)) * 40.0);
+  float freq = 0.5 + tdN(vec3(cell, 11.3)) * 0.65; // beds 5 to 12 m thick: finer bands read as a fingerprint, not rock
+  float bph = (p.y + dot(p.xz, vec2(cos(dipA), sin(dipA))) * dip) * freq + tdN(p * 0.25) * 5.0 + tdN(vec3(cell, 5.3)) * 40.0;
+  // bands thinner than a pixel average out instead of shimmering into moire (distant cliffs)
+  float band = sin(bph) * (1.0 - smoothstep(0.7, 2.2, fwidth(bph)));
   vec3 c = diffuseColor.rgb * (0.82 + 0.18 * smoothstep(-0.2, 0.9, band)) * (0.82 + m2 * 0.2 + sp * 0.14);
   c *= 1.0 - smoothstep(0.93, 1.0, abs(band)) * 0.18 * step(band, 0.0);
   diffuseColor.rgb = mix(c, g, tFlat);
