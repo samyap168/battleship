@@ -28,8 +28,9 @@ const run = (pattern) => page.evaluate(async ([TICKS, pattern]) => {
     return h >>> 0;
   };
   for (let i = 1; i <= TICKS; i++) {
+    G.restoreTickPose(); // as the multiplayer session does: poses are blended for drawing, exact for the sim
     G.tick(TICK);
-    if (i % pattern === 0) G.visualUpdate(TICK * pattern);
+    if (i % pattern === 0) { G.visualUpdate(TICK * pattern); G.presentPose((i % 7) / 7); }
     if (i % 600 === 0) { out.push([i, hash()]); await new Promise((r) => setTimeout(r, 0)); }
   }
   return { out, creeps: G.creeps.length, kills: G.teams.map((t) => t.kills) };

@@ -237,12 +237,14 @@ export class Session {
       } else if (performance.now() - this.lastStall > 12000) { this.buf = Math.max(BUF_MIN, this.buf - 1); this.lastStall = performance.now(); } // calm for a while: tighten again
     }
     if (steps > 0) this.lastAdvance = performance.now();
+    G.presentPose(Math.min(1, this.acc / TICK));
     this.stats.stallMs = this.lastAdvance ? performance.now() - this.lastAdvance : 0;
     G.visualUpdate(dt);
   }
 
   _step() {
     const G = this.G, k = this.tick + 1;
+    G.restoreTickPose();
     const list = this.sched.get(k);
     if (list) {
       this.sched.delete(k);

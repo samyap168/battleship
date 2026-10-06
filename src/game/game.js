@@ -552,8 +552,33 @@ export class Game {
   tickTransforms(dt) {
     for (const u of this.units) {
       if (!u.isShip || !u.alive || !u.rig) continue;
+      const r = u.rig.root;
+      if (u._cp) { u._pp.copy(u._cp); u._pq.copy(u._cq); }
       syncShipVisual(u, dt, this.time, u.kind === 'hero' ? 0.8 : 1);
       this.sweepTurrets(u, dt);
+      if (!u._cp) { u._cp = r.position.clone(); u._cq = r.quaternion.clone(); u._pp = r.position.clone(); u._pq = r.quaternion.clone(); }
+      else { u._cp.copy(r.position); u._cq.copy(r.quaternion); }
+    }
+  }
+
+  /** Multiplayer presentation: ships are drawn between their last two tick poses, so motion is smooth at any refresh rate. */
+  presentPose(alpha) {
+    this._posed = true;
+    for (const u of this.units) {
+      if (!u._cp || !u.alive || !u.rig) continue;
+      const r = u.rig.root;
+      r.position.lerpVectors(u._pp, u._cp, alpha);
+      r.quaternion.slerpQuaternions(u._pq, u._cq, alpha);
+    }
+  }
+  /** ...and back to the exact tick pose before the next tick runs: gameplay (muzzle positions) must never see the blend. */
+  restoreTickPose() {
+    if (!this._posed) return;
+    this._posed = false;
+    for (const u of this.units) {
+      if (!u._cp || !u.alive || !u.rig) continue;
+      const r = u.rig.root;
+      r.position.copy(u._cp); r.quaternion.copy(u._cq);
     }
   }
 
@@ -750,7 +775,7 @@ export class Game {
     if (u.kind === 'hero') {
       if (!u.ring) { u.ring = heroRing(u.isPlayer ? 0xffd27a : TEAMS[u.team].glow, u.isPlayer); this.scene.add(u.ring); }
       u.ring.visible = u.alive;
-      u.ring.position.set(u.x, 0, u.z);
+      u.ring.position.set(r.root.position.x, 0, r.root.position.z);
       u.ring.material.uniforms.uTime.value = t;
       u.ring.scale.setScalar((r.length * 0.5 + 3) * (this.viewScale || 1) + Math.sin(t * 3) * (u.isPlayer ? 0.3 : 0));
     }

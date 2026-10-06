@@ -66,7 +66,17 @@ const a = await stat(A), b = await stat(B);
 console.log('host  ', JSON.stringify(a));
 console.log('client', JSON.stringify(b));
 const chatOk = chatA.some((t) => t.includes('Bligh: hello from Bligh')) && !chatA.some((t) => t.includes('only my team')); // Bligh sits on the other team: team chat must not leak
-const ok = chatOk && a.tick > 1500 && b.tick > 1500 && b.desyncs === 0 && a.humans.length === 2 && b.humans.length === 2 && !errs.length;
+// a full match ends on both peers with the result screen
+let ended = true;
+if (process.env.FULL) {
+  for (const p of [A, B]) await p.waitForFunction(() => window.__aa.G.over, null, { timeout: 240000 }).catch(() => { ended = false; });
+  await A.waitForTimeout(6000);
+  const shown = await Promise.all([A, B].map((p) => p.evaluate(() => !!document.getElementById('end'))));
+  const wins = await Promise.all([A, B].map((p) => p.evaluate(() => window.__aa.G.winner)));
+  console.log('result screen shown (host, client):', shown.join(', '), '· winner on each peer:', wins.join(', '));
+  ended = ended && shown.every(Boolean) && wins[0] === wins[1];
+}
+const ok = ended && chatOk && a.tick > 1500 && b.tick > 1500 && b.desyncs === 0 && a.humans.length === 2 && b.humans.length === 2 && !errs.length;
 console.log(ok ? `PASS: peers stayed in sync (${b.tick} ticks, 0 resyncs)` : 'FAIL');
 if (errs.length) console.log('page errors:', errs.slice(0, 4).join(' | '));
 await browser.close();

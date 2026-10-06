@@ -369,6 +369,10 @@ chatIn.addEventListener('keydown', (e) => {
 const stallEl = document.createElement('div');
 stallEl.id = 'netStall'; stallEl.className = 'hidden'; stallEl.textContent = 'Waiting for the host…';
 document.body.appendChild(stallEl);
+const netInd = document.createElement('div');
+netInd.id = 'netInd'; netInd.className = 'hidden';
+document.body.appendChild(netInd);
+let netIndT = 0;
 document.addEventListener('visibilitychange', () => { // the host's browser runs the match: tell the others when it is paused
   if (document.hidden && session && session.isHost && session.phase === 'play') session.t.broadcast({ t: 'toast', text: 'The host switched tabs: the match is on hold until they return.' });
 });
@@ -760,6 +764,11 @@ function tick(dt, draw) {
   if (howtoPending && mode === 'play' && !cameraDir.cine && G && G.time > 1) { howtoPending = false; showHowTo(true); }
   if (mpLoading && session && session.go) { mpLoading = false; lobby.hide(); }
   chatEl.classList.toggle('hidden', !mpOn());
+  if (mpOn() && (netIndT -= dt) <= 0) { // connection light: ping to the host, and how far behind this peer is running
+    netIndT = 0.5; const st = session.stats, ms = session.isHost ? 0 : st.rtt;
+    netInd.className = ms < 90 ? 'ok' : ms < 180 ? 'mid' : 'bad';
+    netInd.textContent = session.isHost ? `host · ${session.humanCount()} players` : `${ms || '…'} ms`;
+  } else if (!mpOn()) netInd.className = 'hidden';
   stallEl.classList.toggle('hidden', !(mpOn() && session.phase === 'play' && session.stats.stallMs > 1800 && !G.over));
   if (G && session && session.G === G) session.update(dt); // multiplayer: fixed ticks, never paused by a menu
   else if (G && !howtoOpen && !optionsOpen) G.update(dt);

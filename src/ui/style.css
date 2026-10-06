@@ -413,3 +413,7 @@ body.cinematic #howtoBtn { display: none; }
 #chat.typing #chatIn { display: block; }
 #netStall { position: fixed; top: 92px; left: 50%; transform: translateX(-50%); z-index: 7; padding: 8px 18px; background: rgba(20,10,8,.85); border: 1px solid #ff8a6a; color: #ffb59a; letter-spacing: .12em; font-size: 15px; text-transform: uppercase; animation: abReady 1.4s ease-in-out infinite; }
 #netStall.hidden { display: none; }
+#netInd { position: fixed; top: 60px; right: 16px; z-index: 6; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); text-shadow: 0 1px 3px #000; }
+#netInd::before { content: '●'; margin-right: 6px; }
+#netInd.ok::before { color: #6ff08a; } #netInd.mid::before { color: #ffd24a; } #netInd.bad::before { color: #ff6a5a; }
+#netInd.hidden { display: none; }
