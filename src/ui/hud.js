@@ -307,6 +307,14 @@ export class HUD {
     this.goldAcc = { t: 0, sum: amount, float };
   }
   /** Aggregates rapid hits on the same target into one rising number. */
+  /** You were hit from (x, z): a red arc on the screen edge points at the attacker for a moment. */
+  hurt(x, z, frac) {
+    const L = (this.hurts ||= []);
+    const near = L.find((h) => h.t < 0.25 && Math.hypot(h.x - x, h.z - z) < 40);
+    if (near) { near.t = Math.min(near.t, 0.1); near.k = Math.min(1, near.k + frac * 3); return; } // same attacker: refresh, do not stack
+    L.push({ x, z, t: 0, k: Math.min(1, 0.35 + frac * 3) });
+    if (L.length > 6) L.shift();
+  }
   damageNumber(target, amount, incoming) {
     const key = target.id + (incoming ? 'i' : 'o');
     this.dmgAcc ||= new Map();
@@ -550,6 +558,25 @@ export class HUD {
       else if (this.showRange) { range = p.hull.guns.range; col = 'rgba(255,255,255,.28)'; }
       if (range) this.drawRing(c, proj, p.x, p.z, range, col);
       if (this.aiming >= 0 && this.cursor) this.drawAim(c, proj, p, p.abilities[this.aiming], this.cursor);
+    }
+    // hit direction arcs
+    if (this.hurts && this.hurts.length && p && p.alive) {
+      const ps = proj(p.x, 4, p.z);
+      if (ps) {
+        for (let i = this.hurts.length - 1; i >= 0; i--) {
+          const q = this.hurts[i];
+          q.t += dt;
+          if (q.t > 0.9) { this.hurts.splice(i, 1); continue; }
+          const ss = proj(q.x, 4, q.z);
+          let dx = ss ? ss.x - ps.x : q.x - p.x, dy = ss ? ss.y - ps.y : q.z - p.z;
+          if (!ss) { dx = -dx; dy = -dy; }
+          const ang = Math.atan2(dy, dx), R = Math.min(w, h) * 0.33, a = (1 - q.t / 0.9) * q.k;
+          const g = c.createRadialGradient(ps.x, ps.y, R - 26, ps.x, ps.y, R + 26);
+          g.addColorStop(0, 'rgba(255,60,40,0)'); g.addColorStop(0.5, `rgba(255,70,50,${0.55 * a})`); g.addColorStop(1, 'rgba(255,60,40,0)');
+          c.save(); c.strokeStyle = g; c.lineWidth = 52; c.lineCap = 'round';
+          c.beginPath(); c.arc(ps.x, ps.y, R, ang - 0.32, ang + 0.32); c.stroke(); c.restore();
+        }
+      }
     }
     // health bars
     c.font = '600 12px Rajdhani, sans-serif';

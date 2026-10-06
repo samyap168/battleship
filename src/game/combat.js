@@ -134,6 +134,7 @@ export class Combat {
       if (opts.crit && target.kind !== 'creep') G.ui.floatText(target.x, (target.rig?.height || 8) + 6, target.z, '✦' + Math.round(dmg + absorbed), '#ffd24a', 24);
       else if (target === player || target.kind !== 'creep') G.ui.damageNumber(target, dmg + absorbed, target === player);
     }
+    if (target === G.player && dmg + absorbed >= 1 && source && source.x !== undefined && G.ui.hurt) G.ui.hurt(source.x, source.z, (dmg + absorbed) / target.maxHp);
     if (target.hp <= 0) G.kill(target, srcHero || source);
     return dmg;
   }
