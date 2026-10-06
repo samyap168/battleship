@@ -371,7 +371,7 @@ export class Renderer {
     const wd = this.wd || (this.wd = { state: 'idle', hits: 0, i: 0, wait: 0, cool: 0, fails: 0 });
     if (wd.cool > 0) { wd.cool--; return; }
     if (wd.state === 'idle') {
-      const every = this.checkT < 900 ? 8 : 45; // look hard while the match is starting
+      const every = this.checkT < 900 ? 8 : this.checkT < 5400 ? 45 : 180; // each look is a pipeline stall: rare once the picture has proven healthy // look hard while the match is starting
       if (this.checkT < 20 || this.checkT % every !== 0) return;
       const r = this._sample();
       wd.hits = r.bad ? wd.hits + 1 : 0;

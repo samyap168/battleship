@@ -47,6 +47,7 @@ function autoQuality() {
     const name = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
     gl.getExtension('WEBGL_lose_context')?.loseContext();
     if (/SwiftShader|llvmpipe|Software|Basic Render/i.test(name)) return 'low';
+    if (/^Apple GPU$/i.test(name.trim()) && navigator.maxTouchPoints === 0) return 'high'; // Safari hides which M-series chip a Mac has: a desktop Mac with an Apple GPU is a fast one
     if (/Intel|UHD|Iris|Mali|Adreno|PowerVR|Vivante|Apple GPU/i.test(name) && !/Arc/i.test(name)) return 'medium';
   } catch (e) { /* unknown GPU: keep the full look, adaptive quality protects the frame rate */ }
   return 'high';
@@ -69,6 +70,10 @@ const step = async (pct, txt) => { performance.mark('load: ' + txt); loadBar.sty
 
 // ---------------------------------------------------------------------------
 await step(8, 'Kindling the forge');
+{ // a browser without WebGL2 gets an explanation instead of a loading bar that never ends
+  let ok = false; try { ok = !!document.createElement('canvas').getContext('webgl2'); } catch { /* blocked */ }
+  if (!ok) { loadTxt.textContent = 'This game needs WebGL 2. Update your browser, or turn on hardware acceleration in its settings.'; loadBar.style.width = '0%'; throw new Error('WebGL2 unavailable'); }
+}
 const R = new Renderer($('#app'), settings.quality);
 if (settings.quality === 'low') R.rays.enabled = false;
 if (navigator.webdriver) R.fixedRes = true;
@@ -715,7 +720,7 @@ window.addEventListener('keyup', (e) => {
   const ui = ['q', 'w', 'e', 'r'].indexOf(keyName(e));
   if (ui >= 0 && hud.aiming === ui) { hud.aiming = -1; playerCast(ui); }
   if (e.key === 'Tab') hud.toggleScoreboard(false);
-  if (e.key === 'Alt') hud.showRange = false;
+  if (e.key === 'Alt') { hud.showRange = false; if (mode === 'play') e.preventDefault(); } // (a lone Alt release must not pop Firefox's menu bar)
 });
 window.addEventListener('blur', () => { // alt-tab with something held: let go of everything
   cameraDir.keys = {}; hud.showRange = false; hud.aiming = -1; if (hud.toggleScoreboard) hud.toggleScoreboard(false);
