@@ -95,7 +95,7 @@ How the replication works (`src/net/`):
 - Every 5 s the host sends a **state snapshot + hash** (`state.js`). A peer whose hash differs (a different JS engine rounding a float differently, a long tab freeze) is pulled back onto the host's state, including the RNG state; F3 shows `net ping, buffer, resyncs`.
 - Seats whose player leaves (or is too slow to load) are handed to a bot by a command applied on the same tick everywhere.
 
-Tests: `node tests/determinism.mjs [ticks]` (same seed, different frame patterns: identical state hashes), `node tests/mp.mjs` (two browser windows, a lobby, 5v5 with commands from both sides, chat, zero resyncs), `node tests/mp_resilience.mjs` (a corrupted peer is detected and healed, a disconnect becomes a bot). `NET=peer` runs the last two over real WebRTC through a local PeerJS server (`npm i peer`, `PeerServer({ port: 9000, host: '0.0.0.0' })`).
+Tests: `node tests/determinism.mjs [ticks]` (same seed, different frame patterns: identical state hashes), `node tests/mp.mjs` (two browser windows, a lobby, 5v5 with commands from both sides, chat, zero resyncs), `node tests/mp_resilience.mjs` (a corrupted peer is detected and healed, a disconnect becomes a bot). `node tests/mp_many.mjs 5` seats five humans on one host (about the most a 4-core software-GL sandbox can run). `NET=peer` runs these over real WebRTC through a local PeerJS server (`npm i peer`, `PeerServer({ port: 9000, host: '0.0.0.0' })`).
 
 ## Graphics safeguards
 
