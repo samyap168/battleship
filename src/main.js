@@ -4,11 +4,16 @@ import { Renderer } from './render/renderer.js';
 import { Sky, MENU_TIME } from './render/sky.js';
 import { Ocean } from './render/ocean.js';
 import { Environment, SEE_THROUGH } from './render/environment.js';
+import { simState } from './core/rng.js';
+import { Session } from './net/session.js';
+import { LocalTransport, PeerTransport, randomRoomCode } from './net/transport.js';
+import { Cmd } from './net/commands.js';
+import { LobbyUI } from './ui/lobby.js';
 import { Particles } from './render/particles.js';
 import { FX } from './render/fx.js';
 import { ISLANDS, SCENERY, BOUNDS } from './game/map.js';
 import { Game, shieldMesh } from './game/game.js';
-import { cast } from './game/abilities.js';
+import { cast, canCast } from './game/abilities.js';
 import { HUD } from './ui/hud.js';
 import { CameraDirector } from './core/camera.js';
 import { audio } from './audio/audio.js';
@@ -153,7 +158,7 @@ const mouse = { x: 0, y: 0, nx: 0, ny: 0, ground: new THREE.Vector3(), inside: f
 const raycaster = new THREE.Raycaster();
 const waterPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
-function startGame(spectate) {
+function startGame(spectate, extra = {}) {
   if (worldGroup) {
     scene.remove(worldGroup);
     // free the previous match's GPU buffers (geometries re-upload on demand if a cached one is reused)
@@ -163,7 +168,7 @@ function startGame(spectate) {
   scene.add(worldGroup);
   audio.setFinale(false);
   G = new Game({ renderer: R, scene: worldGroup, fx, ocean, audio, ui: hud, sky, wakes, reflect: refl ? reflectable : null }, {
-    difficulty: settings.difficulty, playerTeam: settings.team, spectate, playerName: 'You', autopilot: !!params.get('autopilot'),
+    difficulty: settings.difficulty, playerTeam: settings.team, spectate, playerName: 'You', autopilot: !!params.get('autopilot'), ...extra,
   });
   hud.mount(G);
   G.events.on('reforge', (h) => {
@@ -206,6 +211,17 @@ function startGame(spectate) {
     }
     for (const t of G.teams) t.ageAnnounced = { 1: true, 2: true, 3: true, 4: true, 5: true };
     cameraDir.orbit = { a: 0, r: 200, h: 90, cx: 0, cz: 108, follow: () => (G.boss && G.boss.alive ? G.boss : hotspot(G)) };
+  } else if (G.mp) {
+    // multiplayer: the match is already running on every peer, so no opening shot: straight to your ship
+    cameraDir.orbit = null;
+    cameraDir.yaw = cameraDir.yawGoal = cameraDir.tilt = cameraDir.tiltGoal = 0;
+    const p = G.player;
+    cameraDir.snapTo(p.x, p.z);
+    cameraDir.locked = true;
+    cameraDir.distGoal = cameraDir.dist = 150;
+    audio.stinger('matchStart');
+    const matchG = G;
+    setTimeout(() => matchG === G && hud.announce('ARMADA ASCENSION', `${TEAMS[p.team].name} · Destroy the enemy citadel`, TEAMS[p.team].css), 600);
   } else {
     cameraDir.orbit = null;
     cameraDir.yaw = cameraDir.yawGoal = cameraDir.tilt = cameraDir.tiltGoal = 0;
@@ -249,6 +265,7 @@ function hotspot(g) {
 }
 
 function toMenu() {
+  if (session) { session.leave(); session = null; }
   mode = 'menu';
   $('#howtoBtn').classList.add('hidden'); $('#optBtn').classList.add('hidden'); howtoPending = false; if (optionsOpen) showOptions(false);
   $('#menu').classList.remove('hidden');
@@ -259,14 +276,14 @@ function toMenu() {
   audio.startMusic();
 }
 
-function play() {
+function play(extra = {}) {
   audio.init();
   mode = 'play';
   $('#menu').classList.add('hidden');
   $('#ui').classList.remove('menuMode');
-  startGame(false);
+  startGame(false, extra);
   $('#howtoBtn').classList.remove('hidden'); $('#optBtn').classList.remove('hidden');
-  howtoPending = !automated && localGet('aa.howto') !== '1';
+  howtoPending = !automated && !extra.mp && localGet('aa.howto') !== '1';
 }
 
 // ---------------------------------------------------------------------------
@@ -289,6 +306,51 @@ seg('#segDiff', 'aa.diff', settings.difficulty, (v) => (settings.difficulty = v)
 seg('#segTeam', 'aa.team', settings.team, (v) => (settings.team = +v));
 seg('#segQual', 'aa.quality', settings.quality, (v) => { settings.quality = v; location.search = `?quality=${v}`; });
 $('#playBtn').onclick = () => { audio.init(); audio.play('uiClick'); play(); };
+// ---------------------------------------------------------------------------
+// Multiplayer lobby
+const lobby = new LobbyUI($('#mpRoot'));
+let mpLoading = false;
+const mpTransport = (kind) => (kind === 'local' ? new LocalTransport() : new PeerTransport());
+function mpWire(s, code, kind) {
+  session = s;
+  s.on('lobby', () => { if (lobby.open && !mpLoading) lobby.render(); });
+  s.on('start', (cfg) => startMultiplayer(cfg));
+  s.on('toast', (t) => { try { hud.hint(t, 5000); } catch { /* hud not up yet */ } });
+  s.on('error', (e) => console.warn('[net]', e.message));
+  s.on('closed', (why) => {
+    if (session !== s) return;
+    session = null;
+    if (mode === 'play' && G && G.mp) { hud.announce('CONNECTION LOST', why || 'The match ended.', '#ff6a5a'); setTimeout(() => { if (!session) toMenu(); }, 3500); }
+    else { mpLoading = false; lobby.showEntry('', why || 'Disconnected.'); }
+  });
+  lobby.showLobby(s, code, kind);
+}
+lobby.on('host', async (name, kind) => {
+  const t = mpTransport(kind), code = randomRoomCode();
+  await t.host(code);
+  mpWire(new Session(t, name), code, kind);
+}).on('join', async (name, code, kind) => {
+  const t = mpTransport(kind);
+  await t.join(code);
+  mpWire(new Session(t, name), code, kind);
+}).on('leave', () => { if (session) { session.leave(); session = null; } lobby.showEntry(); })
+  .on('back', () => {});
+$('#mpBtn').onclick = () => { audio.init(); audio.play('uiClick'); lobby.showEntry(); };
+{ // invite link: ?join=CODE (and &net=local for two windows on one PC)
+  const jc = (params.get('join') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+  if (jc) { if (params.get('net') === 'local') lobby.net = 'local'; setTimeout(() => lobby.showEntry(jc), 400); }
+}
+function startMultiplayer(cfg) {
+  mpLoading = true;
+  lobby.showLoading();
+  const me = cfg.seats.findIndex((s) => s && s[0] === session.myId);
+  const slots = cfg.seats.map((s) => (s ? { human: true, local: s[0] === session.myId, name: s[1] } : { human: false }));
+  setTimeout(() => { // let the loading card paint before the (synchronous) build of the match
+    play({ mp: true, seed: cfg.seed, difficulty: cfg.diff, slots, playerTeam: Math.floor(me / 5) });
+    session.attachGame(G);
+  }, 80);
+}
+
 // Quick-start card: shown once before your first match (after the opening shot), any time with H.
 // The battle holds still while it is open.
 let howtoOpen = false, howtoPending = false;
@@ -365,23 +427,28 @@ $('#optQuit').onclick = () => { // two clicks: a stray click must not throw away
   for (const k of ['master', 'music', 'sfx']) { const v = parseFloat(localGet('aa.vol.' + k)); if (Number.isFinite(v)) vol[k] = Math.max(0, Math.min(1, v)); }
   if (Object.keys(vol).length) audio.setVolume(vol);
 }
-hud.on('again', () => play());
+hud.on('again', () => { if (session) { hud.closeModal(); toMenu(); } else play(); }); // a multiplayer match ends back at the menu
 hud.on('menu', () => { hud.closeModal(); toMenu(); });
 
 // ---------------------------------------------------------------------------
 // Player commands
+// ---- multiplayer routing: in a replicated match a click becomes a command that runs on every peer at the same tick
+let session = null;
+const mpOn = () => !!(session && G && G.mp && session.G === G && session.phase !== 'closed');
+const sendCmd = (c) => session.command(c);
+
 function playerAgeUp() {
   const p = G && G.player;
   if (!p || !p.canAgeUp()) return;
   if (p.gold < p.nextAgeCost()) { audio.play('uiError'); hud.hint(`Need <b>${p.nextAgeCost() - Math.floor(p.gold)}</b> more gold for the ${AGES[p.age].name}`, 2000); return; }
   const opts = AGE_HULLS[p.age + 1];
-  if (opts.length === 1) G.ageUp(p, opts[0]);
-  else hud.openAgeChoice(opts, (id) => { G.ageUp(p, id); audio.play('uiClick'); });
+  if (opts.length === 1) { if (mpOn()) sendCmd(Cmd.ageUp(opts[0])); else G.ageUp(p, opts[0]); }
+  else hud.openAgeChoice(opts, (id) => { if (mpOn()) sendCmd(Cmd.ageUp(id)); else G.ageUp(p, id); audio.play('uiClick'); });
 }
 function playerCast(i) {
   const p = G && G.player;
   if (!p || !p.alive) return;
-  const ok = cast(G, p, i, mouse.ground.x, mouse.ground.z);
+  const ok = mpOn() ? (canCast(p, i) && (sendCmd(Cmd.cast(i, mouse.ground.x, mouse.ground.z)), true)) : cast(G, p, i, mouse.ground.x, mouse.ground.z);
   if (!ok) {
     const ab = p.abilities[i];
     if (ab.minLevel && p.level < ab.minLevel) hud.hint(`${ab.name} unlocks at level ${ab.minLevel}`, 1500);
@@ -389,7 +456,11 @@ function playerCast(i) {
   }
 }
 hud.on('ageUp', playerAgeUp);
-hud.on('buy', (id) => { if (G && G.player && !G.buyUpgrade(G.player, id)) audio.play('uiError'); });
+hud.on('buy', (id) => {
+  if (!(G && G.player)) return;
+  if (mpOn()) { const c = G.player.upgradeCost(id); if (!isFinite(c) || G.player.gold < c) audio.play('uiError'); else { sendCmd(Cmd.buy(id)); audio.play('gold'); } return; }
+  if (!G.buyUpgrade(G.player, id)) audio.play('uiError');
+});
 // Clicking a skill icon fires it. Self / auto skills go off at once; aimed skills fire at the best target
   // (your current target, else the nearest enemy captain, else the nearest enemy), or dead ahead if the sea is
   // empty. Shift+click keeps the manual route: click the sea to place the shot.
@@ -414,14 +485,14 @@ hud.on('castButton', (i, manual) => {
   if (ab.target === 'self' || ab.target === 'auto') { playerCast(i); return; }
   if (manual) { hud.aiming = i; hud.hint('Click the sea to fire · right-click to cancel', 1800); return; }
   const [ax, az] = smartAim(p);
-  if (!cast(G, p, i, ax, az)) {
+  if (!(mpOn() ? (canCast(p, i) && (sendCmd(Cmd.cast(i, ax, az)), true)) : cast(G, p, i, ax, az))) {
     if (ab.minLevel && p.level < ab.minLevel) hud.hint(`${ab.name} unlocks at level ${ab.minLevel}`, 1500);
     audio.play('uiError');
   } else if (!castHinted) { castHinted = true; hud.hint('Skills fire at the best target · <kbd>Shift</kbd>+click to aim by hand', 3500); }
 });
 let castHinted = false;
 hud.on('minimapLook', (x, z) => { cameraDir.locked = false; cameraDir.goal.set(x, 0, z); });
-hud.on('minimapMove', (x, z) => { if (G && G.player && G.player.alive) { G.player.commandMove(x, z); moveMarker(x, z); } });
+hud.on('minimapMove', (x, z) => { if (G && G.player && G.player.alive) { if (mpOn()) sendCmd(Cmd.move(x, z)); else G.player.commandMove(x, z); moveMarker(x, z); } });
 
 // Cursor -> a point on the sea. A ray that points above the horizon (zoomed in low, cursor over the sky) never meets
 // the water, which used to leave the previous click point in place, so the upper part of the screen could not be clicked.
@@ -518,8 +589,8 @@ function commandAtCursor(e) {
   if (!p || !p.alive) return;
   if (e) { mouse.x = e.clientX; mouse.y = e.clientY; groundAt(mouse.x, mouse.y); } // the exact spot clicked, not last frame's
   const u = pickUnit(mouse.ground.x, mouse.ground.z, p.team);
-  if (u) { p.commandAttack(u); moveMarker(u.x, u.z, true); }
-  else { p.commandMove(mouse.ground.x, mouse.ground.z); moveMarker(mouse.ground.x, mouse.ground.z); }
+  if (u) { if (mpOn()) sendCmd(Cmd.attack(u.id)); else p.commandAttack(u); moveMarker(u.x, u.z, true); }
+  else { if (mpOn()) sendCmd(Cmd.move(mouse.ground.x, mouse.ground.z)); else p.commandMove(mouse.ground.x, mouse.ground.z); moveMarker(mouse.ground.x, mouse.ground.z); }
 }
 canvas.addEventListener('wheel', (e) => { cameraDir.zoom(e.deltaY); e.preventDefault(); }, { passive: false });
 
@@ -556,8 +627,8 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (k === 't' || k === 'u') playerAgeUp();
-  else if (k === 'g') G.callRally && G.callRally(G.player, mouse.ground.x, mouse.ground.z);
-  else if (k === 's') G.player && G.player.stop();
+  else if (k === 'g') { if (mpOn()) sendCmd(Cmd.rally(mouse.ground.x, mouse.ground.z)); else G.callRally && G.callRally(G.player, mouse.ground.x, mouse.ground.z); }
+  else if (k === 's') { if (mpOn()) sendCmd(Cmd.stop()); else G.player && G.player.stop(); }
   else if (k === ' ') { cameraDir.locked = true; e.preventDefault(); }
   else if (k === 'y') cameraDir.locked = !cameraDir.locked;
   else if (k === 'c') { cameraDir.resetOrbit(); cameraDir.locked = true; }
@@ -608,7 +679,7 @@ const AGE_GRADE = {
 const gradeCur = { gain: new THREE.Vector3(1, 1, 1), lift: new THREE.Vector3(), sat: 1.1, con: 1.08, ca: 0.0007 };
 const _px = new Uint8Array(4);
 function syncGPU() { const g = R.gl.getContext(); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, _px); }
-window.__aa = { get G() { return G; }, R, sky, cameraDir, fx, settings, get refl() { return refl; }, weather, TEAM_RIM, get fps() { return fps; }, howto: (on) => showHowTo(on), sealife,
+window.__aa = { get G() { return G; }, play: (extra) => play(extra), simState, R, sky, cameraDir, fx, settings, get refl() { return refl; }, weather, TEAM_RIM, get fps() { return fps; }, howto: (on) => showHowTo(on), sealife,
   // test fast-forward: advance the sim AND age its effects (plain G.update leaves every spray puff frozen in place)
   ff: (dt) => { G.update(dt); const t = G.time; wakes.update(dt, t); fx.update(dt, t); particles.update(dt); ocean.decals.update(dt, t); } };
 
@@ -637,6 +708,8 @@ function frame() {
 }
 // Test hook: advance n fixed steps, render only the last.
 // Test hook: cast player ability i at the nearest enemy captain (showcase harness).
+window.__aa.session = () => session;
+window.__aa.cmd = (c) => session && session.command(c);
 window.__aa.castAt = (i) => {
   const p = G && G.player; if (!p) return false;
   const e = G.heroes.filter((h) => h.alive && h.team !== p.team).sort((a, b) => p.dist2(a) - p.dist2(b))[0];
@@ -648,9 +721,11 @@ function tick(dt, draw) {
   wallTime += dt;
   fpsAcc += dt; fpsN++;
   if (fpsAcc > 1) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; if (!fpsEl.classList.contains('hidden')) { const off = [R.ao && !R.ao.enabled && 'AO', R.refl && !R.refl.uniforms.uReflOn.value && 'reflections', R.sun && R.sun.shadow.mapSize.x < 2048 && R.q.shadows >= 2048 && 'shadow detail', R.smaa && !R.smaa.enabled && 'AA', R.safeMode && 'post FX', ...(R.fxOff || []).map((n) => 'GPU-blocked ' + n)].filter(Boolean);
-    fpsEl.textContent = `${fps.toFixed(0)} fps · ${(R.gl.getPixelRatio() * 100).toFixed(0)}% res · ${R.gl.info.render.calls} draws${off.length ? ' · off: ' + off.join(', ') : ''} · ${gpuInfo}`; } }
+    fpsEl.textContent = `${fps.toFixed(0)} fps · ${(R.gl.getPixelRatio() * 100).toFixed(0)}% res · ${R.gl.info.render.calls} draws${off.length ? ' · off: ' + off.join(', ') : ''} · ${gpuInfo}${session && session.G === G ? ` · net ${session.stats.rtt || '–'} ms, ${session.stats.behind} behind, ${session.stats.desyncs} resync` : ''}`; } }
   if (howtoPending && mode === 'play' && !cameraDir.cine && G && G.time > 1) { howtoPending = false; showHowTo(true); }
-  if (G && !howtoOpen && !optionsOpen) G.update(dt);
+  if (mpLoading && session && session.go) { mpLoading = false; lobby.hide(); }
+  if (G && session && session.G === G) session.update(dt); // multiplayer: fixed ticks, never paused by a menu
+  else if (G && !howtoOpen && !optionsOpen) G.update(dt);
   const gdt = G ? G.dt : dt;
   const t = G ? G.time : wallTime;
 

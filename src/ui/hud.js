@@ -333,7 +333,7 @@ export class HUD {
   // ------------------------------------------------------------------ scoreboard / end
   scoreboardHTML(G) {
     const rows = (team) => G.heroes.filter((h) => h.team === team).sort((a, b) => b.kills - a.kills).map((h) => `
-      <tr class="${h.isPlayer ? 'me' : ''}"><td style="color:${TEAMS[team].css}">${esc(h.name)}${h.isPlayer ? ' (you)' : ''}</td><td>${HULLS[h.hullId].name}</td><td>${h.level}</td>
+      <tr class="${h.isPlayer ? 'me' : ''}"><td style="color:${TEAMS[team].css}">${esc(h.name)}${h.isPlayer ? ' (you)' : h.human ? ' ·&nbsp;human' : ''}</td><td>${HULLS[h.hullId].name}</td><td>${h.level}</td>
       <td>${h.kills} / ${h.deaths} / ${h.assists}</td><td>${h.creepKills}</td><td>${fmtDmg(h.dmgDealt)}</td><td>${Math.floor(h.gold)}</td></tr>`).join('');
     const head = `<tr><th>Captain</th><th>Vessel</th><th>Lv</th><th>K / D / A</th><th>Sunk</th><th>Damage</th><th>Gold</th></tr>`;
     return `<table><tr><td colspan="7" class="team" style="color:${TEAMS[0].css}">${TEAMS[0].name} · ${G.teams[0].kills} kills</td></tr>${head}${rows(0)}

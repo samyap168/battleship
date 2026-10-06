@@ -3,19 +3,22 @@ import { sampleWaves } from '../render/waves.js';
 
 const _p = new THREE.Vector3();
 const _w = { y: 0 };
-const rnd = (a, b) => a + Math.random() * (b - a);
+import { srand } from '../core/rng.js';
+import { simWorldPos } from './units.js';
+const vrnd = (a, b) => a + Math.random() * (b - a); // presentation-only dice (particles): never part of the seeded stream
+const rnd = (a, b) => a + srand() * (b - a); // seeded: every ability roll replays identically on all peers
 
 /** Muzzle/launch world position for abilities. */
 function launchPos(h, out = new THREE.Vector3()) {
   const r = h.rig;
-  if (r && r.launch) r.launch.getWorldPosition(out);
+  if (r && r.launch) simWorldPos(h, r.launch, out);
   else out.set(h.x, 4, h.z);
   return out;
 }
 function gunPos(h, out = new THREE.Vector3()) {
   const r = h.rig;
   const m = r && (r.turrets?.[0]?.muzzles?.[0] || r.broadside?.[0]);
-  if (m) m.getWorldPosition(out); else out.set(h.x + Math.sin(h.yaw) * 6, 4, h.z + Math.cos(h.yaw) * 6);
+  if (m) simWorldPos(h, m, out); else out.set(h.x + Math.sin(h.yaw) * 6, 4, h.z + Math.cos(h.yaw) * 6);
   return out;
 }
 function enemiesInRange(G, h, range, filter = () => true) {
@@ -76,7 +79,7 @@ export function cast(G, h, i, ax, az) {
         for (let k = 0; k < ab.count; k++) {
           G.combat.after((k / ab.count) * ab.spreadTime, () => {
             if (!h.alive) return;
-            const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * ab.area;
+            const a = srand() * 6.283, r = Math.sqrt(srand()) * ab.area;
             const x1 = ax + Math.cos(a) * r, z1 = az + Math.sin(a) * r;
             gunPos(h, _p);
             const d = Math.hypot(x1 - _p.x, z1 - _p.z);
@@ -99,7 +102,7 @@ export function cast(G, h, i, ax, az) {
           const t = targets[k % targets.length];
           if (!t.alive) return;
           const p0 = G.combat.pickMuzzles(h, t, 1)[0];
-          if (p0) p0.getWorldPosition(_p); else gunPos(h, _p);
+          if (p0) simWorldPos(h, p0, _p); else gunPos(h, _p);
           const d = Math.hypot(t.x - _p.x, t.z - _p.z);
           G.combat.ballistic(h, ab.model, _p.clone(), t.x + (t.vx || 0) * d / 130 + rnd(-3, 3), t.z + (t.vz || 0) * d / 130 + rnd(-3, 3), 130, ab.dmg * dm, { aoe: ab.radius });
           G.fx.muzzle(_p, new THREE.Vector3(t.x - h.x, 0.2, t.z - h.z).normalize(), 1.7, 'shell');
@@ -151,8 +154,8 @@ export function cast(G, h, i, ax, az) {
       G.smokes.push({ x: h.x, z: h.z, r: ab.radius, t: 0, dur: ab.dur, team: h.team });
       for (let k = 0; k < 50; k++) {
         const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * ab.radius;
-        G.fx.p.alpha.emit({ x: h.x + Math.cos(a) * r, y: rnd(1, 6), z: h.z + Math.sin(a) * r, vx: rnd(-1, 1), vy: rnd(0.3, 1.2), vz: rnd(-1, 1),
-          life: ab.dur + rnd(0, 1.5), s0: 8, s1: rnd(18, 26), r: 0.72, g: 0.74, b: 0.76, a0: 0.8, a1: 0, kind: 1, drag: 0.5 });
+        G.fx.p.alpha.emit({ x: h.x + Math.cos(a) * r, y: vrnd(1, 6), z: h.z + Math.sin(a) * r, vx: vrnd(-1, 1), vy: vrnd(0.3, 1.2), vz: vrnd(-1, 1),
+          life: ab.dur + vrnd(0, 1.5), s0: 8, s1: vrnd(18, 26), r: 0.72, g: 0.74, b: 0.76, a0: 0.8, a1: 0, kind: 1, drag: 0.5 });
       }
       G.audio.play('smoke', { x: h.x, z: h.z });
       break;
@@ -201,7 +204,7 @@ export function cast(G, h, i, ax, az) {
       G.fx.beam(p0, to, 0xffffff, 1.0, 0.25);
       for (let s = 0; s < 30; s++) {
         const k = s / 30;
-        G.fx.p.add.emit({ x: p0.x + (to.x - p0.x) * k, y: 3 + rnd(-1, 1), z: p0.z + (to.z - p0.z) * k, vx: rnd(-4, 4), vy: rnd(0, 6), vz: rnd(-4, 4), life: rnd(0.3, 0.7), s0: 1.2, s1: 0.1, r: 0.8, g: 1.6, b: 3, a0: 1, a1: 0, kind: 2 });
+        G.fx.p.add.emit({ x: p0.x + (to.x - p0.x) * k, y: 3 + vrnd(-1, 1), z: p0.z + (to.z - p0.z) * k, vx: vrnd(-4, 4), vy: vrnd(0, 6), vz: vrnd(-4, 4), life: vrnd(0.3, 0.7), s0: 1.2, s1: 0.1, r: 0.8, g: 1.6, b: 3, a0: 1, a1: 0, kind: 2 });
         if (s % 3 === 0) G.ocean.decals.add(p0.x + (to.x - p0.x) * k, p0.z + (to.z - p0.z) * k, 5, 2, 0, 0.8, 1);
       }
       G.fx.muzzle(p0, new THREE.Vector3(dx, 0, dz), 2.2, 'laser');
@@ -245,7 +248,7 @@ export function updateHeroEffects(G, h, dt) {
       }
     }
     // bow spray
-    for (let k = 0; k < 3; k++) G.fx.p.alpha.emit({ x: h.x + d.dx * h.radius, y: 1, z: h.z + d.dz * h.radius, vx: rnd(-8, 8), vy: rnd(6, 14), vz: rnd(-8, 8), life: 0.8, s0: 2, s1: 5, r: 0.95, g: 0.97, b: 1, a0: 0.8, a1: 0, kind: 3, grav: 20 });
+    for (let k = 0; k < 3; k++) G.fx.p.alpha.emit({ x: h.x + d.dx * h.radius, y: 1, z: h.z + d.dz * h.radius, vx: vrnd(-8, 8), vy: vrnd(6, 14), vz: vrnd(-8, 8), life: 0.8, s0: 2, s1: 5, r: 0.95, g: 0.97, b: 1, a0: 0.8, a1: 0, kind: 3, grav: 20 });
     if (d.t >= d.dur) { h.dash = null; }
   }
   if (h.pd) {
@@ -256,8 +259,8 @@ export function updateHeroEffects(G, h, dt) {
       const n = G.drones.shootDown(h.team, h.x, h.z, p.radius, p.laser ? 4 : 3) + G.combat.interceptNear(h.team, h.x, h.z, p.radius, 2);
       if (n && Math.random() < 0.5) G.audio.play(p.laser ? 'laser' : 'flak', { x: h.x, z: h.z, vol: 0.5 });
       if (!p.laser) for (let k = 0; k < 3; k++) {
-        const a = Math.random() * 6.283, r = rnd(10, p.radius);
-        const pos = new THREE.Vector3(h.x + Math.cos(a) * r, rnd(10, 22), h.z + Math.sin(a) * r);
+        const a = Math.random() * 6.283, r = vrnd(10, p.radius);
+        const pos = new THREE.Vector3(h.x + Math.cos(a) * r, vrnd(10, 22), h.z + Math.sin(a) * r);
         G.fx.p.add.emit({ x: pos.x, y: pos.y, z: pos.z, life: 0.1, s0: 3, s1: 5, r: 2.5, g: 1.8, b: 0.8, a0: 1, a1: 0 });
         G.fx.p.alpha.emit({ x: pos.x, y: pos.y, z: pos.z, life: 1.4, s0: 2, s1: 5, r: 0.2, g: 0.2, b: 0.2, a0: 0.6, a1: 0, kind: 1 });
       }
@@ -267,11 +270,11 @@ export function updateHeroEffects(G, h, dt) {
   if (h.boostFx > 0) {
     h.boostFx -= dt;
     const bx = h.x + Math.sin(h.yaw) * h.rig.length * 0.45, bz = h.z + Math.cos(h.yaw) * h.rig.length * 0.45;
-    if (G.chance(1, dt)) G.fx.p.alpha.emit({ x: bx, y: 0.8, z: bz, vx: Math.cos(h.yaw) * rnd(-9, 9), vy: rnd(4, 9), vz: -Math.sin(h.yaw) * rnd(-9, 9), life: 0.7, s0: 1.5, s1: 4, r: 0.95, g: 0.97, b: 1, a0: 0.7, a1: 0, kind: 3, grav: 18 });
+    if (G.chance(1, dt)) G.fx.p.alpha.emit({ x: bx, y: 0.8, z: bz, vx: Math.cos(h.yaw) * vrnd(-9, 9), vy: vrnd(4, 9), vz: -Math.sin(h.yaw) * vrnd(-9, 9), life: 0.7, s0: 1.5, s1: 4, r: 0.95, g: 0.97, b: 1, a0: 0.7, a1: 0, kind: 3, grav: 18 });
   }
   // shield bubble shimmer
   if (h.shield > 0 && G.pulse(3)) {
-    const a = Math.random() * 6.283, e = rnd(0, 1.4), r = h.radius + 4;
+    const a = Math.random() * 6.283, e = vrnd(0, 1.4), r = h.radius + 4;
     G.fx.p.add.emit({ x: h.x + Math.cos(a) * Math.cos(e) * r, y: 3 + Math.sin(e) * r * 0.6, z: h.z + Math.sin(a) * Math.cos(e) * r, life: 0.4, s0: 2.4, s1: 0.5, r: 0.4, g: 1.0, b: 2.2, a0: 0.8, a1: 0 });
   }
   if (h.shieldWas > 0 && h.shield <= 0) G.drones.popShields(h);

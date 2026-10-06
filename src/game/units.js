@@ -5,8 +5,21 @@ import { buildHeroShip, buildCreepShip } from '../render/models/shipModels.js';
 import { buildStructure } from '../render/models/structureModels.js';
 import { applyTeamRim } from '../render/teamRim.js';
 import { BOUNDS, segmentBlocked } from './map.js';
+import { srand } from '../core/rng.js';
 
-let NEXT_ID = 1;
+/**
+ * World position of a model part, with the ship's visual scale divided out. A captain's root scale changes with the
+ * camera zoom and the reforge animation, which differ per player: gameplay must never read it.
+ */
+export function simWorldPos(u, obj, out) {
+  obj.getWorldPosition(out);
+  const r = u.rig && u.rig.root;
+  if (r) {
+    const s = r.scale.x || 1;
+    if (s !== 1) { out.x = r.position.x + (out.x - r.position.x) / s; out.y = r.position.y + (out.y - r.position.y) / s; out.z = r.position.z + (out.z - r.position.z) / s; }
+  }
+  return out;
+}
 const _w = { y: 0, nx: 0, ny: 1, nz: 0 };
 const _v = new THREE.Vector3();
 const _e = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -14,7 +27,7 @@ const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
 export class Unit {
   constructor(G, kind, team) {
-    this.G = G; this.id = NEXT_ID++; this.kind = kind; this.team = team;
+    this.G = G; this.id = G.nextUnitId++; this.kind = kind; this.team = team; // per-match numbering: ids agree on every peer
     this.x = 0; this.z = 0; this.yaw = 0; this.vx = 0; this.vz = 0; this.speed = 0;
     this.hp = 1; this.maxHp = 1; this.armor = 0; this.radius = 5;
     this.alive = true; this.stun = 0; this.slow = 0; this.slowT = 0; this.shield = 0; this.shieldT = 0;
@@ -152,9 +165,10 @@ export function syncShipVisual(u, dt, t, bobScale = 1) {
 
 // ---------------------------------------------------------------------------
 export class Hero extends Unit {
-  constructor(G, team, name, isPlayer, slot) {
+  constructor(G, team, name, isPlayer, slot, human = isPlayer) {
     super(G, 'hero', team);
     this.name = name; this.isPlayer = isPlayer; this.slot = slot;
+    this.human = human; // a person drives this ship (in multiplayer: any person, not just the one at this keyboard)
     this.hullId = 'frigate'; this.age = 1;
     this.level = 1; this.xp = 0; this.gold = MATCH.startGold;
     this.upg = { plating: 0, gunnery: 0, engines: 0, reload: 0, repair: 0 };
@@ -363,7 +377,7 @@ export class Creep extends Unit {
     this.gunCd -= dt;
     if (this.gunCd <= 0 && this.target && this.target.targetable && this.dist(this.target) <= range + this.target.radius && this.stun <= 0) {
       G.combat.fireCreep(this, this.target);
-      this.gunCd = this.def.cd * (0.9 + Math.random() * 0.2);
+      this.gunCd = this.def.cd * (0.9 + srand() * 0.2);
     }
   }
 }

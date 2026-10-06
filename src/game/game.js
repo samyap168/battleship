@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { TEAMS, MATCH, AGES, HULLS, UPGRADES, REWARDS, PORTS, BOT_NAMES, DIFFICULTY, STRUCTURES } from '../core/config.js';
 import { buildObstacles, NavGrid, STRUCTURE_LAYOUT, PORT_LAYOUT, LANE_IDS, laneFor, spawnPoint, fountain } from './map.js';
 import { Hero, Creep, Structure, separateShips, syncShipVisual } from './units.js';
+import { Rng, useRng, srand, srnd } from '../core/rng.js';
 import { Combat } from './combat.js';
 import { Drones } from './drones.js';
 import { updateHeroEffects } from './abilities.js';
@@ -69,6 +70,13 @@ export class Game {
     Object.assign(this, ctx); // renderer, scene, fx, ocean, audio, ui, sky
     if (this.audio && this.audio.setSubmerged) this.audio.setSubmerged(false); // never inherit a muffled mix from the last match
     this.opts = opts;
+    // Matches are replayable: ids restart at 1 and every gameplay roll comes from one seeded stream, so peers
+    // that feed the same commands to the same seed see the same match (multiplayer, tests/determinism.mjs).
+    this.nextUnitId = 1;
+    this.seed = (opts.seed ?? (Math.random() * 4294967296)) >>> 0;
+    this.rng = new Rng(this.seed);
+    useRng(this.rng);
+    this.mp = !!opts.mp; // multiplayer: fixed-step ticks, no hit-stop / slow-motion (they would change sim time)
     this.diff = DIFFICULTY[opts.difficulty] || DIFFICULTY.normal;
     this.events = new Emitter();
     this.time = 0; this.frame = 0; this.vtime = 0;
@@ -87,7 +95,7 @@ export class Game {
     this.nextWave = MATCH.firstWave;
     this.waveNo = 0;
     this.combatHeat = 0;
-    this.stormAt = rnd(250, 320); this.stormDur = 55; this.storm = 0;
+    this.stormAt = srnd(250, 320); this.stormDur = 55; this.storm = 0;
 
     for (const s of STRUCTURE_LAYOUT) { const st = new Structure(this, s); this.structures.push(st); this.units.push(st); }
     this.boss = new Leviathan(this);
@@ -102,18 +110,25 @@ export class Game {
     }
 
     // Heroes: player occupies slot 2 (mid) of their team.
-    const names = [...BOT_NAMES].sort(() => Math.random() - 0.5);
+    const names = [...BOT_NAMES];
+    for (let i = names.length - 1; i > 0; i--) { const j = Math.floor(srand() * (i + 1)); [names[i], names[j]] = [names[j], names[i]]; }
     let ni = 0;
     this.bots = [];
     for (let team = 0; team < 2; team++) {
       for (let slot = 0; slot < 5; slot++) {
-        const isPlayer = team === opts.playerTeam && slot === 2 && !opts.spectate;
-        const h = new Hero(this, team, isPlayer ? (opts.playerName || 'You') : names[ni++ % names.length], isPlayer, slot);
+        // opts.slots (multiplayer) is one entry per seat, team*5+slot: { human, local, name }; otherwise you hold slot 2
+        const seat = opts.slots && opts.slots[team * 5 + slot];
+        const human = seat ? !!seat.human : team === opts.playerTeam && slot === 2 && !opts.spectate;
+        const isPlayer = seat ? !!(seat.human && seat.local) : human;
+        const botName = names[ni++ % names.length]; // always consumed, so names agree whoever sits where
+        const h = new Hero(this, team, seat && seat.name ? seat.name : isPlayer ? (opts.playerName || 'You') : botName, isPlayer, slot, human);
+        h.seat = team * 5 + slot;
         h.lane = LANE_OF_SLOT[slot];
         const sp = spawnPoint(team, slot);
         h.x = sp.x; h.z = sp.z; h.yaw = sp.yaw;
         this.heroes.push(h); this.units.push(h);
-        if (isPlayer) { this.player = h; if (opts.autopilot) this.bots.push(new BotBrain(this, h, this.diff)); }
+        if (isPlayer) this.player = h;
+        if (human) { if (opts.autopilot && isPlayer) this.bots.push(new BotBrain(this, h, this.diff)); }
         else this.bots.push(new BotBrain(this, h, this.diff));
       }
     }
@@ -123,6 +138,15 @@ export class Game {
       if (h === this.player) { this.audio.play('levelUp'); this.ui.floatText(h.x, 16, h.z, `LEVEL ${h.level}`, '#ffe28a', 20); }
       this.fx.ring(h.x, h.z, h.radius, h.radius * 2.5, 0xffe28a, 0.7, 0.1);
     });
+  }
+
+  /** A person left: a bot takes over their ship (multiplayer; applied on the same tick on every peer). */
+  botify(h) {
+    if (!h.human) return;
+    h.human = false;
+    h.stop();
+    this.bots.push(new BotBrain(this, h, this.diff));
+    this.ui.feed(`<b style="color:${TEAMS[h.team].css}">${h.name}</b> left the battle <span class="dim">· a bot takes the helm</span>`);
   }
 
   teamGlow(team) { return TEAMS[team].glow; }
@@ -380,7 +404,7 @@ export class Game {
           const heavy = k >= n;
           this.combat.after(k * 0.9, () => {
             const c = new Creep(this, team, lane, heavy, era, wp);
-            c.x = wp[0].x + rnd(-6, 6); c.z = wp[0].z + rnd(-6, 6);
+            c.x = wp[0].x + srnd(-6, 6); c.z = wp[0].z + srnd(-6, 6);
             c.yaw = Math.atan2(wp[1].x - wp[0].x, wp[1].z - wp[0].z);
             this.creeps.push(c); this.units.push(c);
           });
@@ -408,13 +432,25 @@ export class Game {
   chance(p, dt = this.dt) { return Math.random() < p * dt * 30; }
 
   // ---------------------------------------------------------------- update
+  /**
+   * Single-player driver: variable timestep, simulation then presentation, once per frame.
+   * Multiplayer calls tick() at a fixed rate (same on every peer) and visualUpdate() once per rendered frame.
+   */
   update(rawDt) {
     let dt = Math.min(rawDt, 1 / 20);
+    if (this.mp) { this.slowmo = 0; this.hitstop = 0; } // time-scaling effects would change sim time
     if (this.slowmo > 0) { this.slowmo -= rawDt; dt *= 0.35; }
     if (this.hitstop > 0) { this.hitstop -= rawDt; dt *= 0.15; }
+    this.tick(dt);
+    this.visualUpdate(dt);
+  }
+
+  // ---------------------------------------------------------------- simulation
+  /** Advance the match by dt. Everything here decides gameplay: it must depend only on the seed, the commands and dt. */
+  tick(dt) {
+    useRng(this.rng);
     this.dt = dt;
     this.frame++;
-    this.vtime = (this.vtime || 0) + dt; // effect clock: keeps running after the match ends so ruins keep burning
     if (!this.over) this.time += dt;
     const t = this.time;
     this.structureScale = STRUCTURES.scalePerMin * (t / 60);
@@ -426,7 +462,7 @@ export class Game {
       const medAge = [0, 1].map((tm) => { const a = this.heroes.filter((x) => x.team === tm).map((x) => x.age).sort((p, q) => p - q); return a[a.length >> 1] || 1; });
       for (const h of this.heroes) {
         const gap = Math.max(0, medAge[1 - h.team] - h.age);
-        h.gold += MATCH.passiveGold * dt * (h.isPlayer ? 1 : this.diff.goldMul) * (1 + 0.6 * gap);
+        h.gold += MATCH.passiveGold * dt * (h.human ? 1 : this.diff.goldMul) * (1 + 0.6 * gap);
         // harbour repairs: fast regeneration close to your own citadel
         if (h.alive && h.hp < h.maxHp) { if (!this.citadels) this.citadels = [0, 1].map((tm) => this.structures.find((st) => st.team === tm && st.kind === 'citadel')); const c = this.citadels[h.team]; if (c && c.alive && (c.x - h.x) ** 2 + (c.z - h.z) ** 2 < 90 * 90) h.hp = Math.min(h.maxHp, h.hp + h.maxHp * 0.06 * dt); }
         if (h.spawnGuard > 0) h.spawnGuard -= dt;
@@ -448,6 +484,96 @@ export class Game {
       this.storm = inStorm ? 1 : 0;
     }
 
+    // bot shot-calling: every ~30 s a team's captains rally on the objective that matters now
+    if (!this.over) for (const tm of [0, 1]) {
+      this.shotT ||= [srnd(20, 40), srnd(20, 40)];
+      this.shotT[tm] -= dt;
+      if (this.shotT[tm] > 0 || (this.rally && this.rally[tm] && this.rally[tm].until > this.time)) continue;
+      this.shotT[tm] = srnd(26, 36);
+      let target = null, why = '';
+      const boss = this.boss;
+      if (boss && boss.risen && boss.alive) { target = boss; why = 'the Leviathan'; }
+      else if (this.duskTide) {
+        const forts = this.structures.filter((st) => st.alive && st.team !== tm && !st.invulnerable).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
+        if (forts[0]) { target = forts[0]; why = `the ${forts[0].kind === 'citadel' ? 'enemy citadel' : forts[0].lane + ' fort'}`; }
+      }
+      const caller = this.heroes.filter((h) => h.team === tm && h.alive && !h.human).sort((a, b) => b.level - a.level)[0];
+      if (target && caller && this.callRally(caller, target.x, target.z) && this.player && tm === this.player.team) {
+        this.ui.feed(`<b style="color:${TEAMS[tm].css}">${caller.name}</b> calls a rally at ${why} <span class="dim">(press G to call your own)</span>`);
+      }
+    }
+    // ports
+    for (const p of this.ports) this.updatePort(p, dt);
+    // smokes
+    for (let i = this.smokes.length - 1; i >= 0; i--) { const s = this.smokes[i]; s.t += dt; if (s.t > s.dur) this.smokes.splice(i, 1); }
+
+    // AI + units
+    // Update order is a coin flip every tick (not frame parity): the mirrored start makes duels recur on
+    // the same frame parity (gun cooldowns are whole numbers of ticks), so a parity rule still hands one
+    // team the first shot. A fresh coin per tick gives neither team a first-mover edge.
+    const rev = srand() < 0.5;
+    if (!this.over) { const n = this.bots.length; for (let i = 0; i < n; i++) this.bots[rev ? n - 1 - i : i].update(dt); }
+    const H = this.heroes, nh = H.length;
+    for (let i = 0; i < nh; i++) {
+      const h = H[rev ? nh - 1 - i : i]; // same coin as the bots: movement + gunnery have no fixed first mover
+      if (!h.alive) {
+        h.respawn -= dt;
+        if (h.respawn <= 0 && !this.over) this.respawnHero(h);
+        continue;
+      }
+      h.update(dt);
+      updateHeroEffects(this, h, dt);
+      h.untargetable = this.inEnemySmoke(h) ? 0.1 : h.untargetable;
+    }
+    const C = this.creeps, S = this.structures;
+    for (let i = 0, n = C.length; i < n; i++) C[rev ? n - 1 - i : i].update(dt);
+    for (let i = 0, n = S.length; i < n; i++) S[rev ? n - 1 - i : i].update(dt);
+    this.boss.update(dt);
+    const ships = this.units.filter((u) => u.isShip && u.alive);
+    separateShips(ships, dt);
+    this.combat.update(dt);
+    this.drones.update(dt);
+
+    // wrecks leave the sim once they have sunk (sim clock, so every peer drops them on the same tick)
+    for (let i = this.creeps.length - 1; i >= 0; i--) {
+      const c = this.creeps[i];
+      if (c.alive) continue;
+      c.deadT = (c.deadT || 0) + dt;
+      if (c.deadT > 4.5) {
+        c.removeVisual();
+        this.creeps.splice(i, 1);
+        this.units.splice(this.units.indexOf(c), 1);
+      }
+    }
+    if (this.mp) this.tickTransforms(dt);
+  }
+
+  /** Multiplayer: hull poses (and turret aim) advance with the sim tick, so muzzle positions agree on every peer. */
+  tickTransforms(dt) {
+    for (const u of this.units) {
+      if (!u.isShip || !u.alive || !u.rig) continue;
+      syncShipVisual(u, dt, this.time, u.kind === 'hero' ? 0.8 : 1);
+      this.sweepTurrets(u, dt);
+    }
+  }
+
+  sweepTurrets(u, dt) {
+    const r = u.rig;
+    if (!(r.turrets && u.target && u.target.alive)) return;
+    const want = Math.atan2(u.target.x - u.x, u.target.z - u.z) - u.yaw;
+    for (const tr of r.turrets) {
+      const cur = tr.pivot.rotation.y;
+      const d = Math.atan2(Math.sin(want - cur), Math.cos(want - cur));
+      tr.pivot.rotation.y = cur + d * Math.min(1, dt * 4);
+    }
+  }
+
+  // ---------------------------------------------------------------- presentation
+  /** Hints, coaching, ship visuals and effects: per rendered frame, never part of the sim. */
+  visualUpdate(dt) {
+    this.dt = dt;
+    this.vtime = (this.vtime || 0) + dt; // effect clock: keeps running after the match ends so ruins keep burning
+    const t = this.time;
     // onboarding hints for the first minutes
     const pl = this.player;
     if (pl && !this.over) {
@@ -489,68 +615,7 @@ export class Game {
         this.audio.stinger(ours ? 'warning' : 'towerDown');
       }
     }
-    // bot shot-calling: every ~30 s a team's captains rally on the objective that matters now
-    if (!this.over) for (const tm of [0, 1]) {
-      this.shotT ||= [rnd(20, 40), rnd(20, 40)];
-      this.shotT[tm] -= dt;
-      if (this.shotT[tm] > 0 || (this.rally && this.rally[tm] && this.rally[tm].until > this.time)) continue;
-      this.shotT[tm] = rnd(26, 36);
-      let target = null, why = '';
-      const boss = this.boss;
-      if (boss && boss.risen && boss.alive) { target = boss; why = 'the Leviathan'; }
-      else if (this.duskTide) {
-        const forts = this.structures.filter((st) => st.alive && st.team !== tm && !st.invulnerable).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
-        if (forts[0]) { target = forts[0]; why = `the ${forts[0].kind === 'citadel' ? 'enemy citadel' : forts[0].lane + ' fort'}`; }
-      }
-      const caller = this.heroes.filter((h) => h.team === tm && h.alive && h !== this.player).sort((a, b) => b.level - a.level)[0];
-      if (target && caller && this.callRally(caller, target.x, target.z) && this.player && tm === this.player.team) {
-        this.ui.feed(`<b style="color:${TEAMS[tm].css}">${caller.name}</b> calls a rally at ${why} <span class="dim">(press G to call your own)</span>`);
-      }
-    }
-    // ports
-    for (const p of this.ports) this.updatePort(p, dt);
-    // smokes
-    for (let i = this.smokes.length - 1; i >= 0; i--) { const s = this.smokes[i]; s.t += dt; if (s.t > s.dur) this.smokes.splice(i, 1); }
-
-    // AI + units
-    // Update order is a coin flip every tick (not frame parity): the mirrored start makes duels recur on
-    // the same frame parity (gun cooldowns are whole numbers of ticks), so a parity rule still hands one
-    // team the first shot. A fresh coin per tick gives neither team a first-mover edge.
-    const rev = Math.random() < 0.5;
-    if (!this.over) { const n = this.bots.length; for (let i = 0; i < n; i++) this.bots[rev ? n - 1 - i : i].update(dt); }
-    const H = this.heroes, nh = H.length;
-    for (let i = 0; i < nh; i++) {
-      const h = H[rev ? nh - 1 - i : i]; // same coin as the bots: movement + gunnery have no fixed first mover
-      if (!h.alive) {
-        h.respawn -= dt;
-        if (h.respawn <= 0 && !this.over) this.respawnHero(h);
-        continue;
-      }
-      h.update(dt);
-      updateHeroEffects(this, h, dt);
-      h.untargetable = this.inEnemySmoke(h) ? 0.1 : h.untargetable;
-    }
-    const C = this.creeps, S = this.structures;
-    for (let i = 0, n = C.length; i < n; i++) C[rev ? n - 1 - i : i].update(dt);
-    for (let i = 0, n = S.length; i < n; i++) S[rev ? n - 1 - i : i].update(dt);
-    this.boss.update(dt);
-    const ships = this.units.filter((u) => u.isShip && u.alive);
-    separateShips(ships, dt);
-    this.combat.update(dt);
-    this.drones.update(dt);
-
-    // visuals
     for (const u of this.units) this.syncVisual(u, dt, t);
-    // cleanup dead creeps after sinking
-    for (let i = this.creeps.length - 1; i >= 0; i--) {
-      const c = this.creeps[i];
-      if (!c.alive && c.sinkT > 4.5) {
-        c.removeVisual();
-        this.creeps.splice(i, 1);
-        this.units.splice(this.units.indexOf(c), 1);
-      }
-    }
-    for (const b of this.teams) b; // eslint
     this.combatHeat = Math.max(0, this.combatHeat - dt * 0.15);
   }
 
@@ -668,7 +733,7 @@ export class Game {
       if (this.pulse(3)) this.ocean.decals.add(u.x + rnd(-4, 4), u.z + rnd(-4, 4), r.beam * 1.2, 3, 0, 0.8, 1.5);
       if (this.pulse(5)) this.ocean.decals.add(u.x, u.z, r.beam * 1.5, 12, 2, 0.35, 0.4); // oil slick
     }
-    syncShipVisual(u, dt, t, u.kind === 'hero' ? 0.8 : 1);
+    if (!(this.mp && u.alive)) syncShipVisual(u, dt, t, u.kind === 'hero' ? 0.8 : 1); // multiplayer poses advance in tickTransforms
     if (u.kind === 'hero' && u.reforgeT < 1) {
       // reforge: ease-out-back scale-in with a molten emissive sparkle
       u.reforgeT = Math.min(1, u.reforgeT + dt / 0.75);
@@ -706,15 +771,8 @@ export class Game {
     if (!u.alive) return;
     const speed01 = Math.min(1, Math.abs(u.speed) / 25);
     r.update && r.update(dt, t, speed01);
-    // idle turret sweep toward target
-    if (r.turrets && u.target && u.target.alive) {
-      const want = Math.atan2(u.target.x - u.x, u.target.z - u.z) - u.yaw;
-      for (const tr of r.turrets) {
-        const cur = tr.pivot.rotation.y;
-        const d = Math.atan2(Math.sin(want - cur), Math.cos(want - cur));
-        tr.pivot.rotation.y = cur + d * Math.min(1, dt * 4);
-      }
-    }
+    // idle turret sweep toward target (multiplayer: part of the sim tick)
+    if (!this.mp) this.sweepTurrets(u, dt);
     // wake ribbon (continuous trail) + bow spray
     {
       const fx = Math.sin(u.yaw), fz = Math.cos(u.yaw);

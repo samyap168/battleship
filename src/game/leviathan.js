@@ -9,7 +9,8 @@ import { applyCloudShadow } from '../render/cloudShadow.js';
 export const LEVIATHAN = { x: 0, z: 108, riseAt: 330, hp: 17000, armor: 0.25, radius: 20, gold: 350, buffDur: 75 };
 
 const SEG = 42;
-const rnd = (a, b) => a + Math.random() * (b - a);
+import { srand } from '../core/rng.js';
+const rnd = (a, b) => a + srand() * (b - a);
 const _w = { y: 0 };
 
 // Overlapping-scale pattern painted on a canvas: bump + roughness detail.
@@ -168,7 +169,7 @@ export class Leviathan extends Unit {
     this.slamT -= dt;
     if (this.slamT <= 0 && foes.length && this.rise >= 1) {
       this.slamT = rnd(2.2, 3.2);
-      const t = foes[(Math.random() * foes.length) | 0];
+      const t = foes[(srand() * foes.length) | 0];
       const x = t.x + (t.vx || 0) * 0.6, z = t.z + (t.vz || 0) * 0.6;
       G.fx.ring(x, z, 18, 18, 0x7dfff0, 1.1, 0.06);
       this.pending.push({ x, z, t: 1.1 });
@@ -198,7 +199,7 @@ export class Leviathan extends Unit {
         G.combat.damage(t, 420 + G.time * 0.5, this);
         G.fx.explosion(new THREE.Vector3(t.x, 3, t.z), 1.1, { color: [0.8, 2.2, 2.0] });
         G.audio.play('ram', { x: t.x, z: t.z, pitch: 0.6 });
-        if (Math.random() < 0.4) G.audio.play('roar', { x: this.x, z: this.z, vol: 0.7, pitch: 1.15 });
+        if (srand() < 0.4) G.audio.play('roar', { x: this.x, z: this.z, vol: 0.7, pitch: 1.15 });
         this.biteAt = this.t;
       }
     }

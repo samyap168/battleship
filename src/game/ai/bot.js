@@ -2,7 +2,8 @@ import { AGE_HULLS, UPGRADES, ABILITIES, COUNTERS, TEAMS } from '../../core/conf
 import { laneFor, fountain } from '../map.js';
 import { cast, canCast } from '../abilities.js';
 
-const rnd = (a, b) => a + Math.random() * (b - a);
+import { srand } from '../../core/rng.js';
+const rnd = (a, b) => a + srand() * (b - a);
 
 // Utility-style bot: every think tick it scores a handful of desires
 // (retreat, fight, farm/push, capture, shop) and executes the winner.
@@ -11,7 +12,7 @@ export class BotBrain {
     this.G = G; this.h = hero; this.d = diff;
     this.thinkT = rnd(0, 0.5);
     this.state = 'lane';
-    this.branch = Math.random() < 0.5 ? 0 : 1;
+    this.branch = srand() < 0.5 ? 0 : 1;
     this.upgOrder = shuffle(['plating', 'gunnery', 'reload', 'engines', 'repair'], hero.slot);
     hero.aimSkill = diff.aim;
     this.lastHp = hero.hp;
@@ -39,7 +40,7 @@ export class BotBrain {
     if (G.dangers && G.dangers.length) {
       G.dangers = G.dangers.filter((d) => d.until > G.time);
       const d = G.dangers.find((z) => z.team !== h.team && (h.x - z.x) ** 2 + (h.z - z.z) ** 2 < (z.r + h.radius) ** 2);
-      if (d && Math.random() < this.d.aim) {
+      if (d && srand() < this.d.aim) {
         const ax = h.x - d.x, az = h.z - d.z, l = Math.hypot(ax, az) || 1, side = h.slot % 2 ? 1 : -1;
         const out = d.r + h.radius + 12;
         this.dest = null; this.go(d.x + (ax / l) * out + (-az / l) * 10 * side, d.z + (az / l) * out + (ax / l) * 10 * side);
@@ -123,7 +124,7 @@ export class BotBrain {
     }
     if (this.state === 'boss') { this.state = 'lane'; h.attackOrder = null; }
     // ---- capture a port opportunistically
-    if (this.state !== 'capture' && Math.random() < 0.06 && hpF > 0.6) {
+    if (this.state !== 'capture' && srand() < 0.06 && hpF > 0.6) {
       const port = G.ports.find((p) => p.owner !== h.team && h.dist(p) < 260 && !G.heroes.some((e) => e.alive && e.team !== h.team && e.dist(p) < 90));
       if (port) { this.state = 'capture'; this.capPort = port; this.capT = 14; }
     }
@@ -228,7 +229,7 @@ export class BotBrain {
 
   tryAbilities(enemies, prey, tookDmg) {
     const h = this.h, G = this.G;
-    if (Math.random() > this.d.abilityRate) return;
+    if (srand() > this.d.abilityRate) return;
     this.tryDefensive(enemies, false, tookDmg);
     const creeps = G.creeps.filter((c) => c.alive && c.team !== h.team && h.dist(c) < 200);
     // combo order: open with crowd control on a healthy target, finish a weak one with burst
@@ -249,7 +250,7 @@ export class BotBrain {
         case 'projectile':
         case 'beam': {
           let t = heroT;
-          if (!t && creeps.length >= 3 && Math.random() < 0.4) t = creeps.find((c) => h.dist(c) < range);
+          if (!t && creeps.length >= 3 && srand() < 0.4) t = creeps.find((c) => h.dist(c) < range);
           if (!t) break;
           const T = ab.speed ? h.dist(t) / ab.speed : 0.05;
           const p = lead(t, T);

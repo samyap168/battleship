@@ -2,11 +2,13 @@ import * as THREE from 'three';
 import { getProjectileAssets } from '../render/models/smallModels.js';
 import { sampleWaves } from '../render/waves.js';
 import { TEAMS, COUNTERS, COUNTER_BONUS, HULLS } from '../core/config.js';
+import { srand } from '../core/rng.js';
+import { simWorldPos } from './units.js';
 
 const _w = { y: 0 };
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _p = new THREE.Vector3(), _tp = new THREE.Vector3();
 const _dir = new THREE.Vector3(), _fwd = new THREE.Vector3(0, 0, 1);
-const rnd = (a, b) => a + Math.random() * (b - a);
+const rnd = (a, b) => a + srand() * (b - a); // gameplay dice (scatter, homing launch): seeded, identical on every peer
 
 // Visual configs per projectile model
 const VIS = {
@@ -211,7 +213,6 @@ export class Combat {
   }
 
   // ------------------------------------------------------------------ gun helpers
-  muzzleWorld(rig, obj, out) { obj.getWorldPosition(out); return out; }
 
   aimTurrets(unit, target) {
     const rig = unit.rig;
@@ -234,7 +235,7 @@ export class Combat {
     } else if (rig.broadside && rig.broadside.length) {
       const sideM = rig.broadside.filter((m) => (m.userData.side ?? Math.sign(m.position.x || 1)) === side);
       const pool = sideM.length ? sideM : rig.broadside;
-      for (let i = 0; i < n; i++) out.push(pool[Math.floor(Math.random() * pool.length)]);
+      for (let i = 0; i < n; i++) out.push(pool[Math.floor(srand() * pool.length)]); // which muzzle fires moves the shell's origin: must agree on every peer
     }
     return out;
   }
@@ -248,8 +249,8 @@ export class Combat {
       this.after(i * 0.09, () => {
         if (!hero.alive || !target.alive) return;
         const m = muzzles[i];
-        if (m) m.getWorldPosition(_p); else _p.set(hero.x, 3, hero.z);
-        const crit = target.isShip && Math.random() < 0.1;
+        if (m) simWorldPos(hero, m, _p); else _p.set(hero.x, 3, hero.z);
+        const crit = target.isShip && srand() < 0.1;
         const dmg = g.dmg * hero.dmgMul * (crit ? 1.75 : 1);
         _dir.set(target.x - _p.x, 0, target.z - _p.z).normalize();
         if (g.kind === 'laser') {
@@ -272,7 +273,7 @@ export class Combat {
         if (hero.isPlayer && g.kind !== 'flak') G.fx.shake(0.05 + hero.age * 0.012, hero.x, hero.z);
         G.audio.play(VIS[g.kind].snd, { x: _p.x, z: _p.z, vol: 0.55, era: hero.age });
         // Carrier flak is a real anti-air gun: each burst can swat a nearby enemy drone or missile
-        if (g.kind === 'flak' && Math.random() < 0.55) G.drones.shootDown(hero.team, hero.x, hero.z, 42, 1) + this.interceptNear(hero.team, hero.x, hero.z, 42, 1);
+        if (g.kind === 'flak' && srand() < 0.55) G.drones.shootDown(hero.team, hero.x, hero.z, 42, 1) + this.interceptNear(hero.team, hero.x, hero.z, 42, 1);
       });
     }
   }

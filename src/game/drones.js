@@ -14,7 +14,9 @@ const SPEED = { micro: 64, fighter: 62, bomber: 50, shield: 0 };
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _p = new THREE.Vector3();
 const _d = new THREE.Vector3(), _fwd = new THREE.Vector3(0, 0, 1), _up = new THREE.Vector3(0, 1, 0), _e = new THREE.Euler(0, 0, 0, 'YXZ');
 const _w = { y: 0 };
-const rnd = (a, b) => a + Math.random() * (b - a);
+import { srand } from '../core/rng.js';
+import { simWorldPos } from './units.js';
+const rnd = (a, b) => a + srand() * (b - a);
 
 export class Drones {
   constructor(G) {
@@ -39,14 +41,14 @@ export class Drones {
   launch(owner, type, count, tx, tz, opts = {}) {
     const G = this.G;
     const rig = owner.rig;
-    if (rig && rig.launch) rig.launch.getWorldPosition(_p); else _p.set(owner.x, 6, owner.z);
+    if (rig && rig.launch) simWorldPos(owner, rig.launch, _p); else _p.set(owner.x, 6, owner.z);
     for (let i = 0; i < count; i++) {
       const delay = type === 'micro' ? i * 0.025 : i * 0.12;
       this.list.push({
         type, owner, team: owner.team, x: _p.x + rnd(-2, 2), y: _p.y + rnd(0, 2), z: _p.z + rnd(-2, 2),
         vx: Math.sin(owner.yaw) * 10 + rnd(-6, 6), vy: type === 'micro' ? rnd(14, 24) : 8, vz: Math.cos(owner.yaw) * 10 + rnd(-6, 6),
         tx, tz, t: -delay, life: opts.dur || 10, dmg: opts.dmg || 20, radius: opts.radius || 5, fireCd: opts.fireCd || 0.4, gunT: rnd(0, 0.4),
-        target: null, phase: Math.random() * 6.28, alt: type === 'micro' ? rnd(7, 16) : type === 'bomber' ? 34 : rnd(16, 26),
+        target: null, phase: srand() * 6.28, alt: type === 'micro' ? rnd(7, 16) : type === 'bomber' ? 34 : rnd(16, 26),
         dropped: false, alive: true, hp: type === 'bomber' ? 3 : type === 'fighter' ? 2 : 1, bank: 0, idx: i, orbitR: opts.orbitR || 12,
       });
     }
@@ -203,7 +205,7 @@ export class Drones {
         G.fx.beam(from, to, d.team === 0 ? 0xffe0a0 : 0xffc080, 0.25, 0.08);
         G.fx.hitSpark(to, 0.5);
         G.combat.damage(d.target, d.dmg * d.owner.dmgMul, d.owner);
-        if (Math.random() < 0.2) G.audio.play('flak', { x: d.x, z: d.z, vol: 0.25, pitch: 1.6 });
+        if (srand() < 0.2) G.audio.play('flak', { x: d.x, z: d.z, vol: 0.25, pitch: 1.6 });
       }
     }
   }
