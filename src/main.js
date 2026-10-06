@@ -455,6 +455,7 @@ function syncOptions() {
 function showOptions(on) {
   if (on && (mode !== 'play' || !G || howtoOpen)) return;
   optionsOpen = on;
+  if (!on && document.activeElement && document.activeElement.blur && document.activeElement.type === 'range') document.activeElement.blur();
   $('#options').classList.toggle('hidden', !on);
   if (on) { hud.aiming = -1; syncOptions(); audio.init(); audio.play('uiClick'); }
 }
@@ -494,7 +495,7 @@ const sendCmd = (c) => session.command(c);
 
 function playerAgeUp() {
   const p = G && G.player;
-  if (!p || !p.canAgeUp()) return;
+  if (!p || G.over || !p.canAgeUp()) return;
   if (p.gold < p.nextAgeCost()) { audio.play('uiError'); hud.hint(`Need <b>${p.nextAgeCost() - Math.floor(p.gold)}</b> more gold for the ${AGES[p.age].name}`, 2000); return; }
   const opts = AGE_HULLS[p.age + 1];
   if (opts.length === 1) { if (mpOn()) sendCmd(Cmd.ageUp(opts[0])); else G.ageUp(p, opts[0]); }
@@ -647,7 +648,12 @@ function commandAtCursor(e) {
   if (u) { if (mpOn()) sendCmd(Cmd.attack(u.id)); else p.commandAttack(u); moveMarker(u.x, u.z, true); }
   else { if (mpOn()) sendCmd(Cmd.move(mouse.ground.x, mouse.ground.z)); else p.commandMove(mouse.ground.x, mouse.ground.z); moveMarker(mouse.ground.x, mouse.ground.z); }
 }
-canvas.addEventListener('wheel', (e) => { cameraDir.zoom(e.deltaY); e.preventDefault(); }, { passive: false });
+canvas.addEventListener('wheel', (e) => { // Firefox reports lines, not pixels; smooth-scroll mice report huge deltas: one notch is one steady step everywhere
+  const d = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1);
+  cameraDir.zoom(Math.max(-300, Math.min(300, d))); e.preventDefault();
+}, { passive: false });
+
+document.addEventListener('contextmenu', (e) => { if (mode === 'play' && !(e.target && e.target.tagName === 'INPUT')) e.preventDefault(); }); // right-click sails: the browser menu never opens over the HUD
 
 let openingSkippable = false;
 function skipOpening() {
@@ -656,8 +662,10 @@ function skipOpening() {
   const C = cameraDir.cine; C.t = C.dur; // lands on the gameplay pose next frame
   return true;
 }
+// Hotkeys follow the physical key (QWER stay QWER on AZERTY, Cyrillic or a Chinese IME), not the character it types.
+const keyName = (e) => (/^Key[A-Z]$/.test(e.code) ? e.code[3].toLowerCase() : e.key.toLowerCase());
 window.addEventListener('keydown', (e) => {
-  if (e.target && e.target.tagName === 'INPUT') return; // typing in the chat box or a lobby field
+  if (e.target && e.target.tagName === 'INPUT' && e.target.type !== 'range') return; // typing in the chat box or a lobby field (a volume slider must not swallow Esc)
   if (e.key === 'Enter' && mpOn() && !e.repeat && !howtoOpen && !optionsOpen) { e.preventDefault(); chatOpen(true); return; }
   if (/^F\d+$/.test(e.key) && e.key !== 'F1' && e.key !== 'F3') return; // F5 reload, F11 fullscreen, F12 devtools stay the browser's
   if (skipOpening()) { e.preventDefault(); return; }
@@ -666,14 +674,15 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault(); if (!e.repeat) showHowTo(false); return;
   }
   if (optionsOpen) { if (e.key === 'Escape') { e.preventDefault(); showOptions(false); } return; }
-  cameraDir.keys[e.key] = true;
+  if (!e.metaKey && !e.ctrlKey) cameraDir.keys[e.key] = true; // (macOS never sends the keyup for a key released under Cmd)
   if (mode !== 'play' || !G) return;
-  if (e.key.toLowerCase() === 'h' || e.key === 'F1') { e.preventDefault(); showHowTo(true); return; }
-  const k = e.key.toLowerCase();
+  const k = keyName(e);
+  if (k === 'h' || e.key === 'F1') { e.preventDefault(); showHowTo(true); return; }
   if (e.ctrlKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); hud.handlers.buy(UPGRADES[+e.key - 1].id); return; }
   if (e.ctrlKey || e.metaKey) return; // browser chords (Ctrl+R, Cmd+C...) must not fire abilities
   if (hud.modalOpen && k === 'escape') { if (!G.over) hud.closeModal(); return; } // the result screen lives in the modal root: Esc must not delete SAIL AGAIN
   if (k === 'escape') { if (hud.aiming >= 0) hud.aiming = -1; else showOptions(true); return; }
+  if (G.over && !['tab', 'alt', 'c', 'z', 'x', 'y', ' '].includes(k)) return; // after the final bell only the scoreboard and camera answer: orders must not bury the result screen
   if (e.repeat) return;
   const idx = ['q', 'w', 'e', 'r'].indexOf(k);
   if (idx >= 0) {
@@ -698,7 +707,7 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => {
   cameraDir.keys[e.key] = false;
-  const ui = ['q', 'w', 'e', 'r'].indexOf(e.key.toLowerCase());
+  const ui = ['q', 'w', 'e', 'r'].indexOf(keyName(e));
   if (ui >= 0 && hud.aiming === ui) { hud.aiming = -1; playerCast(ui); }
   if (e.key === 'Tab') hud.toggleScoreboard(false);
   if (e.key === 'Alt') hud.showRange = false;

@@ -415,7 +415,6 @@ export class WaterDecals {
     this.geo.instanceCount = n;
     this.attr0.needsUpdate = true;
     this.attr1.needsUpdate = true;
-    this.attr0.addUpdateRange(0, n * 4);
-    this.attr1.addUpdateRange(0, n * 4);
+    if (this.mesh.visible) { this.attr0.addUpdateRange(0, n * 4); this.attr1.addUpdateRange(0, n * 4); } // (ranges are only consumed when drawn: a hidden mesh would pile them up)
   }
 }
