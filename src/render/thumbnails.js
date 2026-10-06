@@ -30,20 +30,29 @@ export function renderThumbnails(W = 360, H = 200) {
   water.position.y = 0.05;
   scene.add(water);
   const cam = new THREE.PerspectiveCamera(30, W / H, 1, 500);
-  for (const id of Object.keys(HULLS)) {
-    for (const team of [0, 1]) {
-      const rig = buildHeroShip(id, team);
-      rig.root.rotation.y = -0.75;
-      scene.add(rig.root);
-      const L = rig.length;
-      cam.position.set(L * 0.72, L * 0.42, L * 0.95);
-      cam.lookAt(0, rig.height * 0.28, 0);
-      r.render(scene, cam);
-      cache[id + ':' + team] = r.domElement.toDataURL('image/png');
-      scene.remove(rig.root);
-    }
-  }
-  pmrem.dispose();
-  r.dispose();
-  r.forceContextLoss && r.forceContextLoss();
+  const one = (id, team) => {
+    const rig = buildHeroShip(id, team);
+    rig.root.rotation.y = -0.75;
+    scene.add(rig.root);
+    const L = rig.length;
+    cam.position.set(L * 0.72, L * 0.42, L * 0.95);
+    cam.lookAt(0, rig.height * 0.28, 0);
+    r.render(scene, cam);
+    cache[id + ':' + team] = r.domElement.toDataURL('image/png');
+    scene.remove(rig.root);
+  };
+  // the opening frigate (both fleets) is needed the moment a match starts; every other hull is photographed in
+  // the background after the menu is up, so the loading screen no longer waits for 26 studio renders
+  const jobs = [];
+  for (const id of Object.keys(HULLS)) for (const team of [0, 1]) jobs.push([id, team]);
+  jobs.sort((a, b) => (a[0] === 'frigate' ? 0 : 1) - (b[0] === 'frigate' ? 0 : 1));
+  for (let i = 0; i < 2 && jobs.length; i++) one(...jobs.shift());
+  const finish = () => { pmrem.dispose(); r.dispose(); r.forceContextLoss && r.forceContextLoss(); };
+  const pump = () => {
+    if (!jobs.length) { finish(); return; }
+    try { one(...jobs.shift()); } catch { jobs.length = 0; }
+    setTimeout(pump, 60);
+  };
+  setTimeout(pump, 1500);
+  return;
 }

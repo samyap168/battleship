@@ -482,7 +482,7 @@ export class HUD {
       const src = hullThumb(p.hullId, p.team);
       const img = this.$('shipimg');
       if (img) { img.src = src; img.style.display = src ? '' : 'none'; }
-      this.thumbSet = true;
+      this.thumbSet = !!src; // not photographed yet? try again next frame
     }
     const hull = HULLS[p.hullId];
     this.txt('shipname', hull.name); // the hull alone: 'You · Ship-of-the-Line Frigate' never fit the card

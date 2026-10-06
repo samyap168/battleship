@@ -22,7 +22,7 @@ import { Weather } from './render/weather.js';
 import { Birds } from './render/birds.js';
 import { SeaLife } from './render/sealife.js';
 import { Wakes } from './render/wakes.js';
-import { renderThumbnails } from './render/thumbnails.js';
+import { renderThumbnails, hullThumb } from './render/thumbnails.js';
 import { WaterReflection, reflectable } from './render/reflection.js';
 import { TEAM_RIM, applyTeamRim } from './render/teamRim.js';
 import { buildHeroShip, buildCreepShip, HERO_IDS } from './render/models/shipModels.js';
@@ -65,7 +65,7 @@ const TIPS = [
 ];
 { const t = document.getElementById('tip0'); if (t) t.innerHTML = TIPS[Math.floor(Math.random() * TIPS.length)]; }
 const loadBar = $('#loading .p i'), loadTxt = $('#loading .s');
-const step = async (pct, txt) => { loadBar.style.width = pct + '%'; loadTxt.textContent = txt; await new Promise((r) => setTimeout(r, 16)); };
+const step = async (pct, txt) => { performance.mark('load: ' + txt); loadBar.style.width = pct + '%'; loadTxt.textContent = txt; await new Promise((r) => setTimeout(r, 16)); };
 
 // ---------------------------------------------------------------------------
 await step(8, 'Kindling the forge');
@@ -757,6 +757,7 @@ function frame() {
 }
 // Test hook: advance n fixed steps, render only the last.
 // Test hook: cast player ability i at the nearest enemy captain (showcase harness).
+window.__aa.thumb = (id, team) => !!hullThumb(id, team);
 window.__aa.session = () => session;
 window.__aa.cmd = (c) => session && session.command(c);
 window.__aa.castAt = (i) => {
