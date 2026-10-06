@@ -428,6 +428,7 @@ export class HUD {
       c.beginPath(); c.arc(X(h.x), Z(h.z), h.isPlayer ? 8 : 6.5, 0, Math.PI * 2);
       c.fillStyle = TEAMS[h.team].css; c.fill();
       c.lineWidth = h.isPlayer ? 3 : 1.5; c.strokeStyle = h.isPlayer ? '#ffe28a' : '#000'; c.stroke();
+      if (G.mp && h.human && !h.isPlayer) { c.beginPath(); c.arc(X(h.x), Z(h.z), 9.5, 0, Math.PI * 2); c.lineWidth = 1.5; c.strokeStyle = 'rgba(255,255,255,.85)'; c.stroke(); } // other people: a white ring, so you know who to talk to
     }
     // drones as faint haze
     c.fillStyle = 'rgba(255,255,255,.5)';
