@@ -402,3 +402,14 @@ body.cinematic #howtoBtn { display: none; }
 .mp-wait .dim { color: var(--dim); font-size: 13px; display: block; margin-top: 4px; }
 .mp-lobby .row { justify-content: center; }
 @media (max-width: 640px) { .mp-cols { grid-template-columns: 1fr; } .mp-roomcode { font-size: 28px; } }
+
+/* ---- multiplayer in-match: chat and connection notice ---- */
+#chat { position: fixed; left: 16px; bottom: 236px; width: 340px; z-index: 6; pointer-events: none; font-family: var(--font-ui); }
+#chat.hidden { display: none; }
+#chatLog { display: flex; flex-direction: column; gap: 2px; font-size: 15px; text-shadow: 0 1px 3px #000, 0 0 6px #000; color: #e8eef5; }
+#chatLog .cm { transition: opacity .5s; line-height: 1.25; word-break: break-word; }
+#chatLog .cm.team { color: #9fe3b0; }
+#chatIn { display: none; width: 100%; box-sizing: border-box; margin-top: 4px; background: rgba(4,8,14,.82); border: 1px solid var(--gold); color: #fff; padding: 7px 10px; font-size: 15px; outline: none; pointer-events: auto; }
+#chat.typing #chatIn { display: block; }
+#netStall { position: fixed; top: 92px; left: 50%; transform: translateX(-50%); z-index: 7; padding: 8px 18px; background: rgba(20,10,8,.85); border: 1px solid #ff8a6a; color: #ffb59a; letter-spacing: .12em; font-size: 15px; text-transform: uppercase; animation: abReady 1.4s ease-in-out infinite; }
+#netStall.hidden { display: none; }

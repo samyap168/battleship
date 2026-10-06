@@ -82,6 +82,21 @@ Each team's **era** is the median age of its captains. It evolves that team's gu
 
 `node tests/play.mjs "6,60,180" prefix` boots a headless Chromium build (SwiftShader) and steps the simulation deterministically. It screenshots at the given match times and prints a match summary.
 
+## Multiplayer (5v5 with friends and colleagues)
+
+**Menu → Multiplayer → Host a game** gives you a 5-letter room code and an invite link (`?join=CODE`). Others open the link (or enter the code), pick a seat in the lobby (5 per team), and the host starts the match. Any seat nobody takes is played by a bot, so 1v1, 3v3 or 5v5 all work; the host picks the bots' difficulty. Enter opens chat (`/t message` = team only); closing a tab hands that ship to a bot.
+
+No game server is involved: players connect browser to browser over WebRTC (PeerJS; its free public broker only introduces the peers). The **host's browser runs the match**, so the host should keep the tab in the foreground. Corporate networks that block peer-to-peer traffic may need a TURN relay: add `?turn=turn:host:3478&tuser=...&tpass=...` (and `?peerhost=...&peerport=...&peersecure=0|1` for a self-hosted PeerJS server) to the URL.
+
+How the replication works (`src/net/`):
+
+- The simulation is **deterministic**: fixed 60 Hz ticks, one seeded RNG stream per match (`src/core/rng.js`), per-match unit ids, and nothing in the sim reads render state (muzzle positions divide out the camera-dependent ship scale). Every peer runs the same match from the same seed.
+- A player's click becomes a small **command** (`commands.js`: move, attack, cast, age up, buy, rally, stop). It goes to the host, which stamps it with the next tick and relays it; every peer applies it at that tick. The host also announces how far the sim may run, so a late packet never causes a rollback.
+- Every 5 s the host sends a **state snapshot + hash** (`state.js`). A peer whose hash differs (a different JS engine rounding a float differently, a long tab freeze) is pulled back onto the host's state, including the RNG state; F3 shows `net ping, buffer, resyncs`.
+- Seats whose player leaves (or is too slow to load) are handed to a bot by a command applied on the same tick everywhere.
+
+Tests: `node tests/determinism.mjs [ticks]` (same seed, different frame patterns: identical state hashes), `node tests/mp.mjs` (two browser windows, a lobby, 5v5 with commands from both sides, chat, zero resyncs), `node tests/mp_resilience.mjs` (a corrupted peer is detected and healed, a disconnect becomes a bot). `NET=peer` runs the last two over real WebRTC through a local PeerJS server (`npm i peer`, `PeerServer({ port: 9000, host: '0.0.0.0' })`).
+
 ## Graphics safeguards
 
 Real GPUs and drivers differ from the test rasteriser, so the renderer polices itself:

@@ -79,7 +79,7 @@ export class Game {
     this.mp = !!opts.mp; // multiplayer: fixed-step ticks, no hit-stop / slow-motion (they would change sim time)
     this.diff = DIFFICULTY[opts.difficulty] || DIFFICULTY.normal;
     this.events = new Emitter();
-    this.time = 0; this.frame = 0; this.vtime = 0;
+    this.time = 0; this.frame = 0; this.vtime = 0; this.dt = 1 / 60;
     this.over = false; this.winner = -1;
     this.listener = { x: 0, z: 0 };
     this.obstacles = buildObstacles();

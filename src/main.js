@@ -317,6 +317,7 @@ function mpWire(s, code, kind) {
   s.on('start', (cfg) => startMultiplayer(cfg));
   s.on('toast', (t) => { try { hud.hint(t, 5000); } catch { /* hud not up yet */ } });
   s.on('error', (e) => console.warn('[net]', e.message));
+  s.on('chat', chatPush);
   s.on('closed', (why) => {
     if (session !== s) return;
     session = null;
@@ -340,6 +341,37 @@ $('#mpBtn').onclick = () => { audio.init(); audio.play('uiClick'); lobby.showEnt
   const jc = (params.get('join') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
   if (jc) { if (params.get('net') === 'local') lobby.net = 'local'; setTimeout(() => lobby.showEntry(jc), 400); }
 }
+// ---- in-match chat (Enter to type, /t for team only) and the "waiting for host" notice
+const chatEl = document.createElement('div');
+chatEl.id = 'chat'; chatEl.className = 'hidden';
+chatEl.innerHTML = '<div id="chatLog"></div><input id="chatIn" maxlength="140" placeholder="Say something (/t = team only)" autocomplete="off" spellcheck="false" />';
+document.body.appendChild(chatEl);
+const chatIn = chatEl.querySelector('#chatIn'), chatLog = chatEl.querySelector('#chatLog');
+function chatPush(m) {
+  const d = document.createElement('div');
+  d.className = 'cm' + (m.teamOnly ? ' team' : '');
+  const nm = document.createElement('b'); nm.style.color = TEAMS[m.team].css; nm.textContent = (m.teamOnly ? '[team] ' : '') + m.name + ': ';
+  d.append(nm, document.createTextNode(m.text));
+  chatLog.append(d);
+  while (chatLog.children.length > 7) chatLog.firstChild.remove();
+  setTimeout(() => { d.style.opacity = '0'; setTimeout(() => d.remove(), 600); }, 14000);
+  audio.play('uiHover', { vol: 0.6 });
+}
+function chatOpen(on) {
+  chatEl.classList.toggle('typing', on);
+  if (on) { chatIn.value = ''; chatIn.focus(); } else chatIn.blur();
+}
+chatIn.addEventListener('keydown', (e) => {
+  e.stopPropagation();
+  if (e.key === 'Enter') { const v = chatIn.value.trim(); if (v && session) session.chat(v); chatOpen(false); }
+  else if (e.key === 'Escape') chatOpen(false);
+});
+const stallEl = document.createElement('div');
+stallEl.id = 'netStall'; stallEl.className = 'hidden'; stallEl.textContent = 'Waiting for the host…';
+document.body.appendChild(stallEl);
+document.addEventListener('visibilitychange', () => { // the host's browser runs the match: tell the others when it is paused
+  if (document.hidden && session && session.isHost && session.phase === 'play') session.t.broadcast({ t: 'toast', text: 'The host switched tabs: the match is on hold until they return.' });
+});
 window.addEventListener('pagehide', () => { if (session) session.leave(); }); // closing the tab hands the seat to a bot at once
 function startMultiplayer(cfg) {
   mpLoading = true;
@@ -603,6 +635,8 @@ function skipOpening() {
   return true;
 }
 window.addEventListener('keydown', (e) => {
+  if (e.target && e.target.tagName === 'INPUT') return; // typing in the chat box or a lobby field
+  if (e.key === 'Enter' && mpOn() && !e.repeat && !howtoOpen && !optionsOpen) { e.preventDefault(); chatOpen(true); return; }
   if (/^F\d+$/.test(e.key) && e.key !== 'F1' && e.key !== 'F3') return; // F5 reload, F11 fullscreen, F12 devtools stay the browser's
   if (skipOpening()) { e.preventDefault(); return; }
   if (howtoOpen) { // any key starts (H toggles, Tab/Alt ignored so alt-tab does not dismiss it)
@@ -725,9 +759,11 @@ function tick(dt, draw) {
     fpsEl.textContent = `${fps.toFixed(0)} fps · ${(R.gl.getPixelRatio() * 100).toFixed(0)}% res · ${R.gl.info.render.calls} draws${off.length ? ' · off: ' + off.join(', ') : ''} · ${gpuInfo}${session && session.G === G ? ` · net ${session.stats.rtt || '–'} ms, ${session.stats.behind} behind, ${session.stats.desyncs} resync` : ''}`; } }
   if (howtoPending && mode === 'play' && !cameraDir.cine && G && G.time > 1) { howtoPending = false; showHowTo(true); }
   if (mpLoading && session && session.go) { mpLoading = false; lobby.hide(); }
+  chatEl.classList.toggle('hidden', !mpOn());
+  stallEl.classList.toggle('hidden', !(mpOn() && session.phase === 'play' && session.stats.stallMs > 1800 && !G.over));
   if (G && session && session.G === G) session.update(dt); // multiplayer: fixed ticks, never paused by a menu
   else if (G && !howtoOpen && !optionsOpen) G.update(dt);
-  const gdt = G ? G.dt : dt;
+  const gdt = G && G.dt > 0 ? G.dt : dt; // (a multiplayer match has no tick yet while it waits for the others)
   const t = G ? G.time : wallTime;
 
   // camera + listener

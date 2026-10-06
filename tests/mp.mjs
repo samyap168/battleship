@@ -56,11 +56,17 @@ while (Date.now() - t0 < SECONDS * 1000) {
   n++;
   await A.waitForTimeout(2500);
 }
+// chat: a client's message (and a team-only one) reaches the host's screen
+await B.evaluate(() => { const s = window.__aa.session(); s.chat('hello from Bligh'); s.chat('/t only my team'); });
+await A.waitForTimeout(1500);
+const chatA = await A.$$eval('#chatLog .cm', (els) => els.map((e) => e.textContent));
+console.log('host chat log:', JSON.stringify(chatA));
 const stat = (p) => p.evaluate(() => { const s = window.__aa.session(), G = window.__aa.G; return { tick: s.tick, desyncs: s.stats.desyncs, rtt: s.stats.rtt, behind: s.stats.behind, time: +G.time.toFixed(1), me: G.player.name, seat: G.player.seat, humans: G.heroes.filter((h) => h.human).map((h) => h.name) }; });
 const a = await stat(A), b = await stat(B);
 console.log('host  ', JSON.stringify(a));
 console.log('client', JSON.stringify(b));
-const ok = a.tick > 1500 && b.tick > 1500 && b.desyncs === 0 && a.humans.length === 2 && b.humans.length === 2 && !errs.length;
+const chatOk = chatA.some((t) => t.includes('Bligh: hello from Bligh')) && !chatA.some((t) => t.includes('only my team')); // Bligh sits on the other team: team chat must not leak
+const ok = chatOk && a.tick > 1500 && b.tick > 1500 && b.desyncs === 0 && a.humans.length === 2 && b.humans.length === 2 && !errs.length;
 console.log(ok ? `PASS: peers stayed in sync (${b.tick} ticks, 0 resyncs)` : 'FAIL');
 if (errs.length) console.log('page errors:', errs.slice(0, 4).join(' | '));
 await browser.close();

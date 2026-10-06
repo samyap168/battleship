@@ -15,7 +15,7 @@ import { HOST_ID } from './transport.js';
 export const TICK = 1 / 60;
 const ADV_EVERY = 2;      // ticks between "adv" messages (30 per second)
 const SNAP_EVERY = 300;   // ticks between snapshots (5 s)
-const BUF = 4;            // clients stay this many ticks behind the host's announced tick (jitter absorber)
+const BUF_MIN = 3, BUF_MAX = 12; // clients stay `buf` ticks behind the host's announced tick (jitter absorber, adapts to the network)
 const SEATS = 10;
 
 export class Session {
@@ -30,6 +30,7 @@ export class Session {
     this.tick = 0; this.acc = 0; this.allowed = 0; this.sched = new Map(); this.outbox = []; this.snaps = new Map();
     this.ready = new Set(); this.go = false; this.over = null;
     this.stats = { desyncs: 0, rtt: 0, behind: 0, ticksRun: 0 };
+    this.buf = 4; this.lastStall = 0;
     this.maxSteps = 6; this.accCap = 0.25; // per-frame catch-up limits (tests raise them to run faster than real time)
     this.nameOf = new Map();
     transport.on('message', (from, msg) => this._onMsg(from, msg));
@@ -89,7 +90,8 @@ export class Session {
     switch (m.t) {
       case 'lobby':
         this.seats = m.seats.map((s) => (s ? { peer: s[0], name: s[1] } : null)); this.diff = m.diff; this.emit('lobby'); break;
-      case 'full': this._closed('The lobby is full.'); break;
+      case 'full': this._closed(m.why === 'started' ? 'That match has already started.' : 'The lobby is full.'); break;
+      case 'chat': this.emit('chat', m); break;
       case 'start': this.phase = 'loading'; this.cfg = m.cfg; this.emit('start', m.cfg); break;
       case 'go': this.go = true; break;
       case 'adv': this._onAdv(m); break;
@@ -104,7 +106,7 @@ export class Session {
   _hostMsg(from, m) {
     switch (m.t) {
       case 'hello': {
-        if (this.phase !== 'lobby') { this.t.send(from, { t: 'full' }); return; }
+        if (this.phase !== 'lobby') { this.t.send(from, { t: 'full', why: 'started' }); return; }
         const name = String(m.name || 'Captain').slice(0, 18);
         if (this.seats.some((s) => s && s.peer === from)) return;
         if (this._place(from, name) < 0) { this.t.send(from, { t: 'full' }); return; }
@@ -114,6 +116,7 @@ export class Session {
       case 'seat': if (this.phase === 'lobby' && Number.isInteger(m.i)) this._seatRequest(from, m.i); break;
       case 'ready': this.ready.add(from); this._maybeGo(); break;
       case 'ping': this.t.send(from, { t: 'pong', ts: m.ts }); break;
+      case 'chat': { const seat = this.seats.findIndex((s) => s && s.peer === from); if (seat >= 0) this._chat(seat, m.text); break; }
       case 'cmd': {
         if (this.phase !== 'play') return;
         const seat = this.seats.findIndex((s) => s && s.peer === from);
@@ -176,6 +179,24 @@ export class Session {
     this.t.broadcast({ t: 'go' });
   }
 
+  // ------------------------------------------------------------------ chat
+  /** Say something. "/t text" goes to your team only. */
+  chat(text) {
+    text = String(text || '').trim().slice(0, 140);
+    if (!text) return;
+    if (this.isHost) { const seat = this.mySeat; if (seat >= 0) this._chat(seat, text); } else this.t.send(HOST_ID, { t: 'chat', text });
+  }
+  _chat(seat, text) {
+    text = String(text || '').trim().slice(0, 140);
+    if (!text) return;
+    const team = Math.floor(seat / 5), teamOnly = /^\/t\s/i.test(text);
+    const msg = { t: 'chat', name: this.seats[seat].name, team, text: teamOnly ? text.replace(/^\/t\s+/i, '') : text, teamOnly };
+    for (const [i, s] of this.seats.entries()) {
+      if (!s || (teamOnly && Math.floor(i / 5) !== team)) continue;
+      if (s.peer === HOST_ID) this.emit('chat', msg); else this.t.send(s.peer, msg);
+    }
+  }
+
   // ------------------------------------------------------------------ the match loop
   /** Local player's command (already built with Cmd.*). */
   command(c) {
@@ -203,14 +224,20 @@ export class Session {
     if (this.isHost) {
       while (this.acc >= TICK && steps < this.maxSteps) { this.acc -= TICK; this._step(); this._hostAfter(); steps++; }
     } else {
-      const lag = this.allowed - BUF - this.tick;
-      this.stats.behind = Math.max(0, lag);
+      const lag = this.allowed - this.buf - this.tick;
+      this.stats.behind = Math.max(0, lag); this.stats.buf = this.buf;
       // normal pace, or a faster catch-up when the tab was frozen / the network stalled
       let n = lag > 12 ? Math.min(Math.max(8, this.maxSteps), lag) : Math.floor(this.acc / TICK);
       n = Math.min(n, Math.max(0, lag));
       for (; n > 0; n--) { this.acc = Math.max(0, this.acc - TICK); this._step(); steps++; }
-      if (lag <= 0) this.acc = Math.min(this.acc, TICK); // waiting on the host: do not bank time
+      if (lag <= 0) {
+        // starved: we have been ready to run for 3+ ticks (50 ms) with nothing from the host: buffer a little more
+        if (this.acc >= 3 * TICK && performance.now() - this.lastStall > 400) { this.buf = Math.min(BUF_MAX, this.buf + 1); this.lastStall = performance.now(); }
+        this.acc = Math.min(this.acc, 3 * TICK); // do not bank time while waiting on the host
+      } else if (performance.now() - this.lastStall > 12000) { this.buf = Math.max(BUF_MIN, this.buf - 1); this.lastStall = performance.now(); } // calm for a while: tighten again
     }
+    if (steps > 0) this.lastAdvance = performance.now();
+    this.stats.stallMs = this.lastAdvance ? performance.now() - this.lastAdvance : 0;
     G.visualUpdate(dt);
   }
 

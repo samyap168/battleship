@@ -360,6 +360,7 @@ float dbH(vec3 p) { vec3 p3 = fract(floor(p) * 0.1031); p3 += dot(p3, p3.zyx + 3
   }
 
   update(dt, time) {
+    if (!(dt >= 0)) dt = 0; // a NaN step would poison every light's timer for good and turn the whole scene black
     this.time = time;
     FX_TIME.value = time;
     for (const l of this.lights) {

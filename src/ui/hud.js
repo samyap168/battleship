@@ -359,9 +359,9 @@ export class HUD {
       ${mvp ? `<div class="mvp panel ornate"><div class="lbl">MVP</div><div class="nm" style="color:${TEAMS[mvp.team].css}">${esc(mvp.name)}</div>
         <div class="st">${HULLS[mvp.hullId].name} · ${mvp.kills} / ${mvp.deaths} / ${mvp.assists} · ${fmtDmg(mvp.dmgDealt)} damage</div></div>` : ''}
       <div class="panel ornate">${this.scoreboardHTML(G)}</div>
-      <button class="btn-primary" id="again">SAIL AGAIN</button><button class="btn-ghost" id="tomenu">Main menu</button></div>`;
+      ${G.mp ? '<button class="btn-primary" id="again">BACK TO MENU</button>' : '<button class="btn-primary" id="again">SAIL AGAIN</button><button class="btn-ghost" id="tomenu">Main menu</button>'}</div>`;
     r.querySelector('#again').onclick = () => this.handlers.again && this.handlers.again();
-    r.querySelector('#tomenu').onclick = () => this.handlers.menu && this.handlers.menu();
+    const tm = r.querySelector('#tomenu'); if (tm) tm.onclick = () => this.handlers.menu && this.handlers.menu();
   }
 
   // ------------------------------------------------------------------ minimap
