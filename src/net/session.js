@@ -14,7 +14,7 @@ import { HOST_ID } from './transport.js';
 
 export const TICK = 1 / 60;
 const ADV_EVERY = 2;      // ticks between "adv" messages (30 per second)
-const SNAP_EVERY = 300;   // ticks between snapshots (5 s)
+const SNAP_EVERY = 150;   // ticks between snapshots (2.5 s)
 const BUF_MIN = 3, BUF_MAX = 12; // clients stay `buf` ticks behind the host's announced tick (jitter absorber, adapts to the network)
 const SEATS = 10;
 const cleanName = (n) => String(n || 'Captain').replace(/[<>&"'`\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 18) || 'Captain'; // names reach innerHTML in the kill feed: strip markup
@@ -271,7 +271,7 @@ export class Session {
       } else if (performance.now() - this.lastStall > 12000) { this.buf = Math.max(BUF_MIN, this.buf - 1); this.lastStall = performance.now(); } // calm for a while: tighten again
     }
     if (steps > 0) this.lastAdvance = performance.now();
-    G.presentPose(Math.min(1, this.acc / TICK));
+    G.presentPose(Math.min(1, this.acc / TICK), dt);
     this.stats.stallMs = this.lastAdvance ? performance.now() - this.lastAdvance : 0;
     G.visualUpdate(dt);
   }
@@ -292,6 +292,7 @@ export class Session {
         this.snaps.delete(k);
         if (stateHash(G) !== s.hash) { this.stats.desyncs++; console.warn('[net] desync at tick', k, '- resyncing from the host'); }
         applySnapshot(G, s.s);
+        this.stats.corr = Math.max(this.stats.corr || 0, G.lastCorrection || 0);
       }
     }
   }

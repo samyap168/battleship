@@ -54,11 +54,21 @@ export function snapshot(G) {
   };
 }
 
+/** Remember how far a unit is about to jump, so presentPose can ease the picture across instead of teleporting it. */
+function softMove(u, x, z) {
+  const dx = u.x - x, dz = u.z - z, d = Math.hypot(dx, dz);
+  if (d > 0.05 && d < 150) { u._ox = (u._ox || 0) + dx; u._oz = (u._oz || 0) + dz; }
+}
+
 export function applySnapshot(G, S) {
   const byId = new Map(G.units.map((u) => [u.id, u]));
+  let corr = 0; // how far (world units) the largest ship had to move to rejoin the host
+  S.heroes.forEach((d, i) => { const h = G.heroes[i]; if (h) corr = Math.max(corr, Math.hypot(h.x - d.x, h.z - d.z)); });
+  G.lastCorrection = corr;
   S.heroes.forEach((d, i) => {
     const h = G.heroes[i];
     if (!h) return;
+    softMove(h, d.x, d.z); // the ship glides to its corrected spot instead of popping
     if (h.hullId !== d.hull) h.setHull(d.hull);
     Object.assign(h, { x: d.x, z: d.z, yaw: d.yaw, speed: d.speed, hp: d.hp, maxHp: d.maxHp, shield: d.shield, shieldT: d.shieldT, respawn: d.respawn, level: d.level, xp: d.xp, gold: d.gold,
       kills: d.kills, deaths: d.deaths, assists: d.assists, streak: d.streak, stun: d.stun, silence: d.silence, slowT: d.slowT, slow: d.slow, spawnGuard: d.guard, dmgDealt: d.dmg, creepKills: d.ck });
@@ -84,6 +94,7 @@ export function applySnapshot(G, S) {
       c.id = id;
       G.creeps.push(c); G.units.push(c);
     }
+    if (have.has(id)) softMove(c, x, z);
     Object.assign(c, { x, z, yaw, speed, hp, wpi }, ex);
     c.path = pathIn(path); c.target = byId.get(tgt) || null;
   }

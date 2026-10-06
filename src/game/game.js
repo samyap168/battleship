@@ -562,13 +562,19 @@ export class Game {
   }
 
   /** Multiplayer presentation: ships are drawn between their last two tick poses, so motion is smooth at any refresh rate. */
-  presentPose(alpha) {
+  presentPose(alpha, dt = 0) {
     this._posed = true;
+    const ease = Math.exp(-dt * 4); // a resync's correction fades out over about a second
     for (const u of this.units) {
       if (!u._cp || !u.alive || !u.rig) continue;
       const r = u.rig.root;
       r.position.lerpVectors(u._pp, u._cp, alpha);
       r.quaternion.slerpQuaternions(u._pq, u._cq, alpha);
+      if (u._ox || u._oz) {
+        u._ox *= ease; u._oz *= ease;
+        if (Math.abs(u._ox) + Math.abs(u._oz) < 0.02) u._ox = u._oz = 0;
+        r.position.x += u._ox; r.position.z += u._oz;
+      }
     }
   }
   /** ...and back to the exact tick pose before the next tick runs: gameplay (muzzle positions) must never see the blend. */
