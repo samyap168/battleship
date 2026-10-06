@@ -482,6 +482,7 @@ $('#optQuit').onclick = () => { // two clicks: a stray click must not throw away
   const vol = {};
   for (const k of ['master', 'music', 'sfx']) { const v = parseFloat(localGet('aa.vol.' + k)); if (Number.isFinite(v)) vol[k] = Math.max(0, Math.min(1, v)); }
   if (Object.keys(vol).length) audio.setVolume(vol);
+  if (localGet('aa.mute') === '1') audio.muted = true;
 }
 hud.on('again', () => { if (session || (G && G.mp)) { hud.closeModal(); toMenu(); } else play(); }); // a multiplayer match ends back at the menu
 hud.on('menu', () => { hud.closeModal(); toMenu(); });
@@ -670,6 +671,7 @@ function skipOpening() {
 const keyName = (e) => (/^Key[A-Z]$/.test(e.code) ? e.code[3].toLowerCase() : e.key.toLowerCase());
 window.addEventListener('keydown', (e) => {
   if (e.target && e.target.tagName === 'INPUT' && e.target.type !== 'range') return; // typing in the chat box or a lobby field (a volume slider must not swallow Esc)
+  if (keyName(e) === 'm' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) { audio.muted = !audio.muted; localSet('aa.mute', audio.muted ? '1' : '0'); try { hud.hint(audio.muted ? 'Sound <b>off</b> · press <kbd>M</kbd> to turn it back on' : 'Sound <b>on</b>', 1800); } catch { /* hud not mounted yet */ } return; } // works everywhere: menu, options, result screen
   if (e.key === 'Enter' && mpOn() && !e.repeat && !howtoOpen && !optionsOpen) { e.preventDefault(); chatOpen(true); return; }
   if (/^F\d+$/.test(e.key) && e.key !== 'F1' && e.key !== 'F3') return; // F5 reload, F11 fullscreen, F12 devtools stay the browser's
   if (skipOpening()) { e.preventDefault(); return; }
@@ -706,7 +708,6 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'z' || k === 'x') cameraDir.orbitBy(k === 'z' ? 60 : -60, 0);
   else if (k === 'tab') { e.preventDefault(); hud.toggleScoreboard(true); }
   else if (k === 'alt') { hud.showRange = true; e.preventDefault(); }
-  else if (k === 'm') audio.muted = !audio.muted;
   else if (e.key === 'F3') { e.preventDefault(); fpsEl.classList.toggle('hidden'); }
 });
 window.addEventListener('keyup', (e) => {
@@ -815,7 +816,8 @@ function tick(dt, draw) {
   const f = cameraDir.focus;
   SEE_THROUGH.uSeeCam.value.copy(R.camera.position); SEE_THROUGH.uSeeFoc.value.copy(f); SEE_THROUGH.uSeeOn.value = G && mode === 'play' && !cameraDir.cine ? 1 : 0;
   if (G) { G.listener.x = f.x; G.listener.z = f.z; G.viewScale = 1.15 + THREE.MathUtils.smoothstep(cameraDir.dist, 160, 290) * 0.25; /* captains always read a size above gunboats */ }
-  audio.setListener(f.x, f.z, cameraDir.dist);
+  audio.setListener(f.x, f.z, cameraDir.dist, cameraDir.yaw);
+  audio.setOwn(G && G.player && G.player.alive ? G.player.x : NaN, G && G.player ? G.player.z : NaN);
 
   // time of day: dawn -> dusk across the match
   const tod = mode === 'play' && G ? G.time / MATCH.duration : MENU_TIME;

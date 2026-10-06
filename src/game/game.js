@@ -652,6 +652,7 @@ export class Game {
     // contextual coaching: each tip fires once, the first time its situation arises
     if (pl && !this.over && !pl.isBot && (this.coachT = (this.coachT || 0) + dt) > 0.5) {
       this.coachT = 0;
+      if (pl.alive && pl.hp / pl.maxHp < 0.3 && this.time - (this._lowSndT ?? -99) > 7) { this._lowSndT = this.time; this.audio.stinger('warning'); } // hull critical: you hear it, not just see it
       const seen = (this.coached ||= {});
       const tip = (k, cond, msg, ms = 6500) => { if (!seen[k] && cond()) { seen[k] = true; this.ui.hint(msg, ms); return true; } return false; };
       const near = (arr, r) => arr.find((u) => u.alive && u.team !== pl.team && (u.x - pl.x) ** 2 + (u.z - pl.z) ** 2 < r * r);
@@ -735,7 +736,7 @@ export class Game {
     const sd = u.sinkDir || 1, fx = Math.sin(u.yaw), fz = Math.cos(u.yaw), L = r.length;
     const P = this.fx.p;
     if (at(1.1)) this.audio.play('hullGroan', { x: u.x, z: u.z, vol: 1 });
-    if (u === this.player && at(3.2)) this.audio.setSubmerged && this.audio.setSubmerged(true); // your ship slips under: the world muffles
+    if (u === this.player && !this.over && at(3.2)) this.audio.setSubmerged && this.audio.setSubmerged(true); // your ship slips under: the world muffles
     for (const [s, o] of [[1.6, 0.28], [2.7, -0.18]]) if (at(s)) {
       const k = sd * o * L;
       this.fx.explosion(new THREE.Vector3(u.x + fx * k, 3, u.z + fz * k), 0.78); // small: the hull silhouette must stay readable

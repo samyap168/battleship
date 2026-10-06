@@ -127,8 +127,9 @@ export class Engine {
 
   get radius() { return BASE_RADIUS * Math.sqrt(clamp(this.listener.zoom, 60, 400) / REF_ZOOM); }
 
-  setListener(x, z, zoom) {
+  setListener(x, z, zoom, yaw) {
     const L = this.listener;
+    if (Number.isFinite(yaw)) L.yaw = yaw;
     if (Number.isFinite(x)) L.x = x;
     if (Number.isFinite(z)) L.z = z;
     if (Number.isFinite(zoom) && zoom !== L.zoom) { L.zoom = zoom; this.ambience.setZoom(zoom); }
@@ -151,12 +152,16 @@ export class Engine {
       const L = this.listener;
       const R = this.radius * def.range;
       const near = L.zoom * 0.3;
-      const dx = opts.x - L.x, dz = opts.z - L.z;
-      const d = Math.hypot(dx, dz);
+      let dx = opts.x - L.x, dz = opts.z - L.z;
+      let d = Math.hypot(dx, dz);
+      const sy = Math.sin(L.yaw || 0), cy = Math.cos(L.yaw || 0);
+      let sx = dx * cy - dz * sy; // screen-right component: left stays left however the camera is turned
+      const o = this.own; // your own guns and casts stay audible and centred even while the camera scouts elsewhere
+      if (o && Math.hypot(opts.x - o.x, opts.z - o.z) < 10) { d = Math.min(d, near * 1.5); sx = 0; }
       if (d >= R) return null;
       const dn = clamp((d - near) / (R - near));
       g = Math.pow(1 - dn, 1.6) / (1 + 1.5 * dn);
-      pan = clamp(dx / (R * 0.55), -1, 1) * 0.8;
+      pan = clamp(sx / (R * 0.55), -1, 1) * 0.8;
       if (dn > 0.04) cutoff = 900 + 15000 * (1 - dn) * (1 - dn) * (1 - dn); // air absorption: highs die first over open water
     }
     const jit = 1 + (Math.random() * 2 - 1) * def.jv;
@@ -368,7 +373,7 @@ class AudioSystem {
       this.eng = new Engine(ctx);
       this.eng.setVolume(this._vol);
       this.eng.setMuted(this._muted);
-      this.eng.setListener(this._L.x, this._L.z, this._L.zoom);
+      this.eng.setListener(this._L.x, this._L.z, this._L.zoom, this._L.yaw);
       this.eng.music.setIntensity(this._intensity);
       if (this._swarm) this.eng.swarm.set(this._swarm);
       if (this._wantAmb) this.eng.ambience.start();
@@ -378,6 +383,7 @@ class AudioSystem {
       // keep trying to unlock on later gestures (autoplay policies, iOS interruptions)
       const unlock = () => this._resume();
       for (const ev of ['pointerdown', 'keydown', 'touchend']) w.addEventListener?.(ev, unlock, { passive: true });
+      if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (!document.hidden) this._resume(); }); // a browser that suspended the context while the tab was away
       return true;
     } catch (e) {
       this.failed = true;
@@ -397,11 +403,14 @@ class AudioSystem {
     try { return fn(this.eng); } catch (e) { console.warn('[audio]', e); return fallback; }
   }
 
-  setListener(x, z, zoom) {
+  setOwn(x, z) { const o = Number.isFinite(x) && Number.isFinite(z) ? { x, z } : null; if (this.eng) this.eng.own = o; }
+
+  setListener(x, z, zoom, yaw) {
+    if (Number.isFinite(yaw)) this._L.yaw = yaw;
     if (Number.isFinite(x)) this._L.x = x;
     if (Number.isFinite(z)) this._L.z = z;
     if (Number.isFinite(zoom)) this._L.zoom = zoom;
-    if (this.eng) this.eng.setListener(x, z, zoom);
+    if (this.eng) this.eng.setListener(x, z, zoom, yaw);
   }
 
   play(name, opts) { return this._safe((e) => e.play(name, opts || {})); }
@@ -427,7 +436,9 @@ class AudioSystem {
   }
 
   setSwarm(count) {
-    this._swarm = clamp(+count || 0, 0, 200);
+    const n = clamp(+count || 0, 0, 200);
+    if (n === this._swarm) return; // (set() re-issues a dozen automation events: only when the count moved)
+    this._swarm = n;
     this._safe((e) => e.swarm.set(this._swarm));
   }
 
