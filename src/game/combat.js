@@ -149,9 +149,11 @@ export class Combat {
       if (d2 > r * r) continue;
       const fall = opts.falloff ? 1 - 0.5 * Math.sqrt(d2) / r : 1;
       this.damage(u, dmg * fall, source, opts);
-      if (opts.stun) u.stun = Math.max(u.stun, opts.stun);
-      if (opts.silence && u.kind === 'hero') u.silence = Math.max(u.silence, opts.silence);
-      if (opts.slow) { u.slow = opts.slow; u.slowT = Math.max(u.slowT, opts.slowDur || 1.5); }
+      if (!(u.spawnGuard > 0)) { // spawn protection covers crowd control too
+        if (opts.stun) u.stun = Math.max(u.stun, opts.stun);
+        if (opts.silence && u.kind === 'hero') u.silence = Math.max(u.silence, opts.silence);
+        if (opts.slow) { u.slow = opts.slow; u.slowT = Math.max(u.slowT, opts.slowDur || 1.5); }
+      }
       n++;
     }
     return n;
@@ -468,8 +470,10 @@ export class Combat {
         if (p.aoe) { p.alive = false; this.impact(p, p.x, p.z); return; }
         p.hit.add(u.id);
         this.damage(u, p.dmg, p.owner);
-        if (p.slow) { u.slow = p.slow; u.slowT = p.slowDur; }
-        if (p.stun) u.stun = Math.max(u.stun, p.stun);
+        if (!(u.spawnGuard > 0)) {
+          if (p.slow) { u.slow = p.slow; u.slowT = p.slowDur; }
+          if (p.stun) u.stun = Math.max(u.stun, p.stun);
+        }
         const hp = new THREE.Vector3(p.x, 3, p.z);
         if (p.model === 'torpedo') { G.fx.explosion(hp, 1.3); G.fx.splash(p.x, p.z, 2.2); G.audio.play('explosionBig', { x: p.x, z: p.z }); }
         else { G.fx.hitSpark(hp, 1.1); G.audio.play('hit', { x: p.x, z: p.z, vol: 0.6 }); }

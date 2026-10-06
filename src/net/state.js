@@ -102,6 +102,7 @@ export function applySnapshot(G, S) {
     c.path = pathIn(path); c.target = byId.get(tgt) || null;
   }
   for (const c of G.creeps) if (c.alive && !keep.has(c.id)) { c.alive = false; c.hp = 0; c.deadT = 99; }
+  G.protVer++; // fort protection is cached: re-ask after the snapshot rewrites the forts
   S.structures.forEach(([hp, alive, exposedAt, gunCd, aggroT, tg, ah], i) => {
     const s = G.structures[i];
     s.hp = hp; if (exposedAt !== null) s.exposedAt = exposedAt;
@@ -126,6 +127,7 @@ export function applySnapshot(G, S) {
   Object.assign(G, { waveNo: S.g.waveNo, nextWave: S.g.nextWave, stormAt: S.g.stormAt, firstBlood: S.g.firstBlood });
   if (S.g.shotT) G.shotT = [...S.g.shotT];
   if (S.g.duskTide) G.duskTide = true;
+  G.protVer++;
   G.nextUnitId = Math.max(G.nextUnitId, S.g.nextUnitId);
   setSimState(S.rng);
   if (G.mp) G.tickTransforms(0); // hull poses follow the corrected positions at once, so the next tick's muzzles start from the host's state

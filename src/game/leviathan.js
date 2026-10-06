@@ -241,5 +241,8 @@ export class Leviathan extends Unit {
     this.x = LEVIATHAN.x; this.z = LEVIATHAN.z;
   }
 
-  dispose() { this.G.scene.remove(this.rig.root); }
+  dispose() {
+    this.G.scene.remove(this.rig.root);
+    this.rig.root.traverse((o) => { const m = o.material; if (m) { for (const k of ['bumpMap', 'roughnessMap', 'map']) if (m[k]) m[k].dispose(); m.dispose && m.dispose(); } });
+  }
 }

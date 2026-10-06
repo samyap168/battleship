@@ -240,7 +240,7 @@ export function updateHeroEffects(G, h, dt) {
       if (h.dist(u) < h.radius + u.radius + 2) {
         d.hit.add(u.id);
         G.combat.damage(u, d.dmg, h);
-        u.stun = Math.max(u.stun, d.stun);
+        if (!(u.spawnGuard > 0)) u.stun = Math.max(u.stun, d.stun);
         u.pushX = d.dx * 30; u.pushZ = d.dz * 30;
         G.fx.explosion(new THREE.Vector3((h.x + u.x) / 2, 3, (h.z + u.z) / 2), 0.9, { water: false });
         G.audio.play('ram', { x: u.x, z: u.z });

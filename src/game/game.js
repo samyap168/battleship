@@ -65,6 +65,15 @@ function heroRing(color, isPlayer) {
   return m;
 }
 
+const ONBOARDING_HINTS = [
+  [9, '<kbd>Click</kbd> the sea to sail · head for the <b>mid lane</b> and escort your gunboats'],
+  [22, '<b>Hold</b> <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> to aim an ability, <b>release to fire</b> · right-click cancels'],
+  [40, 'Guns fire automatically · shells take time to land, so <b>keep moving</b> to dodge · red rings are incoming enemy salvos'],
+  [58, 'Sinking gunboats earns <b>gold</b> · last hits pay the most · the top-left panel shows your next goal'],
+  [80, 'Sail into a <b>trade port</b> (◆ on the minimap) to capture it · every captain on your team earns more gold'],
+  [120, 'Forts only fall with gunboat support · break <b>two lanes</b> to expose the enemy citadel'],
+];
+
 export class Game {
   constructor(ctx, opts) {
     Object.assign(this, ctx); // renderer, scene, fx, ocean, audio, ui, sky
@@ -79,7 +88,7 @@ export class Game {
     this.mp = !!opts.mp; // multiplayer: fixed-step ticks, no hit-stop / slow-motion (they would change sim time)
     this.diff = DIFFICULTY[opts.difficulty] || DIFFICULTY.normal;
     this.events = new Emitter();
-    this.time = 0; this.frame = 0; this.vtime = 0; this.dt = 1 / 60;
+    this.protVer = 0; this.time = 0; this.frame = 0; this.vtime = 0; this.dt = 1 / 60;
     this.over = false; this.winner = -1;
     this.listener = { x: 0, z: 0 };
     this.obstacles = buildObstacles();
@@ -177,11 +186,17 @@ export class Game {
 
   isStructureProtected(s) {
     if (s.tier === 'outer') return false;
-    const mine = this.structures.filter((o) => o.team === s.team);
-    if (s.tier === 'inner') return mine.some((o) => o.alive && o.tier === 'outer' && o.lane === s.lane);
-    // citadel: vulnerable once two lanes are broken (two inner towers down); under the Dusk Tide one
-    // breached lane is enough, so late stalemates end at a burning citadel instead of on the clock
-    return mine.filter((o) => !o.alive && o.tier === 'inner').length < (this.duskTide ? 1 : 2);
+    if (s._protV === this.protVer) return s._prot; // asked by every tower, creep and drone each tick: recomputed only when a fort falls, dusk begins or a snapshot lands
+    let v;
+    if (s.tier === 'inner') { v = false; for (const o of this.structures) if (o.team === s.team && o.alive && o.tier === 'outer' && o.lane === s.lane) { v = true; break; } }
+    else {
+      // citadel: vulnerable once two lanes are broken (two inner towers down); under the Dusk Tide one
+      // breached lane is enough, so late stalemates end at a burning citadel instead of on the clock
+      let down = 0; for (const o of this.structures) if (o.team === s.team && !o.alive && o.tier === 'inner') down++;
+      v = down < (this.duskTide ? 1 : 2);
+    }
+    s._protV = this.protVer; s._prot = v;
+    return v;
   }
 
   weakestEnemyLane(team) {
@@ -245,6 +260,7 @@ export class Game {
   kill(u, killer) {
     if (!u.alive) return;
     u.alive = false;
+    if (u.kind === 'tower' || u.kind === 'citadel') this.protVer++;
     u.hp = 0;
     u.sinkT = 0; u.sinkDir = Math.random() < 0.5 ? -1 : 1;
     const pos = new THREE.Vector3(u.x, 2, u.z);
@@ -471,18 +487,20 @@ export class Game {
       if (t >= MATCH.duration) this.timeUp();
       // Dusk Tide (8:00): the endgame push. Heavier waves and crumbling forts turn stalemates into sieges.
       if (!this.duskTide && t >= 480) {
-        this.duskTide = true;
+        this.duskTide = true; this.protVer++;
+        if (this.opts && this.opts.spectate) { /* the menu showreel gets the harder waves but no fanfare */ } else {
         this.ui.announce('THE DUSK TIDE', 'Siege waves grow · every fortress crumbles, captains may siege alone', '#ffb35a');
         this.audio.stinger('enemyAge');
         if (this.audio.setFinale) this.audio.setFinale(true);
         this.ui.feed('<b style="color:#ffb35a">The Dusk Tide rises:</b> <span class="dim">heavier gunboat waves, forts take +70% damage and no longer need gunboat escort to be sieged. One breached lane now exposes a citadel.</span>');
+        }
       }
       // mid-match squall
       const inStorm = t > this.stormAt && t < this.stormAt + this.stormDur;
       if (inStorm && !this.storm) { this.ui.announce('A SQUALL ROLLS IN', 'Heavy seas · gunnery accuracy reduced', '#9fb6d0', 'small'); this.audio.stinger('warning'); }
       if (!inStorm && this.storm) this.ui.feed('<span class="dim">The squall passes.</span>');
       this.storm = inStorm ? 1 : 0;
-    }
+    } else this.storm = 0; // the squall never outlives the match: no rain or gale behind the result screen
 
     // bot shot-calling: every ~30 s a team's captains rally on the objective that matters now
     if (!this.over) for (const tm of [0, 1]) {
@@ -608,14 +626,7 @@ export class Game {
     // onboarding hints for the first minutes
     const pl = this.player;
     if (pl && !this.over) {
-      const H = [
-        [9, '<kbd>Click</kbd> the sea to sail · head for the <b>mid lane</b> and escort your gunboats'],
-        [22, '<b>Hold</b> <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> to aim an ability, <b>release to fire</b> · right-click cancels'],
-        [40, 'Guns fire automatically · shells take time to land, so <b>keep moving</b> to dodge · red rings are incoming enemy salvos'],
-        [58, 'Sinking gunboats earns <b>gold</b> · last hits pay the most · the top-left panel shows your next goal'],
-        [80, 'Sail into a <b>trade port</b> (◆ on the minimap) to capture it · every captain on your team earns more gold'],
-        [120, 'Forts only fall with gunboat support · break <b>two lanes</b> to expose the enemy citadel'],
-      ];
+      const H = ONBOARDING_HINTS;
       this.hintIdx ||= 0;
       if (this.hintIdx < H.length && this.time > H[this.hintIdx][0]) { this.ui.hint(H[this.hintIdx][1], 7000); this.hintIdx++; }
     }
@@ -662,7 +673,7 @@ export class Game {
     }
     this.finalScore = score;
     const w = score[0] > score[1] ? 0 : score[1] > score[0] ? 1 : -1;
-    this.ui.announce('TIME', w < 0 ? 'The seas are undecided' : `${TEAMS[w].name} controls the seas`, w < 0 ? '#ddd' : TEAMS[w].css);
+    if (!(this.opts && this.opts.spectate)) this.ui.announce('TIME', w < 0 ? 'The seas are undecided' : `${TEAMS[w].name} controls the seas`, w < 0 ? '#ddd' : TEAMS[w].css);
     this.endMatch(w, 'time');
   }
 
@@ -670,7 +681,7 @@ export class Game {
     const sp = spawnPoint(h.team, h.slot);
     h.alive = true; h.hp = h.maxHp; h.x = sp.x; h.z = sp.z; h.yaw = sp.yaw; h.speed = 0;
     if (h === this.player && this.audio.setSubmerged) this.audio.setSubmerged(false);
-    h.sinkT = undefined; h.stun = 0; h.slowT = 0; h.path = []; h.moveX = null; h.attackOrder = null;
+    h.sinkT = undefined; h.stun = 0; h.slowT = 0; h.silence = 0; h.pushX = 0; h.pushZ = 0; h.path = []; h.moveX = null; h.attackOrder = null;
     h.rig.root.visible = true; h.spawnGuard = 3; // brief invulnerability: no spawn camping
     this.fx.ring(h.x, h.z, 4, 30, this.teamGlow(h.team), 0.8, 0.1);
     if (h === this.player) this.ui.respawned();
@@ -742,7 +753,7 @@ export class Game {
     if (!r) return;
     if (u.kind === 'boss') {
       if (!u.alive && u.sinkT !== undefined) { u.sinkT += dt; u.rise = Math.max(0, 1 - u.sinkT / 3); if (u.sinkT > 3.2) r.root.visible = false; }
-      u.sync(t);
+      if (u.alive || u.sinkT < 3.2) u.sync(t); // a sunk Leviathan is invisible: stop animating it
       return;
     }
     if (u.kind === 'tower' || u.kind === 'citadel') {

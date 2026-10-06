@@ -115,16 +115,17 @@ export function separateShips(list, dt) {
 }
 
 /** Place a ship rig on the waves with pitch/roll + turn lean; sinking anim. */
+const _wf = { y: 0 }, _wa = { y: 0 }, _wp = { y: 0 }, _ws = { y: 0 }; // scratch wave samples: a hundred ships a frame allocate nothing
 export function syncShipVisual(u, dt, t, bobScale = 1) {
   const r = u.rig; if (!r) return;
   sampleWaves(u.x, u.z, t, _w);
   // Sample fore/aft to derive pitch and roll that match the hull length.
   const L = r.length * 0.4, fx = Math.sin(u.yaw), fz = Math.cos(u.yaw);
-  const yf = sampleWaves(u.x + fx * L, u.z + fz * L, t, { y: 0 }).y;
-  const ya = sampleWaves(u.x - fx * L, u.z - fz * L, t, { y: 0 }).y;
+  const yf = sampleWaves(u.x + fx * L, u.z + fz * L, t, _wf).y;
+  const ya = sampleWaves(u.x - fx * L, u.z - fz * L, t, _wa).y;
   const B = r.beam * 0.5;
-  const yp = sampleWaves(u.x + fz * B, u.z - fx * B, t, { y: 0 }).y;
-  const ys = sampleWaves(u.x - fz * B, u.z + fx * B, t, { y: 0 }).y;
+  const yp = sampleWaves(u.x + fz * B, u.z - fx * B, t, _wp).y;
+  const ys = sampleWaves(u.x - fz * B, u.z + fx * B, t, _ws).y;
   const pitch = Math.atan2(ya - yf, L * 2) * bobScale;
   const roll = Math.atan2(yp - ys, B * 2) * bobScale;
   const lean = THREE.MathUtils.clamp(-(u.turnRate || 0) * 0.12 * Math.min(1, u.speed / 20), -0.14, 0.14);

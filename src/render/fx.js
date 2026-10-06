@@ -299,10 +299,11 @@ float dbH(vec3 p) { vec3 p3 = fract(floor(p) * 0.1031); p3 += dot(p3, p3.zyx + 3
       d = this.dState[this.dCursor];
     }
     const a = Math.random() * 6.283, sp = rnd(8, 24) * scale;
-    d.p = new THREE.Vector3(pos.x, pos.y + 2, pos.z);
-    d.v = new THREE.Vector3(Math.cos(a) * sp * 0.5, rnd(12, 28) * Math.sqrt(scale), Math.sin(a) * sp * 0.5);
-    d.r = new THREE.Vector3(rnd(0, 6), rnd(0, 6), rnd(0, 6));
-    d.w = new THREE.Vector3(rnd(-8, 8), rnd(-8, 8), rnd(-8, 8));
+    if (!d.p) { d.p = new THREE.Vector3(); d.v = new THREE.Vector3(); d.r = new THREE.Vector3(); d.w = new THREE.Vector3(); }
+    d.p.set(pos.x, pos.y + 2, pos.z);
+    d.v.set(Math.cos(a) * sp * 0.5, rnd(12, 28) * Math.sqrt(scale), Math.sin(a) * sp * 0.5);
+    d.r.set(rnd(0, 6), rnd(0, 6), rnd(0, 6));
+    d.w.set(rnd(-8, 8), rnd(-8, 8), rnd(-8, 8));
     d.s = rnd(0.66, 1.62) * Math.min(1.7, Math.sqrt(scale)); // chunkier splinters: embers must read at gameplay zoom
     const cold = Math.random() < 0.4; // plenty of pieces fly off unburnt: dark wood and steel against the fire
     d.alive = true; d.smoke = !cold && Math.random() < 0.6; d.heat = cold ? 0 : d.smoke ? rnd(0.7, 1) : rnd(0.25, 0.5);

@@ -43,7 +43,7 @@ export class BotBrain {
       if (d && srand() < this.d.aim) {
         const ax = h.x - d.x, az = h.z - d.z, l = Math.hypot(ax, az) || 1, side = h.slot % 2 ? 1 : -1;
         const out = d.r + h.radius + 12;
-        this.dest = null; this.go(d.x + (ax / l) * out + (-az / l) * 10 * side, d.z + (az / l) * out + (ax / l) * 10 * side);
+        h.attackOrder = null; this.dest = null; this.go(d.x + (ax / l) * out + (-az / l) * 10 * side, d.z + (az / l) * out + (ax / l) * 10 * side);
         this.thinkT = 0.35; // re-check soon
         return;
       }
@@ -52,7 +52,7 @@ export class BotBrain {
     const rally = G.rally && G.rally[h.team];
     if (rally && rally.until > G.time && rally.caller !== h && hpF > 0.4 && h.dist(rally) > 35 && h.dist(rally) < 520 && !(enemies.length && h.dist(enemies[0]) < 70)) {
       if (!this.ackRally || this.ackRally !== rally) { this.ackRally = rally; if (G.player && rally.caller === G.player && Math.random() < 0.5) G.ui.feed(`<b style="color:${TEAMS[h.team].css}">${h.name}</b>: on my way`); }
-      this.go(rally.x + rnd(-15, 15), rally.z + rnd(-15, 15));
+      h.attackOrder = null; this.go(rally.x + rnd(-15, 15), rally.z + rnd(-15, 15));
       this.tryAbilities(enemies, null, tookDmg);
       return;
     }
@@ -66,6 +66,7 @@ export class BotBrain {
 
     if (this.state === 'retreat') {
       const f = fountain(h.team);
+      h.attackOrder = null; // a retreating captain must stop chasing the target it was trading with
       this.go(f.x, f.z);
       // defensive casts
       this.tryDefensive(enemies, true, tookDmg);

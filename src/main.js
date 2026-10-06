@@ -161,6 +161,7 @@ const waterPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 function startGame(spectate, extra = {}) {
   cameraDir.cine = null; cameraDir.onCineEnd = null; openingSkippable = false; // a cinematic left over from the last match must not resume in this one
   if (worldGroup) {
+    try { if (G && G.boss && G.boss.dispose) G.boss.dispose(); } catch { /* best effort: the textures re-upload on demand */ }
     scene.remove(worldGroup);
     // free the previous match's GPU buffers (geometries re-upload on demand if a cached one is reused)
     worldGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.isInstancedMesh) o.dispose(); });
@@ -204,7 +205,7 @@ function startGame(spectate, extra = {}) {
     // menu backdrop: skip ahead so the seas are already busy
     // showreel: jump to the late game so the backdrop shows airpower, swarms and the Leviathan
     G.time = 329.5;
-    G.nextWave = 0;
+    G.nextWave = G.time; // (one wave now, then the normal rhythm; 0 would queue one wave per tick until the clock caught up)
     G.stormAt = 9999;
     for (const h of G.heroes) {
       h.gold += 6000 + Math.random() * 3000; h.level = 8; h.refreshStats(); h.hp = h.maxHp;
@@ -340,11 +341,11 @@ function mpWire(s, code, kind) {
 }
 lobby.on('host', async (name, kind) => {
   const t = mpTransport(kind), code = randomRoomCode();
-  await t.host(code);
+  try { await t.host(code); } catch (e) { try { t.close(); } catch { /* already gone */ } throw e; } // a failed attempt must not keep a socket open
   mpWire(new Session(t, name), code, kind);
 }).on('join', async (name, code, kind) => {
   const t = mpTransport(kind);
-  await t.join(code);
+  try { await t.join(code); } catch (e) { try { t.close(); } catch { /* already gone */ } throw e; }
   mpWire(new Session(t, name), code, kind);
 }).on('leave', () => { if (session) { session.leave(); session = null; } lobby.showEntry(); })
   .on('back', () => {});
