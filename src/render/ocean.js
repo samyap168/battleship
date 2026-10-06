@@ -180,9 +180,10 @@ for (int i = 0; i < ${MAX_ISLANDS}; i++) {
 }
 float n1 = oFbm(vOW.xz * 0.12 + vec2(uTime * 0.05, -uTime * 0.03));
 float n2 = oFbm(vOW.xz * 0.45 - vec2(uTime * 0.11, uTime * 0.07));
-float shoreFoam = (1.0 - smoothstep(0.0, 3.5 + n1 * 4.0, foamD));
+float shoreFoam = (1.0 - smoothstep(0.0, 2.2 + n1 * 3.0, foamD));
 shoreFoam *= smoothstep(0.35, 0.75, 0.5 + 0.5 * sin(shoreD * 0.9 - uTime * 1.6 + n1 * 6.0) + n2 * 0.4);
 shoreFoam = max(shoreFoam * 0.85, (1.0 - smoothstep(0.0, 1.4, foamD)) * smoothstep(0.3, 0.6, n2 + 0.2));
+shoreFoam *= smoothstep(-3.5, -0.5, foamD) * (0.6 + 0.3 * n2); // a surf ring at the islet's edge, not a white plate over the water inside the collision circle
 float shallow = 1.0 - smoothstep(-6.0, 30.0, shoreD);
 // whitecaps: only the tallest crests, gathered in wind-driven clusters (sparse in calm, rife in the squall)
 float capField = smoothstep(0.38, 0.72, oFbm(vOW.xz * 0.018 + vec2(uTime * 0.01, 0.0)));
