@@ -430,3 +430,10 @@ body.cinematic #howtoBtn { display: none; }
 }
 @media (max-height: 680px) { #end h1 { font-size: 44px; letter-spacing: .2em; } #end .sub { font-size: 13px; margin-bottom: 6px; } #end .mvp { padding: 6px 22px !important; margin-bottom: 8px; } #end .mvp .nm { font-size: 20px; margin: 0; }
   #end td { padding: 2px 12px; font-size: 14px; } #end th { padding: 2px 12px; } #end .team { padding-top: 6px; } }
+.touchnote { display: none; max-width: 460px; margin: 14px 0 0; padding: 8px 14px; font-size: 13px; line-height: 1.4; color: var(--gold); border: 1px solid var(--gold-dim); background: rgba(0,0,0,.35); text-align: center; }
+@media (pointer: coarse) and (hover: none) { .touchnote { display: block; } }
+/* short windows (landscape phones, small laptops): the menu scrolls instead of clipping, and the footer joins the flow */
+@media (max-height: 720px) {
+  #menu { overflow-y: auto; justify-content: flex-start; padding-top: 14px; padding-bottom: 18px; } #menu > :first-child { margin-top: auto; } #menu > :last-child { margin-bottom: auto; }
+  #menu .tag { margin: 8px 0 14px; font-size: 14px; } #menu .row { margin-bottom: 8px; } #menu .foot { position: static; margin-top: 14px; max-width: 80vw; }
+}
