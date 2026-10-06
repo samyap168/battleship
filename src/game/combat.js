@@ -228,8 +228,7 @@ export class Combat {
   pickMuzzles(unit, target, n) {
     const rig = unit.rig;
     const out = [];
-    const rel = Math.atan2(target.x - unit.x, target.z - unit.z) - unit.yaw;
-    const side = Math.sin(rel) >= 0 ? 1 : -1; // +1 = starboard? (local +X)
+    const side = (target.x - unit.x) * Math.cos(unit.yaw) - (target.z - unit.z) * Math.sin(unit.yaw) >= -1e-9 ? 1 : -1; // +1 = starboard (local +X); no atan2, and a head-on target resolves the same way on every engine
     if (rig.turrets && rig.turrets.length) {
       this.aimTurrets(unit, target);
       rig.root.updateMatrixWorld(true);

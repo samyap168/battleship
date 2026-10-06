@@ -97,15 +97,17 @@ export function applySnapshot(G, S) {
       c.id = id;
       G.creeps.push(c); G.units.push(c);
     }
-    if (have.has(id)) softMove(c, x, z);
+    if (have.has(id)) { softMove(c, x, z); if (!c.alive) { c.alive = true; c.deadT = 0; c.sinkT = undefined; if (c.rig) c.rig.root.visible = true; } } // alive on the host: not a zombie here
     Object.assign(c, { x, z, yaw, speed, hp, wpi }, ex);
     c.path = pathIn(path); c.target = byId.get(tgt) || null;
+    byId.set(c.id, c);
   }
+  for (const [id, , , , , , , , , , , , , tgt] of S.creeps) { const c = byId.get(id); if (c && tgt) c.target = byId.get(tgt) || c.target; } // targets that point at creeps adopted in this same snapshot
   for (const c of G.creeps) if (c.alive && !keep.has(c.id)) { c.alive = false; c.hp = 0; c.deadT = 99; }
   G.protVer++; // fort protection is cached: re-ask after the snapshot rewrites the forts
   S.structures.forEach(([hp, alive, exposedAt, gunCd, aggroT, tg, ah], i) => {
     const s = G.structures[i];
-    s.hp = hp; if (exposedAt !== null) s.exposedAt = exposedAt;
+    s.hp = hp; s.exposedAt = exposedAt === null ? undefined : exposedAt;
     s.gunCd = gunCd; s.aggroT = aggroT; s.target = byId.get(tg) || null; s.aggroHero = byId.get(ah) || null;
     if (!!alive !== s.alive) { s.alive = !!alive; if (!alive) s.sinkT = 0; }
   });

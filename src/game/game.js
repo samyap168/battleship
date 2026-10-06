@@ -216,7 +216,8 @@ export class Game {
     h.gold -= cost;
     h.spentAge = (h.spentAge || 0) + cost;
     h.setHull(hullId);
-    syncShipVisual(h, 0.016, this.time);
+    if (this.mp) { const amp = WAVE_UNIFORMS.uWaveAmp, keep = amp.value; amp.value = this.simWaveAmp(); try { syncShipVisual(h, 0.016, this.time); } finally { amp.value = keep; } }
+    else syncShipVisual(h, 0.016, this.time);
     this.fx.ageUp(new THREE.Vector3(h.x, 0, h.z), this.teamGlow(h.team));
     this.events.emit('reforge', h);
     const team = this.teams[h.team];
@@ -567,7 +568,19 @@ export class Game {
   }
 
   /** Multiplayer: hull poses (and turret aim) advance with the sim tick, so muzzle positions agree on every peer. */
+  /** Wave amplitude as the sim sees it: a function of the match clock, never of this machine's frame timing. */
+  simWaveAmp() {
+    const t = this.time, s = this.stormAt, k = Math.min(Math.max((t - s) / 7, 0), 1 - Math.min(Math.max((t - s - this.stormDur) / 7, 0), 1));
+    return 1 + 0.75 * Math.max(0, k);
+  }
+
   tickTransforms(dt) {
+    const amp = WAVE_UNIFORMS.uWaveAmp, keep = amp.value;
+    amp.value = this.simWaveAmp(); // hull pitch and roll (and so muzzle positions) must not depend on the local squall animation
+    try { this.tickTransformsInner(dt); } finally { amp.value = keep; }
+  }
+
+  tickTransformsInner(dt) {
     for (const u of this.units) {
       if (!u.isShip || !u.alive || !u.rig) continue;
       const r = u.rig.root;

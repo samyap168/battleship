@@ -12,8 +12,10 @@ import { srand } from '../core/rng.js';
  * camera zoom and the reforge animation, which differ per player: gameplay must never read it.
  */
 export function simWorldPos(u, obj, out) {
-  obj.getWorldPosition(out);
   const r = u.rig && u.rig.root;
+  let top = obj; while (top && top !== r) top = top.parent;
+  if (r && !top) return out.set(u.x, 3, u.z); // a part of a hull that has since been replaced (age-up mid-salvo): same fallback on every peer
+  obj.getWorldPosition(out);
   if (r) {
     const s = r.scale.x || 1;
     if (s !== 1) { out.x = r.position.x + (out.x - r.position.x) / s; out.y = r.position.y + (out.y - r.position.y) / s; out.z = r.position.z + (out.z - r.position.z) / s; }
