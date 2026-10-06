@@ -428,3 +428,5 @@ body.cinematic #howtoBtn { display: none; }
   #announce { left: 300px; right: 310px; } #announce h1 { font-size: 24px; letter-spacing: .08em; } #announce p { font-size: 13px; letter-spacing: .08em; }
   #topbar .side { min-width: 0; padding: 0 12px; } #topbar .era { font-size: 11px; letter-spacing: .08em; white-space: nowrap; } #topbar .era b { white-space: nowrap; }
 }
+@media (max-height: 680px) { #end h1 { font-size: 44px; letter-spacing: .2em; } #end .sub { font-size: 13px; margin-bottom: 6px; } #end .mvp { padding: 6px 22px !important; margin-bottom: 8px; } #end .mvp .nm { font-size: 20px; margin: 0; }
+  #end td { padding: 2px 12px; font-size: 14px; } #end th { padding: 2px 12px; } #end .team { padding-top: 6px; } }
