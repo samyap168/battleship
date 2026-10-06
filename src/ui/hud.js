@@ -684,7 +684,7 @@ export class HUD {
       // start above the nameplate row; damage you take drifts off to the right of your own bar
       // kept inside a safe band: on short laptop screens a callout over your own ship could fall under the command bar
       const x = Math.min(w - 60, Math.max(60, f.side ? s.x + 58 + f.dx * 0.3 * k : s.x + f.dx * k));
-      const y = Math.min(h - 190, Math.max(64, s.y - (f.side ? 18 : 26) - 40 * k - (f.oy || 0)));
+      const y = Math.min(h - 190, Math.max(84, s.y - (f.side ? 18 : 26) - 40 * k - (f.oy || 0)));
       c.strokeText(f.text, x, y);
       c.fillStyle = f.color; c.fillText(f.text, x, y);
       c.globalAlpha = 1;

@@ -437,3 +437,4 @@ body.cinematic #howtoBtn { display: none; }
   #menu { overflow-y: auto; justify-content: flex-start; padding-top: 14px; padding-bottom: 18px; } #menu > :first-child { margin-top: auto; } #menu > :last-child { margin-bottom: auto; }
   #menu .tag { margin: 8px 0 14px; font-size: 14px; } #menu .row { margin-bottom: 8px; } #menu .foot { position: static; margin-top: 14px; max-width: 80vw; }
 }
+.ab .cdt { transform: translateY(-6px); } /* the cooldown digit sits above the ability caption instead of on top of it */
