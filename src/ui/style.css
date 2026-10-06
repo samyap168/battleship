@@ -423,3 +423,8 @@ body.cinematic #howtoBtn { display: none; }
   .seat { padding: 5px 10px; font-size: 14px; } .mp-team { gap: 4px; }
   .mp-hint, .mp-sub { font-size: 12px; } .mp-lobby .row { margin-bottom: 0; }
 }
+/* narrow windows: banner fits between objectives and the (narrower) kill feed; scoreboard names stay on one line */
+@media (max-width: 1100px) {
+  #announce { left: 300px; right: 310px; } #announce h1 { font-size: 24px; letter-spacing: .08em; } #announce p { font-size: 13px; letter-spacing: .08em; }
+  #topbar .side { min-width: 0; padding: 0 12px; } #topbar .era { font-size: 11px; letter-spacing: .08em; white-space: nowrap; } #topbar .era b { white-space: nowrap; }
+}
