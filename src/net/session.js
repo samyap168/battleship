@@ -17,6 +17,9 @@ const ADV_EVERY = 2;      // ticks between "adv" messages (30 per second)
 const SNAP_EVERY = 300;   // ticks between snapshots (5 s)
 const BUF_MIN = 3, BUF_MAX = 12; // clients stay `buf` ticks behind the host's announced tick (jitter absorber, adapts to the network)
 const SEATS = 10;
+const cleanName = (n) => String(n || 'Captain').replace(/[<>&"'`\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 18) || 'Captain'; // names reach innerHTML in the kill feed: strip markup
+const CMD_PER_SEC = 40, CHAT_GAP_MS = 500;
+export { cleanName };
 
 export class Session {
   constructor(transport, name) {
@@ -49,6 +52,9 @@ export class Session {
     }
   }
 
+  /** Host broadcast: seated players only (an unseated or rejected connection must not eat bandwidth). */
+  _bcast(msg) { for (const s of this.seats) if (s && s.peer !== HOST_ID) this.t.send(s.peer, msg); }
+
   on(ev, fn) { (this.h[ev] ||= []).push(fn); return this; }
   emit(ev, ...a) { for (const f of this.h[ev] || []) f(...a); }
 
@@ -63,12 +69,12 @@ export class Session {
     const team = humans(0) <= humans(1) ? 0 : 1;
     let i = free(team); if (i === undefined) i = free(1 - team);
     if (i === undefined) return -1;
-    this.seats[i] = { peer, name };
+    this.seats[i] = { peer, name: cleanName(name) };
     return i;
   }
 
   _lobbyMsg() { return { t: 'lobby', seats: this.seats.map((s) => (s ? [s.peer, s.name] : null)), diff: this.diff }; }
-  _pushLobby() { if (!this.isHost) return; this.t.broadcast(this._lobbyMsg()); this.emit('lobby'); }
+  _pushLobby() { if (!this.isHost) return; this._bcast(this._lobbyMsg()); this.emit('lobby'); }
 
   setDifficulty(d) { if (this.isHost && this.phase === 'lobby') { this.diff = d; this._pushLobby(); } }
   moveToSeat(i) {
@@ -76,7 +82,7 @@ export class Session {
     if (this.isHost) this._seatRequest(HOST_ID, i); else this.t.send(HOST_ID, { t: 'seat', i });
   }
   _seatRequest(peer, i) {
-    if (this.seats[i]) return;
+    if (!Number.isInteger(i) || i < 0 || i >= SEATS || this.seats[i]) return;
     const cur = this.seats.findIndex((s) => s && s.peer === peer);
     if (cur < 0) return;
     this.seats[i] = this.seats[cur]; this.seats[cur] = null;
@@ -85,15 +91,15 @@ export class Session {
 
   // ------------------------------------------------------------------ messages
   _onMsg(from, m) {
-    if (!m || typeof m !== 'object') return;
+    if (!m || typeof m !== 'object' || this.phase === 'closed') return;
     if (this.isHost) return this._hostMsg(from, m);
     switch (m.t) {
       case 'lobby':
-        this.seats = m.seats.map((s) => (s ? { peer: s[0], name: s[1] } : null)); this.diff = m.diff; this.emit('lobby'); break;
+        this.seats = m.seats.slice(0, SEATS).map((s) => (s ? { peer: String(s[0]), name: cleanName(s[1]) } : null)); this.diff = m.diff; this.emit('lobby'); break;
       case 'full': this._closed(m.why === 'started' ? 'That match has already started.' : 'The lobby is full.'); break;
       case 'chat': this.emit('chat', m); break;
-      case 'start': this.phase = 'loading'; this.cfg = m.cfg; this.emit('start', m.cfg); break;
-      case 'go': this.go = true; break;
+      case 'start': if (this.phase === 'lobby') { this.phase = 'loading'; this.cfg = m.cfg; this.emit('start', m.cfg); } break;
+      case 'go': this.go = true; this.phase = 'play'; break;
       case 'adv': this._onAdv(m); break;
       case 'snap': this.snaps.set(m.n, m); break;
       case 'over': this.over = m; break;
@@ -107,7 +113,7 @@ export class Session {
     switch (m.t) {
       case 'hello': {
         if (this.phase !== 'lobby') { this.t.send(from, { t: 'full', why: 'started' }); return; }
-        const name = String(m.name || 'Captain').slice(0, 18);
+        const name = cleanName(m.name);
         if (this.seats.some((s) => s && s.peer === from)) return;
         if (this._place(from, name) < 0) { this.t.send(from, { t: 'full' }); return; }
         this._pushLobby();
@@ -116,12 +122,20 @@ export class Session {
       case 'seat': if (this.phase === 'lobby' && Number.isInteger(m.i)) this._seatRequest(from, m.i); break;
       case 'ready': this.ready.add(from); this._maybeGo(); break;
       case 'ping': this.t.send(from, { t: 'pong', ts: m.ts }); break;
-      case 'chat': { const seat = this.seats.findIndex((s) => s && s.peer === from); if (seat >= 0) this._chat(seat, m.text); break; }
+      case 'chat': {
+        const seat = this.seats.findIndex((s) => s && s.peer === from), now = performance.now();
+        if (seat < 0 || now - (this._chatAt?.[seat] || 0) < CHAT_GAP_MS) break; // one message per half second
+        (this._chatAt ||= [])[seat] = now;
+        this._chat(seat, m.text); break;
+      }
       case 'cmd': {
         if (this.phase !== 'play') return;
         const seat = this.seats.findIndex((s) => s && s.peer === from);
         const c = sanitize(m.c);
-        if (seat >= 0 && c && c.k !== 'bot') this._schedule(seat, c);
+        if (seat < 0 || !c || c.k === 'bot') break;
+        const now = performance.now(), r = (this._rate ||= [])[seat] ||= { t: now, n: 0 };
+        if (now - r.t > 1000) { r.t = now; r.n = 0; }
+        if (++r.n <= CMD_PER_SEC) this._schedule(seat, c); // a flood of orders must not freeze every peer
         break;
       }
       default:
@@ -140,12 +154,13 @@ export class Session {
   _closed(why) {
     if (this.phase === 'closed') return;
     this.phase = 'closed';
-    clearInterval(this.pingT);
+    clearInterval(this.pingT); clearTimeout(this._goT);
+    try { this.t.close(); } catch { /* already gone */ }
     this.emit('closed', why);
   }
 
   leave() {
-    clearInterval(this.pingT);
+    clearInterval(this.pingT); clearTimeout(this._goT);
     this.phase = 'closed';
     this.t.close();
   }
@@ -157,7 +172,7 @@ export class Session {
     const seed = (Math.random() * 4294967296) >>> 0;
     this.cfg = { seed, diff: this.diff, seats: this.seats.map((s) => (s ? [s.peer, s.name] : null)) };
     this.phase = 'loading';
-    this.t.broadcast({ t: 'start', cfg: this.cfg });
+    this._bcast({ t: 'start', cfg: this.cfg });
     this.emit('start', this.cfg);
     this.loadT = performance.now();
     this._maybeGo();
@@ -176,7 +191,7 @@ export class Session {
     if (waiting.length && performance.now() - this.loadT < 60000) { clearTimeout(this._goT); this._goT = setTimeout(() => this._maybeGo(), 500); return; }
     for (const s of waiting) { const i = this.seats.indexOf(s); this.seats[i] = null; this._schedule(i, Cmd.bot()); this.t.send(s.peer, { t: 'toast', text: 'Too slow to load: a bot took your seat.' }); }
     this.phase = 'play'; this.go = true;
-    this.t.broadcast({ t: 'go' });
+    this._bcast({ t: 'go' });
   }
 
   // ------------------------------------------------------------------ chat
@@ -264,11 +279,11 @@ export class Session {
 
   _hostAfter() {
     const k = this.tick, G = this.G;
-    if (k % SNAP_EVERY === 0) this.t.broadcast({ t: 'snap', n: k, hash: stateHash(G), s: snapshot(G) });
+    if (k % SNAP_EVERY === 0) this._bcast({ t: 'snap', n: k, hash: stateHash(G), s: snapshot(G) });
     if (k % ADV_EVERY === 0 || this.outbox.length) {
-      this.t.broadcast({ t: 'adv', n: k, cmds: this.outbox });
+      this._bcast({ t: 'adv', n: k, cmds: this.outbox });
       this.outbox = [];
     }
-    if (G.over && !this.overSent) { this.overSent = true; this.t.broadcast({ t: 'over', tick: k, winner: G.winner }); }
+    if (G.over && !this.overSent) { this.overSent = true; this._bcast({ t: 'over', tick: k, winner: G.winner }); }
   }
 }

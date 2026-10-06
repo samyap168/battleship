@@ -134,7 +134,8 @@ export class PeerTransport extends Transport {
   async join(code) {
     const peer = await this._newPeer(null);
     this.peer = peer;
-    await new Promise((resolve, reject) => { peer.on('open', resolve); peer.on('error', (e) => reject(new Error(friendly(e)))); });
+    const fail = (e) => { try { peer.destroy(); } catch { /* gone */ } throw e; }; // a failed attempt must not leave a signalling socket behind
+    await new Promise((resolve, reject) => { peer.on('open', resolve); peer.on('error', (e) => reject(new Error(friendly(e)))); }).catch(fail);
     this.id = peer.id;
     const conn = peer.connect(PREFIX + code.toLowerCase(), { reliable: true, serialization: 'json' });
     this.up = conn;
@@ -143,7 +144,7 @@ export class PeerTransport extends Transport {
       conn.on('open', () => { clearTimeout(t); resolve(); });
       peer.on('error', (e) => { clearTimeout(t); reject(new Error(friendly(e))); });
       conn.on('error', (e) => { clearTimeout(t); reject(new Error(friendly(e))); });
-    });
+    }).catch(fail);
     conn.on('data', (m) => this.emit('message', HOST_ID, m));
     conn.on('close', () => { if (!this.closed) this.emit('close', 'Lost the connection to the host.'); });
   }

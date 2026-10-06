@@ -32,6 +32,11 @@ await A.waitForFunction(() => document.querySelectorAll('.seat.human, .seat.me')
 await B.evaluate(() => { const b = [...document.querySelectorAll('.seat.bot')].find((e) => +e.dataset.i === 9); b.click(); });
 await A.waitForFunction(() => window.__aa.session().seats[9] && window.__aa.session().seats[9].name === 'Bligh', null, { timeout: 15000 });
 console.log('seat move reached the host: Bligh now in seat 9');
+// hostile client: absurd seat indexes and non-finite coordinates must not corrupt the host
+await B.evaluate(() => { const t = window.__aa.session().t; for (const i of [4294967294, -1, 10, 99, 1.5]) t.send('host', { t: 'seat', i }); t.send('host', { t: 'hello', name: '<img src=x onerror=alert(1)>' }); });
+await A.waitForTimeout(800);
+const sane = await A.evaluate(() => { const s = window.__aa.session(); return s.seats.length === 10 && s.seats.every((x) => !x || /^[^<>&\"']*$/.test(x.name)) && s.seats[9] && s.seats[9].name === 'Bligh'; });
+console.log('hostile lobby messages ignored:', sane);
 await A.evaluate(() => document.getElementById('mpStart').click());
 for (const p of [A, B]) await p.waitForFunction(() => window.__aa.G && window.__aa.G.mp && window.__aa.session() && window.__aa.session().go, null, { timeout: 120000 });
 for (const p of [A, B]) await p.evaluate(() => {
@@ -64,7 +69,7 @@ const t1 = (await stat(A)).tick;
 await A.waitForTimeout(3000);
 const t2 = (await stat(A)).tick;
 console.log('client left: host now has', (await stat(A)).humans, 'human; ticks still advancing:', t2 > t1);
-const ok = hit.desyncs > before.desyncs && healed && t2 > t1 && !errs.length;
+const ok = sane && hit.desyncs > before.desyncs && healed && t2 > t1 && !errs.length;
 console.log(ok ? 'PASS: drift detected and healed, disconnect handed to a bot' : 'FAIL healed=' + healed);
 if (errs.length) console.log('page errors:', errs.slice(0, 4).join(' | '));
 await browser.close();

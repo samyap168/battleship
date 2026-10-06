@@ -106,9 +106,13 @@ export function applySnapshot(G, S) {
   Object.assign(G.boss, S.boss, { pending: S.boss.pending.map((p) => ({ ...p })) });
   S.ports.forEach(([owner, prog], i) => { G.ports[i].prog = prog; if (G.ports[i].owner !== owner) { G.ports[i].owner = owner; G.ports[i].rig.setOwner(owner); } });
   S.teams.forEach(([kills, era, towersLost], i) => { Object.assign(G.teams[i], { kills, towersLost }); if (G.teams[i].era !== era) G.updateEra(i); });
+  // creeps adopted from the snapshot sit at the end of the lists: restore the host's (spawn = id) order so update order agrees
+  G.creeps.sort((a, b) => a.id - b.id);
+  G.units.sort((a, b) => a.id - b.id);
   Object.assign(G, { waveNo: S.g.waveNo, nextWave: S.g.nextWave, stormAt: S.g.stormAt, firstBlood: S.g.firstBlood });
   if (S.g.shotT) G.shotT = [...S.g.shotT];
   if (S.g.duskTide) G.duskTide = true;
   G.nextUnitId = Math.max(G.nextUnitId, S.g.nextUnitId);
   setSimState(S.rng);
+  if (G.mp) G.tickTransforms(0); // hull poses follow the corrected positions at once, so the next tick's muzzles start from the host's state
 }

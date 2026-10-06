@@ -121,14 +121,14 @@ export class Game {
         const human = seat ? !!seat.human : team === opts.playerTeam && slot === 2 && !opts.spectate;
         const isPlayer = seat ? !!(seat.human && seat.local) : human;
         const botName = names[ni++ % names.length]; // always consumed, so names agree whoever sits where
-        const h = new Hero(this, team, seat && seat.name ? seat.name : isPlayer ? (opts.playerName || 'You') : botName, isPlayer, slot, human);
+        const h = new Hero(this, team, seat && seat.name ? String(seat.name).replace(/[<>&"'`\\]/g, '').slice(0, 18) : isPlayer ? (opts.playerName || 'You') : botName, isPlayer, slot, human);
         h.seat = team * 5 + slot;
         h.lane = LANE_OF_SLOT[slot];
         const sp = spawnPoint(team, slot);
         h.x = sp.x; h.z = sp.z; h.yaw = sp.yaw;
         this.heroes.push(h); this.units.push(h);
         if (isPlayer) this.player = h;
-        if (human) { if (opts.autopilot && isPlayer) this.bots.push(new BotBrain(this, h, this.diff)); }
+        if (human) { if (opts.autopilot && isPlayer && !opts.mp) this.bots.push(new BotBrain(this, h, this.diff)); }
         else this.bots.push(new BotBrain(this, h, this.diff));
       }
     }

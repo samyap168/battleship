@@ -314,15 +314,16 @@ const mpTransport = (kind) => (kind === 'local' ? new LocalTransport() : new Pee
 function mpWire(s, code, kind) {
   session = s;
   s.on('lobby', () => { if (lobby.open && !mpLoading) lobby.render(); });
-  s.on('start', (cfg) => startMultiplayer(cfg));
-  s.on('toast', (t) => { try { hud.hint(t, 5000); } catch { /* hud not up yet */ } });
+  s.on('start', (cfg) => { if (session === s) startMultiplayer(cfg); });
+  s.on('toast', (t) => { try { hud.hint(String(t).replace(/[<>&"]/g, ''), 5000); } catch { /* hud not up yet */ } }); // text from the host: never markup
   s.on('error', (e) => console.warn('[net]', e.message));
   s.on('chat', chatPush);
   s.on('closed', (why) => {
     if (session !== s) return;
     session = null;
+    mpLoading = false; lobby.hide();
     if (mode === 'play' && G && G.mp) { hud.announce('CONNECTION LOST', why || 'The match ended.', '#ff6a5a'); setTimeout(() => { if (!session) toMenu(); }, 3500); }
-    else { mpLoading = false; lobby.showEntry('', why || 'Disconnected.'); }
+    else lobby.showEntry('', why || 'Disconnected.');
   });
   lobby.showLobby(s, code, kind);
 }
@@ -381,8 +382,11 @@ function startMultiplayer(cfg) {
   mpLoading = true;
   lobby.showLoading();
   const me = cfg.seats.findIndex((s) => s && s[0] === session.myId);
+  if (me < 0) { const s0 = session; session = null; mpLoading = false; s0.leave(); lobby.showEntry('', 'You were not seated in time for the match to start. Join again.'); return; }
   const slots = cfg.seats.map((s) => (s ? { human: true, local: s[0] === session.myId, name: s[1] } : { human: false }));
+  const s1 = session;
   setTimeout(() => { // let the loading card paint before the (synchronous) build of the match
+    if (session !== s1 || s1.phase === 'closed') return; // the host vanished while we waited
     play({ mp: true, seed: cfg.seed, difficulty: cfg.diff, slots, playerTeam: Math.floor(me / 5) });
     session.attachGame(G);
   }, 80);
