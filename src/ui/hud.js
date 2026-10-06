@@ -72,7 +72,7 @@ export class HUD {
 
   // ------------------------------------------------------------------ build
   mount(G) {
-    this.G = G;
+    this.G = G; this.aiming = -1;
     // a new match starts clean: queued banners/hints from the last one must not leak into it
     this.annQueue = []; this.annBusy = false; this.annRect = null; if (this.hintQ) this.hintQ.length = 0; clearTimeout(this.hintT); this.hintBusy = false;
     this.annEpoch = (this.annEpoch || 0) + 1; // banner timers from the previous match see a stale epoch and do nothing

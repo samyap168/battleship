@@ -97,6 +97,7 @@ export class Session {
       case 'lobby':
         this.seats = m.seats.slice(0, SEATS).map((s) => (s ? { peer: String(s[0]), name: cleanName(s[1]) } : null)); this.diff = m.diff; this.emit('lobby'); break;
       case 'full': this._closed(m.why === 'started' ? 'That match has already started.' : 'The lobby is full.'); break;
+      case 'kicked': this._closed(typeof m.text === 'string' ? m.text.slice(0, 120) : 'You were removed from the match.'); break;
       case 'chat': this.emit('chat', m); break;
       case 'ping!': this.emit('mark', m); break;
       case 'start': if (this.phase === 'lobby') { this.phase = 'loading'; this.cfg = m.cfg; this.emit('start', m.cfg); } break;
@@ -191,7 +192,7 @@ export class Session {
     const humans = this.seats.filter(Boolean);
     const waiting = humans.filter((s) => !this.ready.has(s.peer));
     if (waiting.length && performance.now() - this.loadT < 60000) { clearTimeout(this._goT); this._goT = setTimeout(() => this._maybeGo(), 500); return; }
-    for (const s of waiting) { const i = this.seats.indexOf(s); this.seats[i] = null; this._schedule(i, Cmd.bot()); this.t.send(s.peer, { t: 'toast', text: 'Too slow to load: a bot took your seat.' }); }
+    for (const s of waiting) { const i = this.seats.indexOf(s); this.seats[i] = null; this._schedule(i, Cmd.bot()); this.t.send(s.peer, { t: 'kicked', text: 'Too slow to load: a bot took your seat.' }); }
     this.phase = 'play'; this.go = true;
     this._bcast({ t: 'go' });
   }

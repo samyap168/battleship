@@ -79,6 +79,9 @@ export function applySnapshot(G, S) {
     if (h.alive !== d.alive) {
       h.alive = d.alive;
       if (d.alive) { h.sinkT = undefined; h.rig.root.visible = true; } else h.sinkT = 0;
+      if (h === G.player) { // the death screen and the muffled underwater mix follow the corrected state
+        if (d.alive) { G.ui.respawned(); if (G.audio && G.audio.setSubmerged) G.audio.setSubmerged(false); } else G.ui.death(h.respawn, null);
+      }
     }
   });
   // creeps: adopt the host's roster (create the ones we lack, drop the ones it does not have)

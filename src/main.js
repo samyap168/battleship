@@ -159,6 +159,7 @@ const raycaster = new THREE.Raycaster();
 const waterPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
 function startGame(spectate, extra = {}) {
+  cameraDir.cine = null; cameraDir.onCineEnd = null; openingSkippable = false; // a cinematic left over from the last match must not resume in this one
   if (worldGroup) {
     scene.remove(worldGroup);
     // free the previous match's GPU buffers (geometries re-upload on demand if a cached one is reused)
@@ -327,7 +328,12 @@ function mpWire(s, code, kind) {
     if (session !== s) return;
     session = null;
     mpLoading = false; lobby.hide();
-    if (mode === 'play' && G && G.mp) { hud.announce('CONNECTION LOST', why || 'The match ended.', '#ff6a5a'); setTimeout(() => { if (!session) toMenu(); }, 3500); }
+    if (mode === 'play' && G && G.mp) {
+      if (G.over) return; // the results are on screen: they stay until the player picks BACK TO MENU
+      const matchG = G;
+      hud.announce('CONNECTION LOST', why || 'The match ended.', '#ff6a5a');
+      setTimeout(() => { if (!session && G === matchG && mode === 'play') toMenu(); }, 3500); // never yanks a newer match away
+    }
     else lobby.showEntry('', why || 'Disconnected.');
   });
   lobby.showLobby(s, code, kind);
@@ -383,6 +389,7 @@ document.addEventListener('visibilitychange', () => { // the host's browser runs
   if (document.hidden && session && session.isHost && session.phase === 'play') session.t.broadcast({ t: 'toast', text: 'The host switched tabs: the match is on hold until they return.' });
 });
 window.addEventListener('pagehide', () => { if (session) session.leave(); }); // closing the tab hands the seat to a bot at once
+window.addEventListener('pageshow', (e) => { if (e.persisted && session && session.phase === 'closed') session.emit('closed', 'You left the match.'); }); // back/forward cache restore: the seat is gone, so say so instead of showing a frozen match
 function startMultiplayer(cfg) {
   mpLoading = true;
   lobby.showLoading();
@@ -474,7 +481,7 @@ $('#optQuit').onclick = () => { // two clicks: a stray click must not throw away
   for (const k of ['master', 'music', 'sfx']) { const v = parseFloat(localGet('aa.vol.' + k)); if (Number.isFinite(v)) vol[k] = Math.max(0, Math.min(1, v)); }
   if (Object.keys(vol).length) audio.setVolume(vol);
 }
-hud.on('again', () => { if (session) { hud.closeModal(); toMenu(); } else play(); }); // a multiplayer match ends back at the menu
+hud.on('again', () => { if (session || (G && G.mp)) { hud.closeModal(); toMenu(); } else play(); }); // a multiplayer match ends back at the menu
 hud.on('menu', () => { hud.closeModal(); toMenu(); });
 
 // ---------------------------------------------------------------------------
@@ -783,7 +790,7 @@ function tick(dt, draw) {
   } else if (!mpOn()) netInd.className = 'hidden';
   stallEl.classList.toggle('hidden', !(mpOn() && session.phase === 'play' && session.stats.stallMs > 1800 && !G.over));
   if (G && session && session.G === G) session.update(dt); // multiplayer: fixed ticks, never paused by a menu
-  else if (G && !howtoOpen && !optionsOpen) G.update(dt);
+  else if (G && !G.mp && !howtoOpen && !optionsOpen) G.update(dt); // (a multiplayer match whose session ended stays frozen rather than running on alone)
   const gdt = G && G.dt > 0 ? G.dt : dt; // (a multiplayer match has no tick yet while it waits for the others)
   const t = G ? G.time : wallTime;
 
