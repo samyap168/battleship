@@ -417,3 +417,9 @@ body.cinematic #howtoBtn { display: none; }
 #netInd::before { content: '●'; margin-right: 6px; }
 #netInd.ok::before { color: #6ff08a; } #netInd.mid::before { color: #ffd24a; } #netInd.bad::before { color: #ff6a5a; }
 #netInd.hidden { display: none; }
+@media (max-height: 700px) {
+  .mp-box { padding: 14px 20px 12px; gap: 6px; }
+  .mp-title { font-size: 22px; } .mp-roomcode { font-size: 28px; }
+  .seat { padding: 5px 10px; font-size: 14px; } .mp-team { gap: 4px; }
+  .mp-hint, .mp-sub { font-size: 12px; } .mp-lobby .row { margin-bottom: 0; }
+}
