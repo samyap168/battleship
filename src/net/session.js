@@ -300,7 +300,7 @@ export class Session {
 
   _hostAfter() {
     const k = this.tick, G = this.G;
-    if (k % SNAP_EVERY === 0) this._bcast({ t: 'snap', n: k, hash: stateHash(G), s: snapshot(G) });
+    if (k % SNAP_EVERY === 0) { const m = { t: 'snap', n: k, hash: stateHash(G), s: snapshot(G) }; this.stats.snapBytes = JSON.stringify(m).length; this._bcast(m); }
     if (k % ADV_EVERY === 0 || this.outbox.length) {
       this._bcast({ t: 'adv', n: k, cmds: this.outbox });
       this.outbox = [];

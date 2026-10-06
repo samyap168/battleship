@@ -78,6 +78,7 @@ export class LocalTransport extends Transport {
 
 // ---------------------------------------------------------------------------
 const PREFIX = 'armada-ascension-';
+const CHUNK = 4800; // characters per piece: even at three bytes each it stays under PeerJS's 16 300-byte JSON limit
 const ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' }];
 
 function peerConfig() {
@@ -125,7 +126,7 @@ export class PeerTransport extends Transport {
         this.conns.set(conn.peer, conn); this.peers.add(conn.peer);
         this.emit('join', conn.peer);
       });
-      conn.on('data', (m) => this.emit('message', conn.peer, m));
+      conn.on('data', (m) => this._onData(conn.peer, m));
       const gone = () => { if (this.conns.delete(conn.peer)) { this.peers.delete(conn.peer); this.emit('leave', conn.peer); } };
       conn.on('close', gone); conn.on('error', gone);
     });
@@ -137,21 +138,45 @@ export class PeerTransport extends Transport {
     const fail = (e) => { try { peer.destroy(); } catch { /* gone */ } throw e; }; // a failed attempt must not leave a signalling socket behind
     await new Promise((resolve, reject) => { peer.on('open', resolve); peer.on('error', (e) => reject(new Error(friendly(e)))); }).catch(fail);
     this.id = peer.id;
-    const conn = peer.connect(PREFIX + code.toLowerCase(), { reliable: true, serialization: 'json' });
-    this.up = conn;
-    await new Promise((resolve, reject) => {
-      const t = setTimeout(() => reject(new Error('Could not connect to the host (a strict firewall may block direct connections).')), 15000);
-      conn.on('open', () => { clearTimeout(t); resolve(); });
-      peer.on('error', (e) => { clearTimeout(t); reject(new Error(friendly(e))); });
-      conn.on('error', (e) => { clearTimeout(t); reject(new Error(friendly(e))); });
-    }).catch(fail);
-    conn.on('data', (m) => this.emit('message', HOST_ID, m));
+    // NAT traversal sometimes needs a second go (the first ICE pass races the host's own): try twice before giving up
+    const attempt = () => {
+      const c = peer.connect(PREFIX + code.toLowerCase(), { reliable: true, serialization: 'json' });
+      this.up = c;
+      return new Promise((resolve, reject) => {
+        const t = setTimeout(() => { try { c.close(); } catch { /* gone */ } const e = new Error('Could not connect to the host (a strict firewall may block direct connections).'); e.timeout = true; reject(e); }, 12000);
+        c.on('open', () => { clearTimeout(t); resolve(c); });
+        peer.on('error', (e) => { clearTimeout(t); reject(new Error(friendly(e))); });
+        c.on('error', (e) => { clearTimeout(t); reject(new Error(friendly(e))); });
+      });
+    };
+    const conn = await attempt().catch((e) => (e.timeout ? attempt() : Promise.reject(e))).catch(fail);
+    conn.on('data', (m) => this._onData(HOST_ID, m));
     conn.on('close', () => { if (!this.closed) this.emit('close', 'Lost the connection to the host.'); });
   }
 
   send(to, msg) {
     const c = this.isHost ? this.conns.get(to) : this.up;
-    if (c && c.open) c.send(msg);
+    if (!c || !c.open) return;
+    // PeerJS refuses a JSON message of 16 300 bytes or more (and reports it as a connection error), and resync snapshots are
+    // bigger than that: anything sizeable is cut into pieces that the other side stitches back together.
+    const s = JSON.stringify(msg);
+    if (s.length <= CHUNK) { c.send(msg); return; }
+    const id = (this._cid = ((this._cid || 0) + 1) % 1e9), n = Math.ceil(s.length / CHUNK);
+    for (let i = 0; i < n; i++) c.send({ __c: id, i, n, d: s.slice(i * CHUNK, (i + 1) * CHUNK) });
+  }
+
+  _onData(from, m) {
+    if (!m || typeof m !== 'object' || m.__c === undefined) { this.emit('message', from, m); return; }
+    if (!Number.isInteger(m.i) || !Number.isInteger(m.n) || m.n < 1 || m.n > 64 || m.i < 0 || m.i >= m.n || typeof m.d !== 'string') return; // (a hostile peer cannot make us buffer without limit)
+    const box = (this._asm ||= new Map()), key = from + ':' + m.__c;
+    let a = box.get(key);
+    if (!a) { a = { n: m.n, parts: new Array(m.n), got: 0 }; box.set(key, a); if (box.size > 16) box.delete(box.keys().next().value); }
+    if (a.parts[m.i] === undefined) { a.parts[m.i] = m.d; a.got++; }
+    if (a.got === a.n) {
+      box.delete(key);
+      let msg; try { msg = JSON.parse(a.parts.join('')); } catch { return; }
+      this.emit('message', from, msg);
+    }
   }
 
   close() {
