@@ -98,6 +98,7 @@ export class Session {
         this.seats = m.seats.slice(0, SEATS).map((s) => (s ? { peer: String(s[0]), name: cleanName(s[1]) } : null)); this.diff = m.diff; this.emit('lobby'); break;
       case 'full': this._closed(m.why === 'started' ? 'That match has already started.' : 'The lobby is full.'); break;
       case 'chat': this.emit('chat', m); break;
+      case 'ping!': this.emit('mark', m); break;
       case 'start': if (this.phase === 'lobby') { this.phase = 'loading'; this.cfg = m.cfg; this.emit('start', m.cfg); } break;
       case 'go': this.go = true; this.phase = 'play'; break;
       case 'adv': this._onAdv(m); break;
@@ -121,6 +122,7 @@ export class Session {
       }
       case 'seat': if (this.phase === 'lobby' && Number.isInteger(m.i)) this._seatRequest(from, m.i); break;
       case 'ready': this.ready.add(from); this._maybeGo(); break;
+      case 'mark': { const seat = this.seats.findIndex((s) => s && s.peer === from); if (seat >= 0 && this.phase === 'play') this._mark(seat, +m.x, +m.z); break; }
       case 'ping': this.t.send(from, { t: 'pong', ts: m.ts }); break;
       case 'chat': {
         const seat = this.seats.findIndex((s) => s && s.peer === from), now = performance.now();
@@ -209,6 +211,23 @@ export class Session {
     for (const [i, s] of this.seats.entries()) {
       if (!s || (teamOnly && Math.floor(i / 5) !== team)) continue;
       if (s.peer === HOST_ID) this.emit('chat', msg); else this.t.send(s.peer, msg);
+    }
+  }
+
+  /** Map ping for your team ("look here"). */
+  mark(x, z) {
+    x = +x; z = +z;
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return;
+    if (this.isHost) { const seat = this.mySeat; if (seat >= 0) this._mark(seat, x, z); } else this.t.send(HOST_ID, { t: 'mark', x, z });
+  }
+  _mark(seat, x, z) {
+    const now = performance.now();
+    if (now - ((this._markAt ||= [])[seat] || 0) < 700) return;
+    this._markAt[seat] = now;
+    const team = Math.floor(seat / 5), msg = { t: 'ping!', x: Math.max(-800, Math.min(800, x)), z: Math.max(-500, Math.min(500, z)), name: this.seats[seat].name, team };
+    for (const [i, s] of this.seats.entries()) {
+      if (!s || Math.floor(i / 5) !== team) continue;
+      if (s.peer === HOST_ID) this.emit('mark', msg); else this.t.send(s.peer, msg);
     }
   }
 

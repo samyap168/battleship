@@ -318,6 +318,11 @@ function mpWire(s, code, kind) {
   s.on('toast', (t) => { try { hud.hint(String(t).replace(/[<>&"]/g, ''), 5000); } catch { /* hud not up yet */ } }); // text from the host: never markup
   s.on('error', (e) => console.warn('[net]', e.message));
   s.on('chat', chatPush);
+  s.on('mark', (m) => { // a teammate's map ping: a ring on the sea, a blip on the minimap, a line in the feed
+    if (!G || !G.mp) return;
+    hud.ping(m.x, m.z, '#ffd76a'); G.fx.ring(m.x, m.z, 4, 30, 0xffd76a, 1.4, 0.08); audio.play('capture', { vol: 0.5, pitch: 1.5 });
+    hud.feed(`<b style="color:#ffd76a">${m.name.replace(/[<>&"]/g, '')}</b> pings the map`);
+  });
   s.on('closed', (why) => {
     if (session !== s) return;
     session = null;
@@ -670,6 +675,7 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (k === 't' || k === 'u') playerAgeUp();
+  else if (k === 'v' && mpOn()) session.mark(mouse.ground.x, mouse.ground.z);
   else if (k === 'g') { if (mpOn()) sendCmd(Cmd.rally(mouse.ground.x, mouse.ground.z)); else G.callRally && G.callRally(G.player, mouse.ground.x, mouse.ground.z); }
   else if (k === 's') { if (mpOn()) sendCmd(Cmd.stop()); else G.player && G.player.stop(); }
   else if (k === ' ') { cameraDir.locked = true; e.preventDefault(); }

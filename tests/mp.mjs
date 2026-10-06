@@ -61,6 +61,10 @@ await B.evaluate(() => { const s = window.__aa.session(); s.chat('hello from Bli
 await A.waitForTimeout(1500);
 const chatA = await A.$$eval('#chatLog .cm', (els) => els.map((e) => e.textContent));
 console.log('host chat log:', JSON.stringify(chatA));
+await A.evaluate(() => window.__aa.session().mark(10, 20));
+await A.waitForTimeout(800);
+const pingOk = await A.evaluate(() => [...document.querySelectorAll('#feed .item')].some((e) => /pings the map/.test(e.textContent)));
+console.log('team map ping shown:', pingOk);
 const stat = (p) => p.evaluate(() => { const s = window.__aa.session(), G = window.__aa.G; return { tick: s.tick, desyncs: s.stats.desyncs, rtt: s.stats.rtt, behind: s.stats.behind, time: +G.time.toFixed(1), me: G.player.name, seat: G.player.seat, humans: G.heroes.filter((h) => h.human).map((h) => h.name) }; });
 const a = await stat(A), b = await stat(B);
 console.log('host  ', JSON.stringify(a));
@@ -76,7 +80,7 @@ if (process.env.FULL) {
   console.log('result screen shown (host, client):', shown.join(', '), '· winner on each peer:', wins.join(', '));
   ended = ended && shown.every(Boolean) && wins[0] === wins[1];
 }
-const ok = ended && chatOk && a.tick > 1500 && b.tick > 1500 && b.desyncs === 0 && a.humans.length === 2 && b.humans.length === 2 && !errs.length;
+const ok = ended && chatOk && pingOk && a.tick > 1500 && b.tick > 1500 && b.desyncs === 0 && a.humans.length === 2 && b.humans.length === 2 && !errs.length;
 console.log(ok ? `PASS: peers stayed in sync (${b.tick} ticks, 0 resyncs)` : 'FAIL');
 if (errs.length) console.log('page errors:', errs.slice(0, 4).join(' | '));
 await browser.close();
