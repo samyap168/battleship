@@ -32,8 +32,8 @@ export function applyWeathering(mat, amount = 1) {
   float sz = abs(fract(p.z / 1.6) - 0.5), sy = abs(fract((p.y + 0.3) / 0.9) - 0.5), sx = abs(fract(p.x / 1.1) - 0.5);
   float seam = max(max(smoothstep(0.465, 0.5, sz), smoothstep(0.46, 0.5, sy) * 0.7), smoothstep(0.47, 0.5, sx) * 0.6);
   // rust streaks: noise stretched vertically, stronger lower on the hull
-  float streak = wxN(vec3(p.x * 4.0, p.y * 0.35, p.z * 4.0));
-  float rustMask = smoothstep(0.6, 0.88, streak) * (1.0 - smoothstep(1.5, 12.0, p.y) * 0.6) * smoothstep(-0.6, 0.2, p.y);
+  float streak = wxN(vec3(p.x * 1.4, p.y * 0.22, p.z * 1.4));
+  float rustMask = smoothstep(0.66, 0.97, streak) * (1.0 - smoothstep(1.5, 12.0, p.y) * 0.6) * smoothstep(-0.6, 0.2, p.y);
   float soot = smoothstep(5.0, 11.0, p.y) * smoothstep(0.35, 0.8, wxN(p * 1.7));
   // waterline salt / algae band
   float wl = 1.0 - smoothstep(0.0, 0.55, abs(p.y - 0.15));
@@ -42,7 +42,7 @@ export function applyWeathering(mat, amount = 1) {
   vec3 c = diffuseColor.rgb;
   c *= 1.0 - seam * 0.4 * uWx;
   c *= mix(1.0, 0.62 + grime * 0.55, 0.8 * uWx);
-  c = mix(c, vec3(0.34, 0.14, 0.05), min(1.0, rustMask * 0.85 * uWx));
+  c = mix(c, c * vec3(0.62, 0.5, 0.42) + vec3(0.05, 0.025, 0.01), min(1.0, rustMask * 0.7 * uWx)); // stains darken and warm the paint rather than overpainting it orange
   c = mix(c, vec3(0.05), soot * 0.35 * uWx);
   c = mix(c, vec3(0.1, 0.13, 0.08), wl * 0.6 * uWx);
   diffuseColor.rgb = c;
@@ -50,7 +50,7 @@ export function applyWeathering(mat, amount = 1) {
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
 {
   float g = wxN(vWxObj * 2.3);
-  roughnessFactor = clamp(roughnessFactor + (g - 0.5) * 0.25 * uWx + smoothstep(0.62, 0.9, wxN(vec3(vWxObj.x * 4.0, vWxObj.y * 0.35, vWxObj.z * 4.0))) * 0.25 * uWx, 0.05, 1.0);
+  roughnessFactor = clamp(roughnessFactor + (g - 0.5) * 0.25 * uWx + smoothstep(0.66, 0.97, wxN(vec3(vWxObj.x * 1.4, vWxObj.y * 0.22, vWxObj.z * 1.4))) * 0.25 * uWx, 0.05, 1.0);
 }`);
   };
   const key = mat.customProgramCacheKey ? mat.customProgramCacheKey.bind(mat) : () => '';
