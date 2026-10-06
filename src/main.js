@@ -441,6 +441,7 @@ function syncOptions() {
   const v = audio.volume;
   $('#optMaster').value = Math.round(v.master * 100); $('#optMusic').value = Math.round(v.music * 100); $('#optSfx').value = Math.round(v.sfx * 100);
   document.querySelectorAll('#optFps button').forEach((b) => b.classList.toggle('on', (b.dataset.v === '1') === !fpsEl.classList.contains('hidden')));
+  $('#options .op-sub').textContent = mpOn() ? 'The battle goes on without you' : 'The battle is paused';
   quitArmed = 0; $('#optQuit').textContent = 'QUIT TO MENU'; $('#optQuit').classList.remove('confirm');
 }
 function showOptions(on) {
