@@ -84,7 +84,12 @@ function peerConfig() {
   // Optional overrides for self-hosted signalling / TURN (e.g. ?peerhost=peers.example.com&turn=turn:...&tuser=..&tpass=..)
   const q = new URLSearchParams(location.search);
   const cfg = { config: { iceServers: [...ICE] }, debug: 0 };
-  if (q.get('peerhost')) { cfg.host = q.get('peerhost'); cfg.secure = true; cfg.port = +(q.get('peerport') || 443); cfg.path = q.get('peerpath') || '/'; }
+  if (q.get('peerhost')) { // own signalling server: ?peerhost=host[&peerport=443][&peerpath=/][&peersecure=0]
+    cfg.host = q.get('peerhost');
+    cfg.secure = q.get('peersecure') !== '0';
+    cfg.port = +(q.get('peerport') || (cfg.secure ? 443 : 80));
+    cfg.path = q.get('peerpath') || '/';
+  }
   if (q.get('turn')) cfg.config.iceServers.push({ urls: q.get('turn'), username: q.get('tuser') || '', credential: q.get('tpass') || '' });
   return cfg;
 }

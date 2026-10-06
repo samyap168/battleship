@@ -2,23 +2,26 @@
 // seconds of a replicated 5v5 (the other 8 seats are bots), exchange commands, and verify the peers never drifted
 // (the host's state hash is compared against the client's at every snapshot).
 // Usage: node tests/mp.mjs [seconds=40]
+//   NET=peer  uses real WebRTC through a local PeerJS server (npm i peer; PeerServer({port: 9000, host: '0.0.0.0'}))
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 let chromium;
 try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
 const SECONDS = +process.argv[2] || 40;
 const BASE = process.env.BASE || 'http://localhost:5173';
+const PEER = process.env.NET === 'peer';
+const QS = PEER ? 'quality=low&photo=1&peerhost=localhost&peerport=9000&peersecure=0' : 'quality=low&photo=1';
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const ctx = await browser.newContext({ viewport: { width: 640, height: 360 } });
 const errs = [];
 const open = async (tag) => {
   const p = await ctx.newPage();
   p.on('pageerror', (e) => errs.push(tag + ': ' + e.message));
-  await p.goto(`${BASE}/?quality=low&photo=1`);
+  await p.goto(`${BASE}/?${QS}`);
   await p.waitForSelector('#mpBtn', { timeout: 120000, state: 'visible' });
   await p.evaluate(() => { window.__aa.paused = true; }); // the lobby is DOM only: keep the software renderer idle
   await p.click('#mpBtn', { timeout: 120000 });
-  await p.click('#mpNet button[data-v="local"]');
+  if (!PEER) await p.click('#mpNet button[data-v="local"]');
   await p.fill('#mpName', tag);
   return p;
 };
@@ -30,7 +33,7 @@ console.log('room', code);
 const B = await open('Bligh');
 await B.fill('#mpCode', code);
 await B.click('#mpJoin');
-await B.waitForSelector('.mp-lobby', { timeout: 15000 });
+await B.waitForSelector('.mp-lobby', { timeout: 30000 });
 await A.waitForFunction(() => document.querySelectorAll('.seat.human, .seat.me').length >= 2, null, { timeout: 15000 });
 const seatsA = await A.$$eval('.seat.human, .seat.me', (els) => els.map((e) => e.textContent.trim()));
 console.log('lobby seats (host view):', JSON.stringify(seatsA));

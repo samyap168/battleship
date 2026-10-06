@@ -21,6 +21,13 @@ export function stateHash(G) {
 }
 
 const LANES = ['top', 'mid', 'bot'];
+const pick = (o, keys) => { const r = {}; for (const k of keys) if (o[k] !== undefined) r[k] = o[k]; return r; };
+const idOf = (u) => (u ? u.id : 0);
+const pathOut = (p) => (p || []).map((q) => [q.x, q.z]);
+const pathIn = (p) => (p || []).map(([x, z]) => ({ x, z }));
+const HERO_X = ['vx', 'vz', 'pushX', 'pushZ', 'untargetable', 'gunCd', 'repathT', 'salvoIdx', 'moveX', 'moveZ', 'multi', 'lastKillT', 'boostFx', 'spentAge', 'spentUpg', 'deathStreak', 'prevStreak'];
+const CREEP_X = ['vx', 'vz', 'pushX', 'pushZ', 'gunCd', 'retarget', 'pathT', 'stun', 'slow', 'slowT'];
+const BOT_X = ['thinkT', 'state', 'branch', 'lastHp', 'capT', 'groupLane'];
 
 export function snapshot(G) {
   const b = G.boss;
@@ -30,9 +37,15 @@ export function snapshot(G) {
       alive: h.alive, respawn: h.respawn, level: h.level, xp: h.xp, gold: h.gold, hull: h.hullId, upg: { ...h.upg }, cds: [...h.cds],
       kills: h.kills, deaths: h.deaths, assists: h.assists, streak: h.streak, stun: h.stun, silence: h.silence, slowT: h.slowT, slow: h.slow,
       guard: h.spawnGuard || 0, dmg: h.dmgDealt, ck: h.creepKills, buffs: h.buffs.map((x) => ({ ...x })),
+      ex: pick(h, HERO_X), path: pathOut(h.path), ao: idOf(h.attackOrder), tg: idOf(h.target), la: idOf(h.lastAttacker),
+      dash: h.dash ? { ...h.dash, hit: [...h.dash.hit] } : null, pd: h.pd ? { ...h.pd } : null,
+      dm: [...h.damagers],
     })),
-    creeps: G.creeps.filter((c) => c.alive).map((c) => [c.id, c.team, LANES.indexOf(c.lane), c.heavy ? 1 : 0, c.era, c.x, c.z, c.yaw, c.speed, c.hp, c.wpi]),
-    structures: G.structures.map((s) => [s.hp, s.alive ? 1 : 0, s.exposedAt ?? null]),
+    bots: G.bots.map((b) => ({ seat: b.h.seat, ...pick(b, BOT_X), dest: b.dest ? [b.dest.x, b.dest.z] : null, cap: b.capPort ? G.ports.indexOf(b.capPort) : -1 })),
+    dangers: (G.dangers || []).map((d) => ({ ...d })),
+    smokes: G.smokes.map((d) => ({ ...d })),
+    creeps: G.creeps.filter((c) => c.alive).map((c) => [c.id, c.team, LANES.indexOf(c.lane), c.heavy ? 1 : 0, c.era, c.x, c.z, c.yaw, c.speed, c.hp, c.wpi, pick(c, CREEP_X), pathOut(c.path), idOf(c.target)]),
+    structures: G.structures.map((s) => [s.hp, s.alive ? 1 : 0, s.exposedAt ?? null, s.gunCd, s.aggroT || 0, idOf(s.target), idOf(s.aggroHero)]),
     boss: { hp: b.hp, alive: b.alive, risen: b.risen, rise: b.rise, t: b.t, slamT: b.slamT, biteT: b.biteT, regenT: b.regenT, pending: b.pending.map((p) => ({ ...p })) },
     ports: G.ports.map((p) => [p.owner, p.prog]),
     teams: G.teams.map((t) => [t.kills, t.era, t.towersLost]),
@@ -42,6 +55,7 @@ export function snapshot(G) {
 }
 
 export function applySnapshot(G, S) {
+  const byId = new Map(G.units.map((u) => [u.id, u]));
   S.heroes.forEach((d, i) => {
     const h = G.heroes[i];
     if (!h) return;
@@ -49,6 +63,9 @@ export function applySnapshot(G, S) {
     Object.assign(h, { x: d.x, z: d.z, yaw: d.yaw, speed: d.speed, hp: d.hp, maxHp: d.maxHp, shield: d.shield, shieldT: d.shieldT, respawn: d.respawn, level: d.level, xp: d.xp, gold: d.gold,
       kills: d.kills, deaths: d.deaths, assists: d.assists, streak: d.streak, stun: d.stun, silence: d.silence, slowT: d.slowT, slow: d.slow, spawnGuard: d.guard, dmgDealt: d.dmg, creepKills: d.ck });
     Object.assign(h.upg, d.upg); h.cds = [...d.cds]; h.buffs = d.buffs.map((x) => ({ ...x }));
+    Object.assign(h, d.ex); h.path = pathIn(d.path); h.attackOrder = byId.get(d.ao) || null; h.target = byId.get(d.tg) || null; h.lastAttacker = byId.get(d.la) || null;
+    h.dash = d.dash ? { ...d.dash, hit: new Set(d.dash.hit) } : null; h.pd = d.pd ? { ...d.pd } : null;
+    h.damagers = new Map(d.dm);
     if (h.alive !== d.alive) {
       h.alive = d.alive;
       if (d.alive) { h.sinkT = undefined; h.rig.root.visible = true; } else h.sinkT = 0;
@@ -57,7 +74,7 @@ export function applySnapshot(G, S) {
   // creeps: adopt the host's roster (create the ones we lack, drop the ones it does not have)
   const have = new Map(G.creeps.map((c) => [c.id, c]));
   const keep = new Set();
-  for (const [id, team, lane, heavy, era, x, z, yaw, speed, hp, wpi] of S.creeps) {
+  for (const [id, team, lane, heavy, era, x, z, yaw, speed, hp, wpi, ex, path, tgt] of S.creeps) {
     keep.add(id);
     let c = have.get(id);
     if (!c) {
@@ -67,14 +84,25 @@ export function applySnapshot(G, S) {
       c.id = id;
       G.creeps.push(c); G.units.push(c);
     }
-    Object.assign(c, { x, z, yaw, speed, hp, wpi });
+    Object.assign(c, { x, z, yaw, speed, hp, wpi }, ex);
+    c.path = pathIn(path); c.target = byId.get(tgt) || null;
   }
   for (const c of G.creeps) if (c.alive && !keep.has(c.id)) { c.alive = false; c.hp = 0; c.deadT = 99; }
-  S.structures.forEach(([hp, alive, exposedAt], i) => {
+  S.structures.forEach(([hp, alive, exposedAt, gunCd, aggroT, tg, ah], i) => {
     const s = G.structures[i];
     s.hp = hp; if (exposedAt !== null) s.exposedAt = exposedAt;
+    s.gunCd = gunCd; s.aggroT = aggroT; s.target = byId.get(tg) || null; s.aggroHero = byId.get(ah) || null;
     if (!!alive !== s.alive) { s.alive = !!alive; if (!alive) s.sinkT = 0; }
   });
+  for (const d of S.bots) { // the bot brains: what each AI captain was doing (thinking timer, plan, destination)
+    const b = G.bots.find((x) => x.h.seat === d.seat);
+    if (!b) continue;
+    for (const k of BOT_X) if (d[k] !== undefined) b[k] = d[k];
+    b.dest = d.dest ? { x: d.dest[0], z: d.dest[1] } : null;
+    b.capPort = d.cap >= 0 ? G.ports[d.cap] : null;
+  }
+  G.dangers = S.dangers.map((d) => ({ ...d }));
+  G.smokes = S.smokes.map((d) => ({ ...d }));
   Object.assign(G.boss, S.boss, { pending: S.boss.pending.map((p) => ({ ...p })) });
   S.ports.forEach(([owner, prog], i) => { G.ports[i].prog = prog; if (G.ports[i].owner !== owner) { G.ports[i].owner = owner; G.ports[i].rig.setOwner(owner); } });
   S.teams.forEach(([kills, era, towersLost], i) => { Object.assign(G.teams[i], { kills, towersLost }); if (G.teams[i].era !== era) G.updateEra(i); });

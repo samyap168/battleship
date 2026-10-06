@@ -340,6 +340,7 @@ $('#mpBtn').onclick = () => { audio.init(); audio.play('uiClick'); lobby.showEnt
   const jc = (params.get('join') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
   if (jc) { if (params.get('net') === 'local') lobby.net = 'local'; setTimeout(() => lobby.showEntry(jc), 400); }
 }
+window.addEventListener('pagehide', () => { if (session) session.leave(); }); // closing the tab hands the seat to a bot at once
 function startMultiplayer(cfg) {
   mpLoading = true;
   lobby.showLoading();
