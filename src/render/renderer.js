@@ -137,7 +137,7 @@ const GodRayShader = {
 export const QUALITY = {
   high: { pixelRatio: 1.5, shadows: 2048, bloom: true, smaa: true, ao: true },
   medium: { pixelRatio: 1.0, shadows: 1024, bloom: true, smaa: true },
-  low: { pixelRatio: 0.85, shadows: 0, bloom: false, smaa: false },
+  low: { pixelRatio: 0.9, shadows: 0, bloom: false, smaa: true }, // SMAA is cheap and the governor sheds it first on a slow GPU: hulls and rigging stay clean on Low
   safe: { pixelRatio: 0.85, shadows: 0, bloom: false, smaa: false }, // compatibility: like Low, plus plain water and no sky-reflection map (set up in main.js)
 };
 
