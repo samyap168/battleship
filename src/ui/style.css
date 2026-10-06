@@ -47,7 +47,7 @@ b { font-weight: 700; }
 #announce { position: absolute; top: 20%; left: 0; right: 0; text-align: center; pointer-events: none !important; }
 #announce .a { display: inline-block; animation: annIn .6s cubic-bezier(.2,.9,.2,1) both; }
 #announce .a.out { animation: annOut .6s ease-in both; }
-#announce h1 { margin: 0; font-family: var(--font-title); font-size: 56px; letter-spacing: .18em; font-weight: 700; color: #fff; text-shadow: 0 0 30px var(--c, #e8c47a), 0 4px 18px rgba(0,0,0,.8); }
+#announce h1 { text-wrap: balance; margin: 0; font-family: var(--font-title); font-size: 56px; letter-spacing: .18em; font-weight: 700; color: #fff; text-shadow: 0 0 30px var(--c, #e8c47a), 0 4px 18px rgba(0,0,0,.8); }
 #announce .small h1 { font-size: 30px; letter-spacing: .14em; }
 #announce p { margin: 6px 0 0; font-size: 18px; letter-spacing: .12em; color: var(--text); text-transform: uppercase; text-shadow: 0 2px 8px #000; }
 #announce .bar { height: 2px; margin: 10px auto 0; width: 60%; background: linear-gradient(90deg, transparent, var(--c, #e8c47a), transparent); }
@@ -57,7 +57,7 @@ b { font-weight: 700; }
 /* ---------- command panel */
 #command { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: flex-end; gap: 14px; }
 #portrait { width: 250px; padding: 12px 14px; }
-#portrait .name { font-family: var(--font-title); font-size: 16px; color: var(--gold); letter-spacing: .05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#portrait .name { font-family: var(--font-title); font-size: 16px; color: var(--gold); letter-spacing: .05em; line-height: 1.15; max-height: 2.3em; overflow: hidden; }
 #portrait .sub { font-size: 13px; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; margin-top: 2px; }
 #portrait .lvl { float: right; font-family: var(--font-title); font-size: 22px; color: #fff; margin-top: -2px; }
 .bar { position: relative; height: 16px; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.1); margin-top: 8px; overflow: hidden; }

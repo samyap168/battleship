@@ -572,10 +572,10 @@ export class HUD {
           let dx = ss ? ss.x - ps.x : q.x - p.x, dy = ss ? ss.y - ps.y : q.z - p.z;
           if (!ss) { dx = -dx; dy = -dy; }
           const ang = Math.atan2(dy, dx), R = Math.min(w, h) * 0.33, a = (1 - q.t / 0.9) * q.k;
-          const g = c.createRadialGradient(ps.x, ps.y, R - 26, ps.x, ps.y, R + 26);
-          g.addColorStop(0, 'rgba(255,60,40,0)'); g.addColorStop(0.5, `rgba(255,70,50,${0.55 * a})`); g.addColorStop(1, 'rgba(255,60,40,0)');
-          c.save(); c.strokeStyle = g; c.lineWidth = 52; c.lineCap = 'round';
-          c.beginPath(); c.arc(ps.x, ps.y, R, ang - 0.32, ang + 0.32); c.stroke(); c.restore();
+          const g = c.createRadialGradient(ps.x, ps.y, R - 9, ps.x, ps.y, R + 9);
+          g.addColorStop(0, 'rgba(255,60,40,0)'); g.addColorStop(0.5, `rgba(255,80,60,${0.85 * a})`); g.addColorStop(1, 'rgba(255,60,40,0)');
+          c.save(); c.strokeStyle = g; c.lineWidth = 16; c.lineCap = 'butt'; // a crisp chevron on the screen edge, not a blurry smear
+          c.beginPath(); c.arc(ps.x, ps.y, R, ang - 0.26, ang + 0.26); c.stroke(); c.restore();
         }
       }
     }
