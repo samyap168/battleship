@@ -499,7 +499,11 @@ function playerAgeUp() {
   if (p.gold < p.nextAgeCost()) { audio.play('uiError'); hud.hint(`Need <b>${p.nextAgeCost() - Math.floor(p.gold)}</b> more gold for the ${AGES[p.age].name}`, 2000); return; }
   const opts = AGE_HULLS[p.age + 1];
   if (opts.length === 1) { if (mpOn()) sendCmd(Cmd.ageUp(opts[0])); else G.ageUp(p, opts[0]); }
-  else hud.openAgeChoice(opts, (id) => { if (mpOn()) sendCmd(Cmd.ageUp(id)); else G.ageUp(p, id); audio.play('uiClick'); });
+  else hud.openAgeChoice(opts, (id) => {
+    if (mpOn()) sendCmd(Cmd.ageUp(id));
+    else if (!G.ageUp(p, id)) { audio.play('uiError'); hud.hint('Not enough gold, or your ship is sunk', 2000); return; } // (an upgrade bought while the card was open can leave you short)
+    audio.play('uiClick');
+  });
 }
 function playerCast(i) {
   const p = G && G.player;

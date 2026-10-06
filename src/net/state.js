@@ -49,7 +49,7 @@ export function snapshot(G) {
     boss: { hp: b.hp, alive: b.alive, risen: b.risen, rise: b.rise, t: b.t, slamT: b.slamT, biteT: b.biteT, regenT: b.regenT, pending: b.pending.map((p) => ({ ...p })) },
     ports: G.ports.map((p) => [p.owner, p.prog]),
     teams: G.teams.map((t) => [t.kills, t.era, t.towersLost]),
-    g: { waveNo: G.waveNo, nextWave: G.nextWave, duskTide: !!G.duskTide, stormAt: G.stormAt, shotT: G.shotT ? [...G.shotT] : null, firstBlood: !!G.firstBlood, nextUnitId: G.nextUnitId },
+    g: { waveNo: G.waveNo, nextWave: G.nextWave, duskTide: !!G.duskTide, stormAt: G.stormAt, shotT: G.shotT ? [...G.shotT] : null, rally: [0, 1].map((tm) => { const r = G.rally && G.rally[tm]; return r ? [r.x, r.z, r.until, idOf(r.caller)] : null; }), rallyT: [0, 1].map((tm) => (G.rallyT && G.rallyT[tm] !== undefined ? G.rallyT[tm] : null)), firstBlood: !!G.firstBlood, nextUnitId: G.nextUnitId },
     rng: simState(),
   };
 }
@@ -126,6 +126,11 @@ export function applySnapshot(G, S) {
   G.units.sort((a, b) => a.id - b.id);
   Object.assign(G, { waveNo: S.g.waveNo, nextWave: S.g.nextWave, stormAt: S.g.stormAt, firstBlood: S.g.firstBlood });
   if (S.g.shotT) G.shotT = [...S.g.shotT];
+  if (S.g.rally) { // an active rally call steers the bots: keep it (and its 6 s throttle) in step with the host
+    G.rally = {}; G.rallyT = {};
+    S.g.rally.forEach((r, tm) => { if (r) G.rally[tm] = { x: r[0], z: r[1], until: r[2], caller: byId.get(r[3]) || null }; });
+    S.g.rallyT.forEach((t, tm) => { if (t !== null) G.rallyT[tm] = t; });
+  }
   if (S.g.duskTide) G.duskTide = true;
   G.protVer++;
   G.nextUnitId = Math.max(G.nextUnitId, S.g.nextUnitId);

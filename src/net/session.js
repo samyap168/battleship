@@ -123,7 +123,7 @@ export class Session {
       }
       case 'seat': if (this.phase === 'lobby' && Number.isInteger(m.i)) this._seatRequest(from, m.i); break;
       case 'ready': this.ready.add(from); this._maybeGo(); break;
-      case 'mark': { const seat = this.seats.findIndex((s) => s && s.peer === from); if (seat >= 0 && this.phase === 'play') this._mark(seat, +m.x, +m.z); break; }
+      case 'mark': { const seat = this.seats.findIndex((s) => s && s.peer === from); if (seat >= 0 && this.phase === 'play') this._mark(seat, Number.isFinite(+m.x) ? +m.x : 0, Number.isFinite(+m.z) ? +m.z : 0); break; }
       case 'ping': this.t.send(from, { t: 'pong', ts: m.ts }); break;
       case 'chat': {
         const seat = this.seats.findIndex((s) => s && s.peer === from), now = performance.now();

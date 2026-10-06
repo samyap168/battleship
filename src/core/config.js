@@ -173,7 +173,7 @@ export const ABILITIES = {
   // ---- Battleship
   mainbattery2: { name: 'Radar Salvo', type: 'barrage', target: 'point', cd: 13, range: 145, minLevel: 2,
     dmg: 188, count: 7, area: 14, radius: 9, delay: 0.6, spreadTime: 0.3, model: 'shell_big',
-    desc: 'Radar-directed nine-gun salvo.' },
+    desc: 'Radar-directed seven-gun salvo.' },
   flak: { name: 'Flak Umbrella', type: 'pointdefense', target: 'self', cd: 16, dur: 4.5, radius: 45,
     desc: 'Shred incoming drones, aircraft and missiles around you.' },
   damagecontrol: { name: 'Damage Control', type: 'buff', target: 'self', cd: 18, healPct: 0.33, dur: 4,

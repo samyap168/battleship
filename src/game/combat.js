@@ -202,7 +202,7 @@ export class Combat {
   skyStrike(owner, model, x, z, delay, dmg, radius) {
     const vis = VIS[model];
     const y0 = 260, off = 180;
-    const a = Math.random() * 6.28;
+    const a = srand() * 6.28; // gameplay roll (it decides where the glide vehicle can be intercepted): seeded, so every peer agrees
     this.list.push({
       type: 'ballistic', model, vis, owner, team: owner.team,
       x0: x + Math.cos(a) * off, y0, z0: z + Math.sin(a) * off, x1: x, z1: z, T: delay, t: 0, arc: 0,
