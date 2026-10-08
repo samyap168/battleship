@@ -102,7 +102,9 @@ export class HUD {
           <button id="ageup"></button>
         </div>
       </div>
-      <div id="shop" class="panel ornate"><h3>ARMORY</h3><div id="upgs"></div></div>` : ''}
+      <div id="shop" class="panel ornate"><h3>ARMORY</h3><div id="upgs"></div></div>
+      <button id="recenterBtn" class="tbtn" aria-label="Centre on my ship">◎</button>
+      <button id="armBtn" class="tbtn" aria-label="Armory">⚒</button>` : ''}
       <div id="tip" class="panel hidden"></div>
       <div id="scoreboard" class="panel ornate hidden"></div>
       <div id="modalRoot"></div>
@@ -134,6 +136,13 @@ export class HUD {
       this.buildAbilities();
       this.buildShop();
       this.$('ageup').addEventListener('click', () => this.handlers.ageUp && this.handlers.ageUp());
+      // double-click / double-tap the ship portrait (or tap the ◎ button): fly the camera back to your ship and lock it there
+      const recenter = () => this.handlers.recenter && this.handlers.recenter();
+      const portrait = this.$('portrait'); let lastTap = 0;
+      portrait.addEventListener('dblclick', recenter);
+      portrait.addEventListener('pointerup', (e) => { if (e.pointerType !== 'touch') return; const n = performance.now(); if (n - lastTap < 400) { lastTap = 0; recenter(); } else lastTap = n; });
+      this.$('recenterBtn').addEventListener('click', recenter);
+      this.$('armBtn').addEventListener('click', () => document.body.classList.toggle('shopOpen'));
       this.lastHull = p.hullId;
     }
     this.lastHpF = 1;

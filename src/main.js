@@ -29,6 +29,8 @@ import { buildHeroShip, buildCreepShip, HERO_IDS } from './render/models/shipMod
 import { MATCH, AGE_HULLS, UPGRADES, AGES, TEAMS } from './core/config.js';
 
 const params = new URLSearchParams(location.search);
+const TOUCH = matchMedia('(pointer: coarse)').matches || params.get('touch') === '1'; // phones and tablets get their own HUD layout
+document.body.classList.toggle('touch', TOUCH);
 const settings = {
   difficulty: params.get('difficulty') || localGet('aa.diff') || 'normal',
   team: +(params.get('team') ?? localGet('aa.team') ?? 0),
@@ -255,7 +257,7 @@ function startGame(spectate, extra = {}) {
     audio.stinger('matchStart');
     const matchG = G; // timers from a previous match must not fire into the next one
     setTimeout(() => matchG === G && hud.announce('ARMADA ASCENSION', `${TEAMS[settings.team].name} · Destroy the enemy citadel`, TEAMS[settings.team].css), 1200);
-    setTimeout(() => matchG === G && hud.hint('<kbd>Click</kbd> sail / attack &nbsp; <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> abilities at cursor &nbsp; <kbd>T</kbd> advance age &nbsp; <kbd>H</kbd> how to play', 9000), 7000);
+    setTimeout(() => matchG === G && hud.hint(TOUCH ? '<b>Tap</b> the sea to sail or an enemy to attack · <b>tap a skill</b> to fire at the best target, <b>drag it</b> onto the sea to aim · <b>drag</b> to look around · <b>pinch</b> to zoom · <b>◎</b> re-centres on your ship' : '<kbd>Click</kbd> sail / attack &nbsp; <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> abilities at cursor &nbsp; <kbd>T</kbd> advance age &nbsp; <kbd>H</kbd> how to play', 9000), 7000);
   }
 }
 
@@ -557,6 +559,11 @@ hud.on('castButton', (i, manual) => {
   } else if (!castHinted) { castHinted = true; hud.hint('Skills fire at the best target · <kbd>Shift</kbd>+click to aim by hand', 3500); }
 });
 let castHinted = false;
+hud.on('recenter', () => {
+  const p = G && G.player; if (!p || mode !== 'play') return;
+  cameraDir.locked = true; cameraDir.orbiting = false; cameraDir.snapTo(p.x, p.z);
+  hud.hint('Camera locked to your ship', 1400);
+});
 hud.on('minimapLook', (x, z) => { cameraDir.locked = false; cameraDir.goal.set(x, 0, z); });
 hud.on('minimapMove', (x, z) => { if (G && G.player && G.player.alive) { if (mpOn()) sendCmd(Cmd.move(x, z)); else G.player.commandMove(x, z); moveMarker(x, z); } });
 
@@ -642,6 +649,7 @@ canvas.addEventListener('pointerdown', (e) => {
   audio.init();
   if (skipOpening()) return;
   if (mode !== 'play' || !G || !G.player || G.over) return;
+  if (e.pointerType === 'touch') { touchDown(e); return; } // touch: a tap sails, a drag looks around, two fingers zoom (decided on release)
   const p = G.player;
   if (hud.aiming >= 0) {
     const i = hud.aiming; hud.aiming = -1;
@@ -650,6 +658,64 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   if (e.button === 0) commandAtCursor(e); // left click: sail / attack at once (right click acts on release, so a drag can orbit)
 });
+// ---- touch: one finger taps to sail / attack and drags to orbit the view, two fingers pinch to zoom
+const touches = new Map();
+let tapOk = false, pinchD = 0;
+function touchDown(e) {
+  document.body.classList.remove('shopOpen'); // tapping the sea folds the armory drawer away
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false });
+  if (touches.size === 1) tapOk = true; else { tapOk = false; const [a, b] = [...touches.values()]; pinchD = Math.hypot(a.x - b.x, a.y - b.y); }
+}
+function touchMove(e) {
+  const t = touches.get(e.pointerId); if (!t) return false;
+  const dx = e.clientX - t.x, dy = e.clientY - t.y;
+  t.x = e.clientX; t.y = e.clientY;
+  if (touches.size >= 2) {
+    const [a, b] = [...touches.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (pinchD > 0) cameraDir.zoom((pinchD - d) * 1.6); // fingers apart: closer to the water
+    pinchD = d; return true;
+  }
+  if (!t.moved && Math.hypot(e.clientX - t.sx, e.clientY - t.sy) > 12) { t.moved = true; tapOk = false; if (!orbitHinted) { orbitHinted = true; hud.hint('Drag to look around · tap the ◎ button to lock the camera to your ship', 3500); } }
+  if (t.moved) cameraDir.orbitBy(dx, dy);
+  return true;
+}
+function touchUp(e) {
+  const t = touches.get(e.pointerId); if (!t) return;
+  touches.delete(e.pointerId);
+  if (tapOk && !t.moved && e.type === 'pointerup' && mode === 'play' && G && G.player && !G.over) commandAtCursor(e);
+  if (touches.size === 0) tapOk = false;
+}
+window.addEventListener('pointerup', (e) => { if (e.pointerType === 'touch') touchUp(e); });
+window.addEventListener('pointercancel', (e) => { if (e.pointerType === 'touch') touchUp(e); });
+// a skill button: tap = fire at the best target (the button's own click); press and drag onto the sea = aim by hand, release to fire
+let abDrag = null, abSuppressClick = false;
+hud.root.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'touch') return;
+  const el = e.target.closest && e.target.closest('.ab'); if (!el || mode !== 'play' || !G || !G.player || G.over) return;
+  abDrag = { i: +el.dataset.i, sx: e.clientX, sy: e.clientY, moved: false };
+}, true);
+hud.root.addEventListener('click', (e) => { if (abSuppressClick) { e.stopImmediatePropagation(); e.preventDefault(); abSuppressClick = false; } }, true);
+window.addEventListener('pointermove', (e) => {
+  if (e.pointerType === 'touch') touchMove(e);
+  if (!abDrag || e.pointerType !== 'touch') return;
+  if (!abDrag.moved && Math.hypot(e.clientX - abDrag.sx, e.clientY - abDrag.sy) > 22) {
+    const ab = G && G.player && G.player.abilities[abDrag.i];
+    if (!ab || ab.target === 'self' || ab.target === 'auto') { abDrag = null; return; }
+    abDrag.moved = true; hud.aiming = abDrag.i;
+  }
+  if (abDrag.moved) { mouse.x = e.clientX; mouse.y = e.clientY; groundAt(e.clientX, e.clientY); }
+});
+window.addEventListener('pointerup', (e) => {
+  if (!abDrag || e.pointerType !== 'touch') return;
+  const d = abDrag; abDrag = null;
+  if (!d.moved) return;
+  abSuppressClick = true; setTimeout(() => { abSuppressClick = false; }, 400);
+  const cancelled = Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 40; // dragged back onto the button: never mind
+  hud.aiming = -1;
+  if (!cancelled && G && G.player && G.player.alive && !G.over) { groundAt(e.clientX, e.clientY); playerCast(d.i); }
+});
+window.addEventListener('pointercancel', () => { if (abDrag && abDrag.moved) hud.aiming = -1; abDrag = null; });
+
 function commandAtCursor(e) {
   const p = G && G.player;
   if (!p || !p.alive) return;

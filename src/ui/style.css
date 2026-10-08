@@ -439,3 +439,47 @@ body.cinematic #howtoBtn { display: none; }
   #menu .tag { margin: 8px 0 14px; font-size: 14px; } #menu .row { margin-bottom: 8px; } #menu .foot { position: static; margin-top: 14px; max-width: 80vw; }
 }
 .ab .cdt { transform: translateY(-6px); } /* the cooldown digit sits above the ability caption instead of on top of it */
+
+/* ---------- touch / phone layout: the view stays clear; thumbs get big skill buttons, everything else shrinks or folds away */
+.tbtn { display: none; position: absolute; width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1px solid var(--gold-dim); background: rgba(14,16,22,.82); color: var(--gold); font-size: 20px; line-height: 1; align-items: center; justify-content: center; cursor: pointer; }
+body.touch { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+body.touch #ui { touch-action: manipulation; }
+body.touch #topbar { top: calc(3px + env(safe-area-inset-top)); transform: translateX(-50%) scale(.72); transform-origin: 50% 0; }
+body.touch #topbar .side { min-width: 0; padding: 0 10px; } body.touch #topbar .era span { display: none; } body.touch #topbar .clock { min-width: 90px; padding: 0 12px; }
+body.touch #objectives { display: none; }
+body.touch #feed { top: calc(46px + env(safe-area-inset-top)); right: calc(6px + env(safe-area-inset-right)); width: 190px; gap: 3px; }
+body.touch #feed .item { font-size: 11px; padding: 3px 7px; } body.touch #feed .item:nth-last-child(n+4) { display: none; }
+body.touch #minimap { left: calc(6px + env(safe-area-inset-left)); top: calc(46px + env(safe-area-inset-top)); bottom: auto; padding: 4px; opacity: .9; }
+body.touch #minimap canvas { width: 116px; height: 71px; }
+body.touch #command { position: static; transform: none !important; display: block; }
+body.touch #portrait { position: absolute; left: calc(6px + env(safe-area-inset-left)); bottom: calc(6px + env(safe-area-inset-bottom)); width: 132px; padding: 5px 8px; }
+body.touch #shipimg, body.touch #portrait .sub { display: none; }
+body.touch #portrait .name { font-size: 11px; white-space: nowrap; text-overflow: ellipsis; max-width: 100px; }
+body.touch #portrait .lvl { font-size: 15px; margin-top: 0; }
+body.touch #portrait .bar { height: 12px; margin-top: 4px; } body.touch #portrait .bar .txt { font-size: 10px; line-height: 10px; } body.touch #portrait .bar.xp { height: 4px; margin-top: 3px; }
+body.touch #goldbox { position: absolute; left: calc(146px + env(safe-area-inset-left)); bottom: calc(6px + env(safe-area-inset-bottom)); min-width: 0; padding: 5px 9px; }
+body.touch #goldbox .gold { font-size: 17px; } body.touch #goldbox .gold::before { font-size: 11px; vertical-align: 1px; }
+body.touch #ageup { margin-top: 4px; padding: 4px 7px; font-size: 10px; } body.touch #ageup b { font-size: 11px; }
+body.touch #abilities { position: absolute; right: calc(6px + env(safe-area-inset-right)); bottom: calc(6px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px; }
+body.touch #abilities::before, body.touch #abilities::after { display: none; }
+body.touch .ab { width: 64px; height: 64px; touch-action: none; } body.touch .ab .nm { display: none; } body.touch .ab svg { width: 34px; height: 34px; margin-bottom: 0; } body.touch .ab .cdt { transform: none; }
+body.touch #shop { display: none; right: calc(176px + env(safe-area-inset-right)); bottom: calc(6px + env(safe-area-inset-bottom)); width: 220px; z-index: 5; }
+body.touch.shopOpen #shop { display: block; }
+body.touch .tbtn { display: flex; }
+body.touch #armBtn { right: calc(12px + env(safe-area-inset-right)); bottom: calc(170px + env(safe-area-inset-bottom)); }
+body.touch #recenterBtn { left: calc(6px + env(safe-area-inset-left)); bottom: calc(64px + env(safe-area-inset-bottom)); }
+body.touch #announce { top: 16%; } body.touch #announce h1 { font-size: 22px; letter-spacing: .08em; } body.touch #announce p { font-size: 12px; }
+body.touch #netInd { top: 4px; right: 8px; }
+body.touch #tip { display: none; }
+body.touch #hintRoot { font-size: 12px; }
+@media (max-width: 520px) { /* portrait phones: the gold box stacks above the portrait */
+  body.touch #goldbox { left: calc(6px + env(safe-area-inset-left)); bottom: calc(64px + env(safe-area-inset-bottom)); }
+  body.touch #recenterBtn { bottom: calc(122px + env(safe-area-inset-bottom)); }
+  body.touch #shop { right: calc(6px + env(safe-area-inset-right)); bottom: calc(222px + env(safe-area-inset-bottom)); }
+  body.touch #armBtn { bottom: calc(168px + env(safe-area-inset-bottom)); }
+}
+body.touch #announce { left: 8px; right: 8px; }
+@media (max-width: 520px) { body.touch #topbar .era { display: none; } body.touch #topbar .side { gap: 6px; } body.touch #announce h1 { font-size: 20px; } }
+body.touch #shop { width: 196px; padding: 6px 8px; } body.touch #shop h3 { margin-bottom: 3px; padding-bottom: 3px; }
+body.touch .upg { padding: 2px 4px; grid-template-columns: 22px 1fr auto; gap: 6px; } body.touch .upg svg { width: 20px; height: 20px; }
+body.touch .upg .n { font-size: 12px; } body.touch .upg .k { display: none; } body.touch .upg .c { font-size: 12px; } body.touch .upg .pips { margin-top: 1px; }
