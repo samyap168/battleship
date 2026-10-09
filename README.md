@@ -108,3 +108,6 @@ Real GPUs and drivers differ from the test rasteriser, so the renderer polices i
 - **No `fract(sin(x) * 43758)` hashes**: on AMD / Direct3D drivers `sin()` loses precision for large arguments, which turned the sea cream-white (confirmed fixed on a Radeon 840M). Every shader hash is a sine-free Hoskins-style hash.
 - **Sea detail**: fine ripples come from three rotated, incommensurate tiles of an isotropic slope texture, not a stack of crossing sine waves (those drew a woven diamond lattice). Layers: 2 on Low, 3 on Medium/Ultra; noise octaves 2/3/4.
 - **Sea cost**: the sea shader's detail layers and noise loops scale with the graphics preset.
+
+## Sea look
+Options → **Sea look**: *Bright* (turquoise, the default, tuned for readability from the high camera) or *Realistic* (deep navy-grey water, finer waves, more sun glitter, like the yacht-orbit reference ocean). The choice is remembered (`aa.look`). Both share one shader; `uReal` blends between them.

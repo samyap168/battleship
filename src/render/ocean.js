@@ -113,7 +113,7 @@ export class Ocean {
       uDeep: { value: new THREE.Color(0.004, 0.022, 0.04) },
       uShallow: { value: new THREE.Color(0.02, 0.2, 0.2) },
       uSSS: { value: new THREE.Color(0.03, 0.2, 0.17) },
-      uBodyI: { value: 1 },
+      uBodyI: { value: 1 }, uReal: { value: 0 },
       tReflect: { value: new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1) },
       uReflMat: { value: new THREE.Matrix4() },
       uReflOn: { value: 0 },
@@ -143,7 +143,7 @@ vWaveH = gD.y; vGrid = wpos0.xz; vOW = wpos0 + gD;`);
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>
 uniform float uTime; uniform vec4 uIslands[${MAX_ISLANDS}]; uniform int uIslandCount; uniform int uRipples;
-uniform vec3 uSunDir, uSunColor, uDeep, uShallow, uSSS; uniform float uBodyI;
+uniform vec3 uSunDir, uSunColor, uDeep, uShallow, uSSS; uniform float uBodyI, uReal;
 uniform sampler2D tReflect; uniform mat4 uReflMat; uniform float uReflOn; uniform sampler2D tDetail;
 varying vec3 vOW; varying float vWaveH; varying vec2 vGrid;
 ${WAVES_GLSL}
@@ -167,7 +167,7 @@ float gustK = 0.0;
   if (uRipples >= 6) det += 0.24 * (transpose(R3) * (texture2D(tDetail, R3 * vOW.xz / 1.37 + vec2(uTime * 0.043, -uTime * 0.037) + 0.71).xy * 2.0 - 1.0));
   // wind gusts: big soft patches drift downwind; inside them the surface is rougher (more fine ripples), outside it stays glassy
   gustK = smoothstep(0.38, 0.74, oFbm(vOW.xz * 0.0065 + wd * uTime * 0.35));
-  wN.xz -= det * 0.2 * detailFade * mix(0.7, 1.45, gustK);
+  wN.xz -= det * 0.2 * detailFade * mix(0.7, 1.45, gustK) * (1.0 + 0.45 * uReal);
 }
 wN = normalize(wN);
 vec3 V = normalize(cameraPosition - vOW);
@@ -193,7 +193,8 @@ float capField = smoothstep(0.38, 0.72, oFbm(vOW.xz * 0.018 + vec2(uTime * 0.01,
 float crest = smoothstep(1.45, 2.5, vWaveH + n1 * 0.7) * smoothstep(0.58, 0.9, n2) * 0.7 * mix(0.25, 1.0, capField);
 float foam = clamp(shoreFoam + crest * 0.8, 0.0, 1.0);
 vec3 waterAlbedo = mix(uDeep, uShallow * 0.6, shallow * 0.8);
-waterAlbedo *= 1.0 - 0.16 * gustK; // a gust darkens the water: it scatters the sky's reflection instead of mirroring it
+waterAlbedo = mix(waterAlbedo, uDeep * 0.8 + vec3(0.003, 0.010, 0.018), uReal * 0.65 * (1.0 - foam)); // 'realistic' look: deep navy-grey sea instead of turquoise
+waterAlbedo *= 1.0 - (0.16 + 0.10 * uReal) * gustK; // a gust darkens the water: it scatters the sky's reflection instead of mirroring it
 diffuseColor.rgb = mix(waterAlbedo, vec3(0.92, 0.95, 0.97), foam);
 `)
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
@@ -206,16 +207,16 @@ float sunUp = clamp(uSunDir.y * 3.0, 0.0, 1.0);
 vec2 sunH = normalize(uSunDir.xz + 1e-4);
 float back = pow(clamp(dot(-V.xz, sunH) * 0.5 + 0.5, 0.0, 1.0), 3.0);
 float thick = clamp(vWaveH * 0.55 + 0.45, 0.0, 1.4);
-vec3 sss = uSSS * uSunColor * (0.25 + back * 1.4) * thick * sunUp * (1.0 - foam);
+vec3 sss = uSSS * uSunColor * (0.25 + back * 1.4) * thick * sunUp * (1.0 - foam) * (1.0 - 0.5 * uReal);
 sss += uShallow * uSunColor * shallow * 0.18 * sunUp;
 totalEmissiveRadiance += sss * (0.35 + 0.65 * pow(max(1.0 - max(dot(wN, V), 0.0), 0.0), 2.0));
 // Water-body scattering: seen from above the sea is lit from within, not by reflection.
 float facing = max(dot(wN, V), 0.0);
-vec3 body = vec3(0.006, 0.042, 0.058) * (0.45 + 0.9 * sunUp) * (0.6 + 0.4 * facing) * uBodyI;
+vec3 body = vec3(0.006, 0.042, 0.058) * (0.45 + 0.9 * sunUp) * (0.6 + 0.4 * facing) * uBodyI * (1.0 - 0.6 * uReal);
 body = mix(body, uShallow * 0.35, shallow * 0.6);
 totalEmissiveRadiance += body * (1.0 - foam);`)
         .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
-reflectedLight.directSpecular = min(reflectedLight.directSpecular, vec3(4.0)) * 0.32; // soften the sun road so combat stays readable (and cap the GGX peak: a driver that overflows it would blow the whole sea out)
+reflectedLight.directSpecular = min(reflectedLight.directSpecular, vec3(4.0)) * mix(0.32, 0.6, uReal); // soften the sun road so combat stays readable (and cap the GGX peak: a driver that overflows it would blow the whole sea out)
 if (uReflOn > 0.5) {
   // planar reflection (islands, forts, ships, explosions, sky) replaces the env-map reflection
   vec4 rc = uReflMat * vec4(vOW.x, 0.0, vOW.z, 1.0);
@@ -292,8 +293,12 @@ gl_FragColor.rgb = min(oc, vec3(1.35)); // tame sun-glint fireflies before bloom
     this.uniforms.uIslandCount.value = n;
   }
 
+  /** 'bright' (turquoise, the default) or 'real' (deep navy, finer waves, more sun glitter); eased in over about a second */
+  setLook(mode) { this.lookGoal = mode === 'real' ? 1 : 0; }
+
   update(dt, t, focusX, focusZ, sky) {
     this.uniforms.uTime.value = t;
+    { const g = this.lookGoal || 0, c = this.uniforms.uReal.value; this.uniforms.uReal.value = c + Math.sign(g - c) * Math.min(Math.abs(g - c), dt * 1.2); }
     this.cullT = (this.cullT || 0) - dt;
     if (this.cullT <= 0) { this.cullT = 0.25; this.cullIslands(focusX, focusZ); }
     const snap = 4;

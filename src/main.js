@@ -456,6 +456,7 @@ function syncOptions() {
   const v = audio.volume;
   $('#optMaster').value = Math.round(v.master * 100); $('#optMusic').value = Math.round(v.music * 100); $('#optSfx').value = Math.round(v.sfx * 100);
   document.querySelectorAll('#optFps button').forEach((b) => b.classList.toggle('on', (b.dataset.v === '1') === !fpsEl.classList.contains('hidden')));
+  document.querySelectorAll('#optLook button').forEach((b) => b.classList.toggle('on', b.dataset.v === seaLook));
   $('#options .op-sub').textContent = mpOn() ? 'The battle goes on without you' : 'The battle is paused';
   quitArmed = 0; $('#optQuit').textContent = 'QUIT TO MENU'; $('#optQuit').classList.remove('confirm');
 }
@@ -474,6 +475,10 @@ document.querySelectorAll('#optQual button').forEach((b) => {
   b.onclick = () => { audio.play('uiClick'); applyQuality(b.dataset.v); syncOptions(); };
   b.onmouseenter = () => audio.play('uiHover');
 });
+let seaLook = localGet('aa.look') === 'real' ? 'real' : 'bright';
+function applySeaLook(v) { seaLook = v; localSet('aa.look', v); ocean.setLook(v); document.querySelectorAll('#optLook button').forEach((b) => b.classList.toggle('on', b.dataset.v === v)); }
+ocean.setLook(seaLook); if (seaLook === 'real' && ocean.uniforms) ocean.uniforms.uReal.value = 1;
+document.querySelectorAll('#optLook button').forEach((b) => { b.onclick = () => { audio.play('uiClick'); applySeaLook(b.dataset.v); }; });
 document.querySelectorAll('#optFps button').forEach((b) => {
   b.onclick = () => { audio.play('uiClick'); fpsEl.classList.toggle('hidden', b.dataset.v !== '1'); localSet('aa.fps', b.dataset.v); syncOptions(); };
 });
