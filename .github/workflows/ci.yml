@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Install Playwright Chromium
+        run: npm i --no-save playwright && npx playwright install --with-deps chromium
+      - name: Serve the build
+        run: |
+          nohup npx vite preview --port 5173 --host > preview.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:5173 > /dev/null && break; sleep 1; done
+      - name: Smoke (page loads, two game minutes run)
+        run: npm run test:smoke
+      - name: Determinism (same seed, different frame patterns)
+        run: npm run test:sim
+      - name: Multiplayer (two windows) and resilience
+        run: npm run test:mp
+      - name: Single-player full match
+        run: node tests/fullmatch.mjs "&autopilot=1"

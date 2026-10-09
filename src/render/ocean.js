@@ -157,6 +157,7 @@ float detailFade = 1.0 - smoothstep(180.0, 900.0, camDist);
 // capillary detail (normal only): three tiled isotropic slope layers, each rotated by its own angle and scaled
 // incommensurately so no lattice lines up; slopes are rotated back to world space. Cheaper than the old
 // sine-ripple loop and free of the woven diamond pattern crossing sinusoids drew.
+float gustK = 0.0;
 {
   const mat2 R1 = mat2(0.8776, 0.4794, -0.4794, 0.8776), R2 = mat2(0.1665, 0.9861, -0.9861, 0.1665), R3 = mat2(-0.6663, 0.7457, -0.7457, -0.6663);
   vec2 wd = vec2(0.82, 0.57);
@@ -164,7 +165,9 @@ float detailFade = 1.0 - smoothstep(180.0, 900.0, camDist);
   vec2 d2 = transpose(R2) * (texture2D(tDetail, R2 * vOW.xz / 3.7 + vec2(-wd.y, wd.x) * uTime * 0.031 + 0.37).xy * 2.0 - 1.0);
   vec2 det = d1 * 0.62 + d2 * 0.44;
   if (uRipples >= 6) det += 0.24 * (transpose(R3) * (texture2D(tDetail, R3 * vOW.xz / 1.37 + vec2(uTime * 0.043, -uTime * 0.037) + 0.71).xy * 2.0 - 1.0));
-  wN.xz -= det * 0.2 * detailFade;
+  // wind gusts: big soft patches drift downwind; inside them the surface is rougher (more fine ripples), outside it stays glassy
+  gustK = smoothstep(0.38, 0.74, oFbm(vOW.xz * 0.0065 + wd * uTime * 0.35));
+  wN.xz -= det * 0.2 * detailFade * mix(0.7, 1.45, gustK);
 }
 wN = normalize(wN);
 vec3 V = normalize(cameraPosition - vOW);
@@ -190,10 +193,11 @@ float capField = smoothstep(0.38, 0.72, oFbm(vOW.xz * 0.018 + vec2(uTime * 0.01,
 float crest = smoothstep(1.45, 2.5, vWaveH + n1 * 0.7) * smoothstep(0.58, 0.9, n2) * 0.7 * mix(0.25, 1.0, capField);
 float foam = clamp(shoreFoam + crest * 0.8, 0.0, 1.0);
 vec3 waterAlbedo = mix(uDeep, uShallow * 0.6, shallow * 0.8);
+waterAlbedo *= 1.0 - 0.16 * gustK; // a gust darkens the water: it scatters the sky's reflection instead of mirroring it
 diffuseColor.rgb = mix(waterAlbedo, vec3(0.92, 0.95, 0.97), foam);
 `)
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-roughnessFactor = mix(0.075 + (1.0 - detailFade) * 0.12, 0.85, foam);`)
+roughnessFactor = mix(0.075 + (1.0 - detailFade) * 0.12 + gustK * 0.07, 0.85, foam);`)
         .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
 normal = normalize((viewMatrix * vec4(wN, 0.0)).xyz);`)
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>

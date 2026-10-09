@@ -135,6 +135,7 @@ export class Combat {
       else if (target === player || target.kind !== 'creep') G.ui.damageNumber(target, dmg + absorbed, target === player);
     }
     if (target === G.player && dmg + absorbed >= 1 && source && source.x !== undefined && G.ui.hurt) G.ui.hurt(source.x, source.z, (dmg + absorbed) / target.maxHp);
+    if (target === G.player && dmg >= 1 && G.fx) G.fx.shake(Math.min(0.5, 0.06 + (dmg / target.maxHp) * 1.5), target.x, target.z); // the deck kicks when you are hit: bigger hits, bigger kick
     if (target.hp <= 0) G.kill(target, srcHero || source);
     return dmg;
   }
@@ -171,6 +172,12 @@ export class Combat {
       dmg, aoe: opts.aoe || 0, hitR: opts.hitR ?? 2.5, crit: opts.crit, slow: opts.slow, slowDur: opts.slowDur, stun: opts.stun,
       splashScale: opts.splashScale || 1, alive: true, x: p0.x, y: p0.y, z: p0.z, trailT: 0, isAbility: opts.isAbility,
     });
+    // an enemy shell coming down near your ship whistles on the way in (audio only: it never touches the simulation)
+    const pl = this.G.player;
+    if (pl && pl.alive && owner.team !== pl.team && T > 0.8 && (x1 - pl.x) ** 2 + (z1 - pl.z) ** 2 < 30 * 30 && this.G.time - (this._whistleT ?? -9) > 0.3) {
+      this._whistleT = this.G.time;
+      this.G.audio.play('shellWhistle', { x: x1, z: z1, vol: 0.9, when: Math.max(0, T - 0.7) });
+    }
   }
 
   /** Straight skillshot that collides with the first enemy (or pierces). */
