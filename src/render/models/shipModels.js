@@ -482,7 +482,7 @@ export function makeHull(P, opts) {
 // ===========================================================================
 // Bilinear sail patch: c00 = head-left, c10 = head-right, c01 = foot-left, c11 = foot-right.
 // Bulges along `dir` by b0 (slack) .. b1 (full, morph target 0).
-function sailPatch(c00, c10, c01, c11, dir, b0, b1, uvRect = [0, 0, 1, 1], nx = 8, ny = 6, shapeFn) {
+function sailPatch(c00, c10, c01, c11, dir, b0, b1, uvRect = [0, 0, 1, 1], nx = 16, ny = 12, shapeFn) {
   const shape = shapeFn || ((xn, yn) => (1 - xn * xn) * Math.pow(Math.sin(yn * PI * 0.6), 0.85));
   const build = (b) => {
     const pos = [], uv = [], idx = [];
@@ -1016,7 +1016,7 @@ function buildFrigate(ctx, { L = 14.6, scale = 1, masts = 3, creep = false } = {
         new V3(-topW / 2, hTop, zc), new V3(topW / 2, hTop, zc),
         new V3(-botW / 2, hBot, zc + 0.15), new V3(botW / 2, hBot, zc + 0.15),
         new V3(0, 0, 1), 0.25 * k, 0.95 * k * (yi === 0 ? 1.1 : 0.9),
-        crest ? [0.5, 0, 1, 1] : [0, 0, 0.5, 1], 8, 6));
+        crest ? [0.5, 0, 1, 1] : [0, 0, 0.5, 1], 16, 12));
     }
     if (md.spanker) {
       // gaff spanker aft of the mast
@@ -1027,7 +1027,7 @@ function buildFrigate(ctx, { L = 14.6, scale = 1, masts = 3, creep = false } = {
       ctx.sails.push(sailPatch(
         new V3(0, gy1 - 0.1, md.z - 0.2), new V3(0, gy1 + 0.8 * k, md.z - aft),
         new V3(0, gy0 + 0.5, md.z - 0.2), new V3(0, gy0 + 0.45, md.z - aft - 0.2),
-        new V3(-1, 0, 0), 0.15 * k, 0.55 * k, [0.02, 0.05, 0.48, 0.95], 6, 6,
+        new V3(-1, 0, 0), 0.15 * k, 0.55 * k, [0.02, 0.05, 0.48, 0.95], 10, 10,
         (xn, yn, s) => Math.sin(PI * s) * Math.sin(PI * clamp(yn, 0, 1)) + 0.0));
     }
     // shrouds (tarred rope) to the chains
@@ -1052,7 +1052,7 @@ function buildFrigate(ctx, { L = 14.6, scale = 1, masts = 3, creep = false } = {
   ctx.sails.push(sailPatch(
     new V3(0, fm.base + fm.H * 0.62, fm.z + 0.2), new V3(0, fm.base + fm.H * 0.62, fm.z + 0.2),
     new V3(0, bowY + 0.35, fm.z + 0.6 * k), new V3(0, tip.y - 0.05, tip.z - 0.15),
-    new V3(1, 0, 0), 0.12 * k, 0.5 * k, [0.02, 0.05, 0.48, 0.95], 6, 6,
+    new V3(1, 0, 0), 0.12 * k, 0.5 * k, [0.02, 0.05, 0.48, 0.95], 10, 10,
     (xn, yn, s) => Math.sin(PI * clamp(yn, 0, 1)) * Math.sin(PI * s) * yn));
   if (!creep) {
     ctx.sails.push(sailPatch(

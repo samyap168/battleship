@@ -256,7 +256,8 @@ function sailTex(teamId) {
   const key = 'sail:' + teamId;
   if (texCache.has(key)) return texCache.get(key);
   const W = 512, H = 256;
-  const [c, g] = canvas(W, H);
+  const [c, g] = canvas(W * 2, H * 2); // drawn at 2x: stitching and weave need the pixels
+  g.scale(2, 2);
   const r = rng(3);
   const team = teamInfo(teamId);
   for (let half = 0; half < 2; half++) {
@@ -278,9 +279,42 @@ function sailTex(teamId) {
       g.fillStyle = `rgba(255,250,235,${0.05 + r() * 0.05})`;
       g.fillRect(x0 + x + 2, 0, 8, H);
     }
-    // reef bands
-    g.fillStyle = 'rgba(90,70,40,0.18)';
-    g.fillRect(x0, H * 0.2, 256, 2); g.fillRect(x0, H * 0.32, 256, 2);
+    // panel-to-panel tone drift: every cloth width was cut from a slightly different bolt
+    if (!junk) for (let x = 0, i = 0; x < 256; x += 21, i++) {
+      g.fillStyle = r() < 0.5 ? `rgba(120,95,55,${0.03 + r() * 0.07})` : `rgba(255,252,240,${0.03 + r() * 0.06})`;
+      g.fillRect(x0 + x, 0, 21, H);
+    }
+    // stitching beside every seam, and the folded 'tabling' round the edge
+    if (!junk) {
+      g.save(); g.setLineDash([3, 2.5]); g.strokeStyle = 'rgba(70,50,28,0.45)'; g.lineWidth = 0.8;
+      for (let x = 0; x < 256; x += 21) for (const o of [-2.2, 2.2]) { g.beginPath(); g.moveTo(x0 + x + o, 4); g.lineTo(x0 + x + o, H - 4); g.stroke(); }
+      g.restore();
+    }
+    g.fillStyle = 'rgba(70,52,30,0.16)'; g.fillRect(x0, 0, 256, 9); g.fillRect(x0, H - 9, 256, 9); g.fillRect(x0, 0, 8, H); g.fillRect(x0 + 248, 0, 8, H);
+    g.save(); g.setLineDash([4, 3]); g.strokeStyle = 'rgba(60,44,24,0.5)'; g.lineWidth = 0.9; g.strokeRect(x0 + 9, 9, 238, H - 18); g.restore();
+    // reef bands with their reef points (the short ties that gather the sail)
+    g.fillStyle = 'rgba(90,70,40,0.22)';
+    g.fillRect(x0, H * 0.2, 256, 2.4); g.fillRect(x0, H * 0.32, 256, 2.4);
+    g.fillStyle = 'rgba(40,30,18,0.55)';
+    for (let x = 6; x < 256; x += 12) { g.fillRect(x0 + x, H * 0.2 - 3, 1.6, 9); g.fillRect(x0 + x, H * 0.32 - 3, 1.6, 9); }
+    // sail-maker's patches
+    for (let i = 0; i < 3; i++) {
+      const px = x0 + 20 + r() * 190, py = H * (0.1 + r() * 0.5), pw = 18 + r() * 22, ph = 14 + r() * 16;
+      g.fillStyle = `rgba(${200 + r() * 25},${190 + r() * 25},${150 + r() * 25},0.55)`; g.fillRect(px, py, pw, ph);
+      g.save(); g.setLineDash([2, 2]); g.strokeStyle = 'rgba(60,44,24,0.55)'; g.lineWidth = 0.8; g.strokeRect(px + 1.5, py + 1.5, pw - 3, ph - 3); g.restore();
+    }
+    // salt, tar and mildew stains that run down from the yard and the reef lines
+    for (let i = 0; i < 7; i++) {
+      const sx = x0 + r() * 256, sy = r() * H * 0.5, sr = 12 + r() * 26;
+      const sg = g.createRadialGradient(sx, sy, 1, sx, sy, sr);
+      const mildew = r() < 0.4;
+      sg.addColorStop(0, mildew ? 'rgba(70,80,50,0.20)' : 'rgba(95,72,40,0.22)'); sg.addColorStop(1, 'rgba(95,72,40,0)');
+      g.fillStyle = sg; g.fillRect(sx - sr, sy - sr, sr * 2, sr * 2 + 30);
+    }
+    // cloth weave: fine threads in both directions
+    g.fillStyle = 'rgba(80,62,36,0.045)';
+    for (let y = 0; y < H; y += 1.2) g.fillRect(x0, y, 256, 0.45);
+    for (let x = 0; x < 256; x += 1.2) g.fillRect(x0 + x, 0, 0.45, H);
     // grime near the foot
     const gg = g.createLinearGradient(0, H * 0.75, 0, H);
     gg.addColorStop(0, 'rgba(80,60,30,0)'); gg.addColorStop(1, 'rgba(80,60,30,0.2)');
@@ -303,6 +337,34 @@ function sailTex(teamId) {
   }
   const t = toTex(c, { repeat: false });
   texCache.set(key, t);
+  return t;
+}
+
+// Height map for the sail: seams and stitches are grooves, the weave a fine relief, and soft vertical
+// folds (the cloth hangs in gathers between the yard's lifts) read in any light.
+function sailBump() {
+  if (texCache.has('sailbump')) return texCache.get('sailbump');
+  const W = 512, H = 256;
+  const [c, g] = canvas(W * 2, H * 2);
+  g.scale(2, 2);
+  const r = rng(11);
+  g.fillStyle = '#808080'; g.fillRect(0, 0, W, H);
+  for (let half = 0; half < 2; half++) {
+    const x0 = half * 256;
+    // gathers: long soft vertical ridges, wider than a panel
+    for (let x = 0; x < 256; x += 2) {
+      const f = Math.sin(x * 0.075 + half * 1.7) * 0.5 + Math.sin(x * 0.19 + 2) * 0.25;
+      g.fillStyle = `rgba(${f > 0 ? 255 : 0},${f > 0 ? 255 : 0},${f > 0 ? 255 : 0},${Math.abs(f) * 0.16})`;
+      g.fillRect(x0 + x, 0, 2, H);
+    }
+    for (let x = 0; x < 256; x += 21) { g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(x0 + x, 0, 1.6, H); g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(x0 + x + 2.5, 0, 1.2, H); }
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(x0, 8, 256, 1.2); g.fillRect(x0, H - 9, 256, 1.2); g.fillRect(x0 + 8, 0, 1.2, H); g.fillRect(x0 + 247, 0, 1.2, H);
+    g.fillStyle = 'rgba(255,255,255,0.2)'; g.fillRect(x0, H * 0.2, 256, 2); g.fillRect(x0, H * 0.32, 256, 2);
+    for (let y = 0; y < H; y += 1.2) { g.fillStyle = `rgba(0,0,0,${0.05 + r() * 0.04})`; g.fillRect(x0, y, 256, 0.5); }
+    for (let x = 0; x < 256; x += 1.2) { g.fillStyle = `rgba(0,0,0,${0.05 + r() * 0.04})`; g.fillRect(x0 + x, 0, 0.5, H); }
+  }
+  const t = toTex(c, { repeat: false, srgb: false });
+  texCache.set('sailbump', t);
   return t;
 }
 
@@ -341,7 +403,7 @@ const DEFS = {
   wood: (t) => ({ color: 0xffffff, map: woodTex(), bumpMap: woodTex(), bumpScale: 1.2, roughness: 0.78, metalness: 0.0 }),
   darkwood: () => ({ color: 0x8a6a50, map: woodTex(), roughness: 0.7, metalness: 0.0 }),
   teak: () => ({ color: 0xd8d0c4, map: teakTex(), bumpMap: teakTex(), bumpScale: 0.8, roughness: 0.72, metalness: 0.0 }),
-  sail: (t) => ({ color: 0xb4ab98, map: sailTex(t), roughness: 0.92, metalness: 0.0, side: THREE.DoubleSide }),
+  sail: (t) => ({ physical: true, color: 0xb4ab98, map: sailTex(t), bumpMap: sailBump(), bumpScale: 2.2, roughness: 0.9, metalness: 0.0, sheen: 0.8, sheenRoughness: 0.55, sheenColor: new THREE.Color(0xffe9c4), side: THREE.DoubleSide }),
   iron: () => ({ color: 0x2c2e33, roughness: 0.42, metalness: 0.75 }),
   steel: () => ({ color: 0x8a939c, map: plateTex(), roughness: 0.55, metalness: 0.35 }),
   darksteel: () => ({ color: 0x4a5058, map: plateTex(), roughness: 0.5, metalness: 0.4 }),
