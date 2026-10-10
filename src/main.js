@@ -26,6 +26,7 @@ import { renderThumbnails, hullThumb } from './render/thumbnails.js';
 import { loadHullModels } from './render/models/glbHulls.js';
 import { WaterReflection, reflectable } from './render/reflection.js';
 import { TEAM_RIM, applyTeamRim } from './render/teamRim.js';
+import { SHIP_POOLS, SHIP_LIGHT } from './render/shipWater.js';
 import { buildHeroShip, buildCreepShip, HERO_IDS } from './render/models/shipModels.js';
 import { MATCH, AGE_HULLS, UPGRADES, AGES, TEAMS } from './core/config.js';
 
@@ -124,6 +125,7 @@ await step(58, 'Charting the archipelago');
 const env = new Environment(scene, ISLANDS, SCENERY);
 const birds = new Birds(scene, ISLANDS);
 const wakes = new Wakes(scene);
+scene.add(SHIP_POOLS.mesh); // contact shadow + waterline foam ring under every hull: one instanced draw
 const particles = new Particles(scene);
 const fx = new FX(scene, particles, ocean.decals, R);
 const sealife = new SeaLife(scene, ISLANDS, fx);
@@ -149,7 +151,7 @@ const hud = new HUD($('#ui'), $('#overlay'));
 R.sceneSteps = {
   refl: { live: () => !!(refl && refl.uniforms.uReflOn.value), set: (off) => { if (refl) refl.uniforms.uReflOn.value = off ? 0 : (settings.quality === 'high' ? 1 : 0); } },
   env: { live: () => !sky.envBlocked && !!scene.environment, set: (off) => { sky.envBlocked = off; scene.environment = off ? null : (sky.envRT ? sky.envRT.texture : null); } },
-  decals: { live: () => ocean.decals.mesh.visible, set: (off) => { ocean.decals.mesh.visible = !off; } },
+  decals: { live: () => ocean.decals.mesh.visible, set: (off) => { ocean.decals.mesh.visible = !off; SHIP_POOLS.mesh.visible = !off; } },
   shore: { live: () => env.shore.visible, set: (off) => { env.shore.visible = !off; } },
   sparks: { live: () => fx.p.alpha.points.visible || fx.p.add.points.visible, set: (off) => { fx.p.alpha.points.visible = !off; fx.p.add.points.visible = !off; } },
   sea: { live: () => ocean.mesh.material === ocean.fullMat, set: (off) => ocean.setSafe(off) },
@@ -837,7 +839,7 @@ const AGE_GRADE = {
 const gradeCur = { gain: new THREE.Vector3(1, 1, 1), lift: new THREE.Vector3(), sat: 1.1, con: 1.08, ca: 0.0007 };
 const _px = new Uint8Array(4);
 function syncGPU() { const g = R.gl.getContext(); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, _px); }
-window.__aa = { get G() { return G; }, play: (extra) => play(extra), simState, R, sky, cameraDir, fx, settings, get refl() { return refl; }, weather, TEAM_RIM, get fps() { return fps; }, howto: (on) => showHowTo(on), sealife,
+window.__aa = { get G() { return G; }, play: (extra) => play(extra), simState, R, sky, cameraDir, fx, settings, get refl() { return refl; }, weather, TEAM_RIM, SHIP_POOLS, SHIP_LIGHT, get fps() { return fps; }, howto: (on) => showHowTo(on), sealife,
   // test fast-forward: advance the sim AND age its effects (plain G.update leaves every spray puff frozen in place)
   ff: (dt) => { G.update(dt); const t = G.time; wakes.update(dt, t); fx.update(dt, t); particles.update(dt); ocean.decals.update(dt, t); } };
 

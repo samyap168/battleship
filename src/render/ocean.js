@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { WAVES_GLSL, WAVE_UNIFORMS } from './waves.js';
 import { applyCloudShadow } from './cloudShadow.js';
+import { updateShipLight } from './shipWater.js';
 
 const MAX_ISLANDS = 48;
 
@@ -308,6 +309,7 @@ gl_FragColor.rgb = min(oc, vec3(1.35)); // tame sun-glint fireflies before bloom
       this.uniforms.uSunColor.value.copy(sky.sun.color).multiplyScalar(sky.sun.intensity * 0.45);
       this.uniforms.uBodyI.value = Math.min(1.2, 0.25 + sky.sun.intensity / 3.4);
     }
+    updateShipLight(t, sky, this.uniforms.uReal.value);
     this.decals.update(dt, t);
   }
 }

@@ -17,6 +17,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { patchMaterial, getMat, pulseMaterials, teamInfo } from './materials.js';
 import { HULL_GLB } from './glbHulls.js';
+import { standingRigging, bowDetails, sternDetails, deckDetails } from './sailDetails.js';
+import { outfitShip } from '../shipWater.js';
 
 const V3 = THREE.Vector3;
 const PI = Math.PI;
@@ -953,6 +955,7 @@ function buildFrigate(ctx, { L = 14.6, scale = 1, masts = 3, creep = false } = {
     P.box('wood', sw / n * 0.12, qh * 0.5, 0.1, x + sw / n * 0.5, qTop - qh * 0.45, wz - 0.03, 0x3a2a1c);
   }
   P.box('wood', sw * 1.05, 0.08 * k, 0.4 * k, 0, qTop - qh * 0.8, wz - 0.2 * k, 0x5a4030);
+  if (!creep) sternDetails(P, { hull, qTop, qz0, qh, sw });
   if (!creep) {
     // stern lanterns
     for (const [lx, ls] of [[0, 1.25], [-sw * 0.45, 1], [sw * 0.45, 1]]) {
@@ -973,9 +976,6 @@ function buildFrigate(ctx, { L = 14.6, scale = 1, masts = 3, creep = false } = {
   P.box(IRON, 1.0 * k, 0.05, 1.2 * k, 0, dy(-L * 0.12) + 0.22 * k, -L * 0.12, 0x1a1410);
   P.cyl('wood', 0.22 * k, 0.28 * k, 0.5 * k, 0, dy(-L * 0.2) + 0.25 * k, -L * 0.2, 0x6a4a34, 10); // capstan
   if (!creep) {
-    boat(P, 0, dy(-L * 0.01), -L * 0.01 + 0.2, 2.1 * k, 0x6a4a34, 0, 'wood');
-    // ship's wheel on the quarterdeck
-    P.add('wood', new THREE.TorusGeometry(0.28, 0.04, 5, 12), 0x4a3020, M(0, qTop + 0.4, qz1 - 0.5));
     // deck carronades
     for (const side of [-1, 1]) for (const z of [L * 0.33, -L * 0.34]) {
       const d = hull.deckAt(z);
@@ -984,6 +984,7 @@ function buildFrigate(ctx, { L = 14.6, scale = 1, masts = 3, creep = false } = {
       P.box('wood', 0.35 * k, 0.2 * k, 0.5 * k, x, yy + 0.1 * k, z, 0x5a4030);
       P.rod(IRON, 0.08 * k, 0.07 * k, [x, yy + 0.28 * k, z], [x + side * 0.7 * k, yy + 0.3 * k, z], C.ironBlack, 8);
     }
+    deckDetails(P, { hull, qTop, qz1, dy, boat });
   }
   // --- masts, yards and sails
   const mastDefs = masts === 3
@@ -1032,13 +1033,13 @@ function buildFrigate(ctx, { L = 14.6, scale = 1, masts = 3, creep = false } = {
     }
     // shrouds (tarred rope) to the chains
     const d = hull.deckAt(md.z);
-    for (const side of [-1, 1]) for (const dz of [-0.35, 0, 0.35]) {
+    if (creep) for (const side of [-1, 1]) for (const dz of [-0.35, 0, 0.35]) {
       P.rod('wood', 0.022 * k, 0.022 * k, [side * (d.outer + 0.1), d.top - 0.05, md.z + dz * k - 0.3], [side * 0.18 * k, base + H * 0.55, md.z - 0.05], C.rope, 3);
     }
-    tops.push({ z: md.z, y: base + H, base, H });
+    tops.push({ z: md.z, y: base + H, base, H, ys, ws });
   }
   // fore-and-aft stays between mast tops
-  for (let i = 0; i < tops.length - 1; i++) {
+  for (let i = 0; i < tops.length - 1 && creep; i++) {
     P.rod('wood', 0.025 * k, 0.025 * k, [0, tops[i + 1].y - 0.2, tops[i + 1].z], [0, tops[i].base + tops[i].H * 0.56, tops[i].z], C.rope, 3);
   }
   // bowsprit + jibs
@@ -1046,7 +1047,7 @@ function buildFrigate(ctx, { L = 14.6, scale = 1, masts = 3, creep = false } = {
   const bowY = hull.deckAt(bowZ - 0.3).y + 0.2;
   const tip = new V3(0, bowY + 1.3 * k, bowZ + 2.4 * k);
   P.rod('wood', 0.12 * k, 0.06 * k, [0, bowY - 0.25, bowZ - 1.4 * k], [tip.x, tip.y, tip.z], 0x4a3424, 8);
-  P.add('wood', new THREE.ConeGeometry(0.2 * k, 0.8 * k, 8), 0xd8b070, M(0, bowY - 0.25 * k, bowZ + 0.05, 0.9, 0, 0)); // figurehead
+  if (creep) P.add('wood', new THREE.ConeGeometry(0.2 * k, 0.8 * k, 8), 0xd8b070, M(0, bowY - 0.25 * k, bowZ + 0.05, 0.9, 0, 0)); // figurehead
   const fm = tops[0];
   P.rod('wood', 0.025 * k, 0.025 * k, [tip.x, tip.y, tip.z], [0, fm.base + fm.H * 0.8, fm.z], C.rope, 3);
   ctx.sails.push(sailPatch(
@@ -1068,6 +1069,7 @@ function buildFrigate(ctx, { L = 14.6, scale = 1, masts = 3, creep = false } = {
     P.rod('wood', 0.04, 0.03, [0, qTop, qz0 + 0.05], [0, qTop + 1.9 * k, qz0 - 0.35 * k], 0x4a3424, 5);
     ctx.flags.push(flagGeo(0, qTop + 1.85 * k, qz0 - 0.4 * k, 1.5 * k, 0.9 * k, 0, 0.14, 1.1));
   }
+  if (!creep) { standingRigging(P, { hull, tops, qTop }); bowDetails(P, { hull, bowZ, bowY, tip }); }
   // chase guns (turrets)
   const turrets = [];
   const tz = [L * 0.36, -L * 0.1];
@@ -1086,13 +1088,15 @@ function buildFrigate(ctx, { L = 14.6, scale = 1, masts = 3, creep = false } = {
 function buildIronclad(ctx) {
   const { root, P } = ctx;
   const L = 17.2, B = 3.5;
-  const hull = makeHull(P, {
+  const glb = HULL_GLB.ironclad; // authored Blender hull (same lines); the code-built shell is the fallback
+  const hull = makeHull(glb ? new Parts() : P, {
     L, B, D: 1.5, F: 0.75, bulwark: 0.08, rail: 0.08, sheerF: 0.05, sheerA: 0.1, transom: 0.35, bowP: 1.5, sternP: 2.2,
     uMax: 0.48, rake: -0.35, overhang: 0.35, flareBow: 0.05, flareMid: 0.02, nMid: 3.6, nBow: 1.6, nStern: 2.4, forefoot: 0.05,
     ram: 0.9, camber: 0.03, hullMat: 'steel', bottomColor: C.red, deckMat: 'steel', deckColor: 0x4c4f52,
     bands: [{ to: 0.18, color: 0x202224 }, { to: 0.5, color: 0x33363a }, { to: -0.0001, mat: 'team', color: 0xffffff }],
     railColor: 0x2a2c2f, sideUV: [1 / 5, 1 / 5],
   });
+  if (glb) addGlbHull(root, glb, 'ironclad');
   const dy = (z) => hull.deckAt(z).y;
   // casemate: sloped armoured box with chamfered ends
   const cz0 = -5.0, cz1 = 4.6, cw = 2.9;
@@ -1162,11 +1166,13 @@ function steelBands(top = true, team = true, extra = 0) {
 function buildDreadnought(ctx) {
   const { root, P } = ctx;
   const L = 25.6, B = 4.6;
-  const hull = makeHull(P, {
+  const glb = HULL_GLB.dreadnought; // authored Blender hull (same lines); the code-built shell is the fallback
+  const hull = makeHull(glb ? new Parts() : P, {
     L, B, D: 1.8, F: 1.7, bulwark: 0.12, rail: 0.06, sheerF: 0.7, sheerA: 0.1, transom: 0.3, bowP: 1.6, sternP: 2.3, uMax: 0.47,
     rake: 0.04, overhang: 0.55, flareBow: 0.22, flareMid: 0.0, nMid: 4.2, nBow: 1.4, nStern: 2.4, forefoot: 0.12,
     hullMat: 'steel', bottomColor: C.red, deckMat: 'teak', bands: steelBands(), railColor: C.hull,
   });
+  if (glb) addGlbHull(root, glb, 'dreadnought');
   const dy = (z) => hull.deckAt(z).y + hull.spec.camber;
   // barbettes + turrets
   const tdefs = [
@@ -1237,11 +1243,13 @@ function buildDreadnought(ctx) {
 function buildTorpedo(ctx) {
   const { root, P } = ctx;
   const L = 21.4, B = 3.5;
-  const hull = makeHull(P, {
+  const glb = HULL_GLB.torpedo; // authored Blender hull (same lines); the code-built shell is the fallback
+  const hull = makeHull(glb ? new Parts() : P, {
     L, B, D: 1.2, F: 1.25, bulwark: 0.1, rail: 0.05, sheerF: 0.9, sheerA: 0.05, transom: 0.55, bowP: 1.45, sternP: 2.0, uMax: 0.5,
     rake: 0.75, rakeCurve: 0.4, overhang: 0.12, flareBow: 0.4, flareMid: 0.02, nMid: 3.4, nBow: 1.3, nStern: 3, forefoot: 0.3, sternRise: 0.25,
     hullMat: 'steel', bottomColor: C.red, deckMat: 'darksteel', deckColor: 0x505860, bands: steelBands(), railColor: 0x5e6872,
   });
+  if (glb) addGlbHull(root, glb, 'torpedo');
   const dy = (z) => hull.deckAt(z).y + hull.spec.camber;
   const hullCol = 0x5e6872;
   // bridge
@@ -1295,11 +1303,13 @@ function buildTorpedo(ctx) {
 function buildBattleship(ctx) {
   const { root, P } = ctx;
   const L = 29.4, B = 5.3;
-  const hull = makeHull(P, {
+  const glb = HULL_GLB.battleship; // authored Blender hull (same lines); the code-built shell is the fallback
+  const hull = makeHull(glb ? new Parts() : P, {
     L, B, D: 2.1, F: 1.9, bulwark: 0.12, rail: 0.06, sheerF: 0.9, sheerA: 0.15, transom: 0.4, bowP: 1.35, sternP: 2.1, uMax: 0.5,
     rake: 0.35, rakeCurve: 0.25, overhang: 0.25, flareBow: 0.42, flareMid: 0.0, nMid: 4.5, nBow: 1.35, nStern: 2.6, forefoot: 0.18,
     hullMat: 'steel', bottomColor: C.red, deckMat: 'teak', bands: steelBands(), railColor: C.hull,
   });
+  if (glb) addGlbHull(root, glb, 'battleship');
   const dy = (z) => hull.deckAt(z).y + hull.spec.camber;
   const tdefs = [{ z: 9.4, lift: 0, ry: 0 }, { z: 5.9, lift: 1.2, ry: 0 }, { z: -9.3, lift: 0, ry: PI }];
   tdefs.forEach((t, i) => {
@@ -1371,11 +1381,13 @@ function buildBattleship(ctx) {
 function buildCarrier(ctx) {
   const { root, P } = ctx;
   const L = 32.0, B = 4.9;
-  const hull = makeHull(P, {
+  const glb = HULL_GLB.carrier; // authored Blender hull (same lines); the code-built shell is the fallback
+  const hull = makeHull(glb ? new Parts() : P, {
     L, B, D: 2.0, F: 2.3, bulwark: 0.0, sheerF: 0.35, sheerA: 0.1, transom: 0.62, bowP: 1.5, sternP: 2.2, uMax: 0.5,
     rake: 0.45, rakeCurve: 0.3, overhang: 0.55, flareBow: 0.45, flareMid: 0.05, nMid: 4.2, nBow: 1.3, nStern: 3, forefoot: 0.18,
     hullMat: 'steel', bottomColor: C.red, deckMat: 'steel', deckColor: C.deckSteel, bands: steelBands(true, false), camber: 0,
   });
+  if (glb) addGlbHull(root, glb, 'carrier');
   // hangar box
   const hy0 = 2.0, hy1 = 3.6;
   const hp = [];
@@ -1837,19 +1849,19 @@ function makeTemplate(key, fn) {
   return t;
 }
 
-function addGlbHull(root, parts) {
+function addGlbHull(root, parts, id = 'frigate') {
   for (const [kind, p] of Object.entries(parts)) {
     const m = new THREE.Mesh(p.geo, PLACEHOLDER);
-    m.userData.glb = kind; m.name = 'glb-' + kind; m.castShadow = true; m.receiveShadow = true;
+    m.userData.glb = kind; m.userData.glbHull = id; m.name = 'glb-' + kind; m.castShadow = true; m.receiveShadow = true;
     root.add(m);
   }
 }
 const glbTeamMats = new Map();
-function glbMaterial(kind, teamId) {
-  const p = HULL_GLB.frigate && HULL_GLB.frigate[kind];
-  if (!p) return shipMat('wood', teamId);
+function glbMaterial(kind, teamId, id = 'frigate') {
+  const p = HULL_GLB[id] && HULL_GLB[id][kind];
+  if (!p) return shipMat(id === 'frigate' ? 'wood' : 'steel', teamId);
   if (kind !== 'team') return p.mat;
-  const key = teamId ?? -1;
+  const key = id + ':' + (teamId ?? -1);
   let m = glbTeamMats.get(key);
   if (!m) { m = p.mat.clone(); m.color.set(teamInfo(teamId).color); glbTeamMats.set(key, m); }
   return m;
@@ -1867,7 +1879,7 @@ function instantiate(t, teamId) {
   const muzzles = [];
   root.traverse((o) => {
     if (o.isMesh) {
-      o.material = o.userData.glb ? glbMaterial(o.userData.glb, teamId) : shipMat(o.userData.mat, teamId);
+      o.material = o.userData.glb ? glbMaterial(o.userData.glb, teamId, o.userData.glbHull) : shipMat(o.userData.mat, teamId);
       if (o.userData.rig === 'sails') cloth.push(o);
       if (o.userData.rig === 'flag') flags.push(o);
     }
@@ -1887,12 +1899,14 @@ function instantiate(t, teamId) {
   rig.update = (dt, time, speed01 = 0) => {
     pulseMaterials(time);
     const s = clamp(speed01, 0, 1);
+    if (rig.pool) rig.pool.speed = s;
     for (const m of cloth) m.morphTargetInfluences[0] = 0.25 + 0.75 * s + 0.07 * Math.sin(time * 1.9 + phase);
     const w = time * (4 + 3 * s) + phase;
     const a = 0.5 + 0.5 * s;
     for (const f of flags) { f.morphTargetInfluences[0] = Math.cos(w) * a; f.morphTargetInfluences[1] = -Math.sin(w) * a; }
     for (const o of spinners) o.rotation.y += dt * o.userData.speed;
   };
+  outfitShip(rig, t); // wet waterline band + contact shadow / foam ring pool
   rig.update(0, 0, 0);
   return rig;
 }

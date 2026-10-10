@@ -108,7 +108,7 @@ def make_hull(path_albedo, path_normal):
     Image.fromarray((col_img * 255).astype(np.uint8)).save(path_albedo, quality=90)
     Image.fromarray((nrm * 255).astype(np.uint8)).save(path_normal)
 
-def make_deck(path_albedo, path_normal, S=512):
+def make_deck(path_albedo, path_normal, S=512, base=(0.58, 0.44, 0.27)):
     # tile covers 2 m x 2 m: planks run along the ship (x of the tile)
     y = (np.arange(S) + 0.5) / S * 2.0; x = (np.arange(S) + 0.5) / S * 2.0
     X, Y = np.meshgrid(x, y)
@@ -119,7 +119,7 @@ def make_deck(path_albedo, path_normal, S=512):
     seam = np.clip((1 - smooth(0, 0.07, inr) * smooth(0, 0.07, 1 - inr)) + (1 - smooth(0, 0.008, inc) * smooth(0, 0.008, 1 - inc)), 0, 1)
     pid = (row * 31 + col * 7) % 29 / 29.0
     g = fbm(S, S, 4, 21, 3); gr = 0.5 + 0.5 * np.sin((X * 90 + g * 8 + pid * 30))
-    base = np.array([0.58, 0.44, 0.27])
+    base = np.array(base)
     c = base[None, None, :] * (0.78 + 0.32 * pid[..., None]) * (0.85 + 0.2 * gr[..., None]) * (0.9 + 0.15 * g[..., None])
     c = c * (1 - 0.7 * seam[..., None])
     h = -seam + 0.15 * gr

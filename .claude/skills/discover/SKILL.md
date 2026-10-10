@@ -42,4 +42,4 @@ Before the final report, improve this skill from what just happened:
 2. Which discovery step produced the best ideas per minute spent? Do more of that next time, and shorten or drop steps that produced nothing.
 3. Add the new reference principles you used and the questions that were most useful to the playtest list.
 4. Move repeated lessons into the steps above, delete stale ones, keep `learnings.md` under 80 lines, append one line to its yield log.
-5. Commit the skill changes in their own commit ("discover: learned ...") and mention them in the report.
+5. Commit the skill changes in their own commit, and push that commit to `main` too (apply only `.claude/skills/` and `CLAUDE.md` onto a `main` worktree, push; the owner approved this for skill updates only) ("discover: learned ...") and mention them in the report.

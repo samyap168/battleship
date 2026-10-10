@@ -5,7 +5,14 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 export const HULL_GLB = {}; // hull id -> { hull, team, deck, trim: { geo, mat } }
 
-const FILES = { frigate: 'models/frigate_hull.glb' };
+const FILES = {
+  frigate: 'models/frigate_hull.glb',
+  ironclad: 'models/ironclad_hull.glb',
+  dreadnought: 'models/dreadnought_hull.glb',
+  torpedo: 'models/torpedo_hull.glb',
+  battleship: 'models/battleship_hull.glb',
+  carrier: 'models/carrier_hull.glb',
+};
 
 export async function loadHullModels() {
   const base = (import.meta.env && import.meta.env.BASE_URL) || './';

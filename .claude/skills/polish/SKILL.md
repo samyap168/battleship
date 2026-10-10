@@ -63,4 +63,4 @@ Before the final report, improve this skill from what just happened:
 2. Add or merge one-line lessons into `learnings.md` (evidence attached), promote repeats into checks, delete stale ones, keep it under 80 lines.
 3. Append one line to its yield log: rounds, findings fixed per audit focus, and the biggest time sink. Next run, lean on the focus with the best yield and shrink the one that keeps finding nothing.
 4. If a step was slow or flaky, fix the script or remove the step (delete before optimising; automate last).
-5. Commit these skill changes in their own commit ("polish: learned ...") so the history shows how the skill improved, and mention them in the report.
+5. Commit these skill changes in their own commit, and push that commit to `main` too (`git fetch origin main`, apply only `.claude/skills/` and `CLAUDE.md` onto a `main` worktree, push) so the next session in any branch has the improved skill; the owner approved this for skill updates only ("polish: learned ...") so the history shows how the skill improved, and mention them in the report.
