@@ -23,6 +23,7 @@ import { Birds } from './render/birds.js';
 import { SeaLife } from './render/sealife.js';
 import { Wakes } from './render/wakes.js';
 import { renderThumbnails, hullThumb } from './render/thumbnails.js';
+import { loadHullModels } from './render/models/glbHulls.js';
 import { WaterReflection, reflectable } from './render/reflection.js';
 import { TEAM_RIM, applyTeamRim } from './render/teamRim.js';
 import { buildHeroShip, buildCreepShip, HERO_IDS } from './render/models/shipModels.js';
@@ -71,6 +72,8 @@ const loadBar = $('#loading .p i'), loadTxt = $('#loading .s');
 const step = async (pct, txt) => { performance.mark('load: ' + txt); loadBar.style.width = pct + '%'; loadTxt.textContent = txt; await new Promise((r) => setTimeout(r, 16)); };
 
 // ---------------------------------------------------------------------------
+await step(6, 'Loading hull models');
+await loadHullModels();
 await step(8, 'Kindling the forge');
 { // a browser without WebGL2 gets an explanation instead of a loading bar that never ends
   let ok = false; try { ok = !!document.createElement('canvas').getContext('webgl2'); } catch { /* blocked */ }

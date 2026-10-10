@@ -15,7 +15,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { patchMaterial, getMat, pulseMaterials } from './materials.js';
+import { patchMaterial, getMat, pulseMaterials, teamInfo } from './materials.js';
+import { HULL_GLB } from './glbHulls.js';
 
 const V3 = THREE.Vector3;
 const PI = Math.PI;
@@ -884,7 +885,8 @@ function finishCtx(ctx, info) {
 function buildFrigate(ctx, { L = 14.6, scale = 1, masts = 3, creep = false } = {}) {
   const { root, P } = ctx;
   const B = L / 4.4;
-  const hull = makeHull(P, {
+  const glb = !creep && L === 14.6 && HULL_GLB.frigate; // the authored Blender hull replaces the code-built shell (same lines: rigging and guns still fit)
+  const hull = makeHull(glb ? new Parts() : P, {
     L, B, D: L * 0.09, F: L * 0.1, bulwark: L * 0.035, rail: 0.1 * (L / 14.6), sheerF: L * 0.06, sheerA: L * 0.07,
     transom: 0.62, bowP: 2.1, sternP: 2.8, uMax: 0.42, rake: 0.25, rakeCurve: 0.9, overhang: 0.28,
     flareBow: 0.15, flareMid: -0.1, nMid: 2.6, nBow: 1.5, nStern: 2.2, forefoot: 0.1, sternRise: 0.2,
@@ -899,6 +901,7 @@ function buildFrigate(ctx, { L = 14.6, scale = 1, masts = 3, creep = false } = {
     ],
     railColor: 0x5a4030,
   });
+  if (glb) addGlbHull(root, glb);
   const k = L / 14.6;
   const IRON = creep ? 'wood' : 'iron', LAMP = creep ? 'wood' : 'lantern';
   const d0 = hull.deckAt(0);
@@ -1834,6 +1837,24 @@ function makeTemplate(key, fn) {
   return t;
 }
 
+function addGlbHull(root, parts) {
+  for (const [kind, p] of Object.entries(parts)) {
+    const m = new THREE.Mesh(p.geo, PLACEHOLDER);
+    m.userData.glb = kind; m.name = 'glb-' + kind; m.castShadow = true; m.receiveShadow = true;
+    root.add(m);
+  }
+}
+const glbTeamMats = new Map();
+function glbMaterial(kind, teamId) {
+  const p = HULL_GLB.frigate && HULL_GLB.frigate[kind];
+  if (!p) return shipMat('wood', teamId);
+  if (kind !== 'team') return p.mat;
+  const key = teamId ?? -1;
+  let m = glbTeamMats.get(key);
+  if (!m) { m = p.mat.clone(); m.color.set(teamInfo(teamId).color); glbTeamMats.set(key, m); }
+  return m;
+}
+
 function instantiate(t, teamId) {
   const root = t.root.clone(true);
   const rig = {
@@ -1846,7 +1867,7 @@ function instantiate(t, teamId) {
   const muzzles = [];
   root.traverse((o) => {
     if (o.isMesh) {
-      o.material = shipMat(o.userData.mat, teamId);
+      o.material = o.userData.glb ? glbMaterial(o.userData.glb, teamId) : shipMat(o.userData.mat, teamId);
       if (o.userData.rig === 'sails') cloth.push(o);
       if (o.userData.rig === 'flag') flags.push(o);
     }
