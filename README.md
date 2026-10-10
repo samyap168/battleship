@@ -111,3 +111,10 @@ Real GPUs and drivers differ from the test rasteriser, so the renderer polices i
 
 ## Sea look
 Options → **Sea look**: *Bright* (turquoise, the default, tuned for readability from the high camera) or *Realistic* (deep navy-grey water, finer waves, more sun glitter, like the yacht-orbit reference ocean). The choice is remembered (`aa.look`). Both share one shader; `uReal` blends between them.
+
+## Controls
+- **Camera** (Options → Camera): *Locked* follows your ship; push the mouse to a screen edge or use the arrow keys to peek ahead and it springs back. *Free* is an RTS camera that stays where you leave it. Edge pan can be switched off. Space / double-click the ship portrait / the ◎ button fly back to the ship and lock.
+- **Minimap**: left-click or drag looks there, right-click sails there, double-click comes back to your ship (touch: tap looks, long-press sails, double-tap comes back).
+- **Around the ship**: skill rings (ready / cooling / locked), a gold *YOU* arrow when the ship is off-screen, red arrows for nearby enemy captains.
+- **Phones**: tap sails or attacks, one finger orbits, pinch zooms, tap a skill to fire it at the best target and drag it onto the sea to aim by hand, ⚒ opens the armory, ◎ re-centres. Portrait and landscape have their own layouts.
+- Tests: `node tests/ui_controls.mjs` (desktop and both phone orientations, 42 checks) and `node tests/ui_layout.mjs` (11 window sizes: nothing off-screen or overlapping, options reachable).

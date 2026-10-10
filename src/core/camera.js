@@ -10,6 +10,9 @@ export class CameraDirector {
     this.goal = new THREE.Vector3();
     this.dist = 150; this.distGoal = 150;
     this.locked = true;
+    this.mode = 'lock';   // 'lock': the camera follows your ship, edges and arrow keys only peek ahead and it springs back; 'free': an RTS camera
+    this.edgePan = true;  // moving the pointer to a screen edge pans (peeks) the view
+    this.peek = new THREE.Vector3(); this.peekDir = { x: 0, z: 0 }; // how far the locked camera is looking away from the ship
     this.trauma = 0;
     this.t = 0;
     this.intro = 0;
@@ -122,15 +125,24 @@ export class CameraDirector {
     let px = 0, pz = 0;
     if (this.keys.ArrowLeft) px -= 1; if (this.keys.ArrowRight) px += 1;
     if (this.keys.ArrowUp) pz -= 1; if (this.keys.ArrowDown) pz += 1;
-    if (this.mouse.inside && !this.locked && !this.orbiting) {
-      const m = 0.012;
-      if (this.mouse.x < m) px -= 1; if (this.mouse.x > 1 - m) px += 1;
-      if (this.mouse.y < m) pz -= 1; if (this.mouse.y > 1 - m) pz += 1;
+    if (this.mouse.inside && this.edgePan && !this.orbiting) {
+      const mx = 26 / (window.innerWidth || 1280), my = 26 / (window.innerHeight || 720); // a 26 px rim, whatever the window size
+      if (this.mouse.x < mx) px -= 1; if (this.mouse.x > 1 - mx) px += 1;
+      if (this.mouse.y < my) pz -= 1; if (this.mouse.y > 1 - my) pz += 1;
     }
-    if (px || pz) {
-      // pan in screen space: rotate by the orbit so 'up' is always away from the camera
-      const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
-      this.locked = false; this.goal.x += (px * cy + pz * sy) * pan; this.goal.z += (-px * sy + pz * cy) * pan;
+    this.peekDir.x = px; this.peekDir.z = pz;
+    const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw); // pan in screen space: 'up' is always away from the camera
+    if (this.mode === 'lock' && this.locked && target) {
+      // locked: edges and arrow keys PEEK up to a limit, and the view springs back to the ship when you let go
+      const lim = 90 + this.dist * 0.9;
+      if (px || pz) {
+        this.peek.x += (px * cy + pz * sy) * pan * 0.9; this.peek.z += (-px * sy + pz * cy) * pan * 0.9;
+        const l = Math.hypot(this.peek.x, this.peek.z); if (l > lim) { this.peek.x *= lim / l; this.peek.z *= lim / l; }
+      } else { const d = Math.exp(-dt * 3.2); this.peek.x *= d; this.peek.z *= d; if (Math.hypot(this.peek.x, this.peek.z) < 0.5) this.peek.set(0, 0, 0); }
+      this.goal.set(target.x + (target.vx || 0) * 0.35 - Math.sin(this.yaw) * 6 + this.peek.x, 0, target.z + (target.vz || 0) * 0.35 - Math.cos(this.yaw) * 6 + this.peek.z);
+    } else if (px || pz) {
+      // free camera: panning unlocks it, and it stays where you leave it (Space or the re-centre button flies back)
+      this.locked = false; this.peek.set(0, 0, 0); this.goal.x += (px * cy + pz * sy) * pan; this.goal.z += (-px * sy + pz * cy) * pan;
     }
     else if (this.locked && target) {
       // lead the camera slightly in the direction of travel
@@ -167,5 +179,7 @@ export class CameraDirector {
     cam.rotateZ(n(23, 6) * s * 0.03);
   }
 
-  snapTo(x, z) { this.goal.set(x, 0, z); this.focus.set(x, 0, z); }
+  snapTo(x, z) { this.goal.set(x, 0, z); this.focus.set(x, 0, z); this.peek.set(0, 0, 0); }
+  /** Back to the ship and locked on it (Space, the re-centre button, a double-click on the portrait or the minimap). */
+  relock(x, z, snap = true) { this.locked = true; this.orbiting = false; this.peek.set(0, 0, 0); if (snap) this.snapTo(x, z); }
 }

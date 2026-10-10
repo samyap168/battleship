@@ -123,14 +123,26 @@ export class HUD {
     this.mm = this.$('mm');
     this.mmCtx = this.mm.getContext('2d');
     this.buildMinimapBase();
-    this.mm.addEventListener('mousedown', (e) => {
-      const r = this.mm.getBoundingClientRect();
-      const x = ((e.clientX - r.left) / r.width) * 2 * BOUNDS.x - BOUNDS.x;
-      const z = ((e.clientY - r.top) / r.height) * 2 * BOUNDS.z - BOUNDS.z;
-      if (e.button === 2 && this.handlers.minimapMove) this.handlers.minimapMove(x, z);
-      else if (this.handlers.minimapLook) this.handlers.minimapLook(x, z);
-      e.preventDefault();
-    });
+    // Minimap: left press or drag = look there (the camera lets go of your ship), right-click = send the ship,
+    // double-click / double-tap = back to the ship and locked on it. On touch a long press sends the ship.
+    {
+      const at = (e) => { const r = this.mm.getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * 2 * BOUNDS.x - BOUNDS.x, ((e.clientY - r.top) / r.height) * 2 * BOUNDS.z - BOUNDS.z]; };
+      let down = false, longT = null, sent = false, lastTap = 0;
+      this.mm.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); const [x, z] = at(e);
+        if (e.button === 2) { if (this.handlers.minimapMove) this.handlers.minimapMove(x, z); return; }
+        const now = e.timeStamp; // the moment of the tap itself, not of the (possibly late) handler
+        if (now - lastTap < 350) { lastTap = 0; if (this.handlers.recenter) this.handlers.recenter(); return; }
+        lastTap = now; down = true; sent = false;
+        try { this.mm.setPointerCapture(e.pointerId); } catch { /* no capture */ }
+        if (e.pointerType === 'touch') longT = setTimeout(() => { sent = true; if (this.handlers.minimapMove) this.handlers.minimapMove(x, z); if (this.hint) this.hint('Sailing there · tap the map to look, double-tap to come back', 1800); }, 480);
+        if (this.handlers.minimapLook) this.handlers.minimapLook(x, z);
+      });
+      this.mm.addEventListener('pointermove', (e) => { if (!down || sent) return; if (longT && e.pointerType === 'touch') { clearTimeout(longT); longT = null; } const [x, z] = at(e); if (this.handlers.minimapLook) this.handlers.minimapLook(x, z); });
+      const up = () => { down = false; clearTimeout(longT); longT = null; };
+      this.mm.addEventListener('pointerup', up); this.mm.addEventListener('pointercancel', up);
+      this.mm.addEventListener('dblclick', (e) => { e.preventDefault(); if (this.handlers.recenter) this.handlers.recenter(); });
+    }
     this.mm.addEventListener('contextmenu', (e) => e.preventDefault());
     if (p) {
       this.buildAbilities();
@@ -140,7 +152,7 @@ export class HUD {
       const recenter = () => this.handlers.recenter && this.handlers.recenter();
       const portrait = this.$('portrait'); let lastTap = 0;
       portrait.addEventListener('dblclick', recenter);
-      portrait.addEventListener('pointerup', (e) => { if (e.pointerType !== 'touch') return; const n = performance.now(); if (n - lastTap < 400) { lastTap = 0; recenter(); } else lastTap = n; });
+      portrait.addEventListener('pointerup', (e) => { if (e.pointerType !== 'touch') return; const n = e.timeStamp; if (n - lastTap < 400) { lastTap = 0; recenter(); } else lastTap = n; });
       this.$('recenterBtn').addEventListener('click', recenter);
       this.$('armBtn').addEventListener('click', () => document.body.classList.toggle('shopOpen'));
       this.lastHull = p.hullId;
@@ -588,6 +600,7 @@ export class HUD {
         }
       }
     }
+    if (p && p.alive) this.drawShipAids(c, proj, p, w, h);
     // health bars
     c.font = '600 12px Rajdhani, sans-serif';
     c.textAlign = 'center';
@@ -697,6 +710,47 @@ export class HUD {
       c.strokeText(f.text, x, y);
       c.fillStyle = f.color; c.fillText(f.text, x, y);
       c.globalAlpha = 1;
+    }
+  }
+
+  /** Around your ship: ability cooldown rings, a pointer to it when the camera is elsewhere, and arrows for enemy captains nearby. */
+  drawShipAids(c, proj, p, w, h) {
+    const touch = document.body.classList.contains('touch');
+    const ps = proj(p.x, 4, p.z);
+    const mTop = 74, mBot = touch ? 96 : 150, mSide = 42;
+    const on = ps && ps.x > mSide && ps.x < w - mSide && ps.y > mTop && ps.y < h - mBot;
+    const edge = (tx, ty, col, text, strong) => { // arrow on the screen rim pointing from the centre towards (tx, ty)
+      const cx = w / 2, cy = (mTop + h - mBot) / 2, dx = tx - cx, dy = ty - cy, l = Math.hypot(dx, dy) || 1;
+      const kx = dx ? (w / 2 - mSide) / Math.abs(dx) : 1e9, ky = dy ? ((h - mBot - mTop) / 2 - 8) / Math.abs(dy) : 1e9, k = Math.min(kx, ky);
+      const x = cx + dx * k, y = cy + dy * k, a = Math.atan2(dy, dx);
+      c.save(); c.translate(x, y); c.rotate(a);
+      c.fillStyle = col; c.strokeStyle = 'rgba(0,0,0,.75)'; c.lineWidth = 3;
+      const s = strong ? 15 : 10;
+      c.beginPath(); c.moveTo(s, 0); c.lineTo(-s * 0.7, s * 0.8); c.lineTo(-s * 0.3, 0); c.lineTo(-s * 0.7, -s * 0.8); c.closePath(); c.stroke(); c.fill();
+      c.restore();
+      if (text) { c.font = '700 12px Rajdhani, sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.8)'; const tx2 = x - Math.cos(a) * 26, ty2 = y - Math.sin(a) * 22 + 4; c.strokeText(text, tx2, ty2); c.fillStyle = '#fff'; c.fillText(text, tx2, ty2); }
+    };
+    if (!on) { // where is my ship? (Space, the ◎ button, or a double-click on the portrait brings the camera back)
+      const t = performance.now() / 1000, pulse = 0.75 + 0.25 * Math.sin(t * 4);
+      const sx = ps ? ps.x : w / 2, sy = ps ? ps.y : h;
+      edge(ps ? sx : w - (sx - w / 2), ps ? sy : h / 2 + (h / 2 - sy), `rgba(255,215,106,${pulse})`, `YOU · ${Math.round(Math.hypot(p.x - this.G.listener.x, p.z - this.G.listener.z))}`, true);
+    }
+    for (const e of this.G.heroes) { // enemy captains close to my ship that are out of view
+      if (!e.alive || e.team === p.team || Math.hypot(e.x - p.x, e.z - p.z) > 190) continue;
+      const es = proj(e.x, 4, e.z);
+      if (es && es.x > mSide && es.x < w - mSide && es.y > mTop && es.y < h - mBot) continue;
+      edge(es ? es.x : w / 2, es ? es.y : h, 'rgba(255,90,70,.9)', Math.round(Math.hypot(e.x - p.x, e.z - p.z)) + '');
+    }
+    if (on && p.abilities) { // skill rings under the ship: ready / cooling / locked at a glance
+      const n = p.abilities.length, r = touch ? 9 : 11, gap = r * 2 + 6, y0 = ps.y + (touch ? 46 : 56);
+      for (let i = 0; i < n; i++) {
+        const ab = p.abilities[i], cx = ps.x + (i - (n - 1) / 2) * gap;
+        const cd = p.cds ? p.cds[i] || 0 : 0, frac = ab && ab.cd ? Math.min(1, cd / ab.cd) : 0, locked = ab && ab.minLevel && p.level < ab.minLevel;
+        c.beginPath(); c.arc(cx, y0, r, 0, Math.PI * 2); c.fillStyle = 'rgba(8,10,14,.72)'; c.fill();
+        if (frac > 0) { c.beginPath(); c.moveTo(cx, y0); c.arc(cx, y0, r - 1, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac); c.closePath(); c.fillStyle = 'rgba(255,255,255,.22)'; c.fill(); }
+        c.lineWidth = 2; c.strokeStyle = locked ? 'rgba(120,120,120,.5)' : frac > 0 ? 'rgba(160,170,185,.7)' : 'rgba(255,215,106,.95)'; c.beginPath(); c.arc(cx, y0, r, 0, Math.PI * 2); c.stroke();
+        c.font = '700 ' + (r + 1) + 'px Rajdhani, sans-serif'; c.textAlign = 'center'; c.fillStyle = locked ? '#777' : frac > 0 ? '#aab' : '#ffe9a8'; c.fillText(frac > 0 && cd >= 1 ? String(Math.ceil(cd)) : KEYS[i], cx, y0 + r * 0.36);
+      }
     }
   }
 

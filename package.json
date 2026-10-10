@@ -12,7 +12,8 @@
     "shots": "node tests/play.mjs \"30,150,330\" shot \"&autopilot=1&photo=1\"",
     "test:smoke": "node tests/smoke.mjs",
     "test:sim": "node tests/determinism.mjs 3600",
-    "test:mp": "node tests/mp.mjs && node tests/mp_resilience.mjs"
+    "test:mp": "node tests/mp.mjs && node tests/mp_resilience.mjs",
+    "test:ui": "node tests/ui_controls.mjs && node tests/ui_layout.mjs"
   },
   "dependencies": {
     "peerjs": "^1.5.5",

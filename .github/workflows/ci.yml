@@ -32,5 +32,7 @@ jobs:
         run: npm run test:sim
       - name: Multiplayer (two windows) and resilience
         run: npm run test:mp
+      - name: UI controls and layouts (desktop and phones)
+        run: npm run test:ui
       - name: Single-player full match
         run: node tests/fullmatch.mjs "&autopilot=1"

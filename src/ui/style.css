@@ -483,3 +483,27 @@ body.touch #announce { left: 8px; right: 8px; }
 body.touch #shop { width: 196px; padding: 6px 8px; } body.touch #shop h3 { margin-bottom: 3px; padding-bottom: 3px; }
 body.touch .upg { padding: 2px 4px; grid-template-columns: 22px 1fr auto; gap: 6px; } body.touch .upg svg { width: 20px; height: 20px; }
 body.touch .upg .n { font-size: 12px; } body.touch .upg .k { display: none; } body.touch .upg .c { font-size: 12px; } body.touch .upg .pips { margin-top: 1px; }
+
+/* ---------- camera aids on desktop: a re-centre button whenever the view has left the ship, and a soft glow on the edge you are peeking towards */
+#recenterBtn { display: none; }
+body.touch #recenterBtn { display: flex; }
+body:not(.touch).camfree #recenterBtn { display: flex; left: 298px; bottom: 150px; width: 36px; height: 36px; animation: pulseGold 1.4s infinite; }
+body::before, body::after { content: ''; position: fixed; pointer-events: none; z-index: 2; opacity: 0; transition: opacity .15s; }
+body[data-peek*='l']::before { left: 0; top: 0; bottom: 0; width: 90px; background: linear-gradient(90deg, rgba(255,215,106,.22), transparent); opacity: 1; }
+body[data-peek*='r']::after { right: 0; top: 0; bottom: 0; width: 90px; background: linear-gradient(270deg, rgba(255,215,106,.22), transparent); opacity: 1; }
+
+/* ---------- options panel: always reachable. It scrolls inside the window, packs tighter on short or narrow screens, and keeps RESUME one tap away */
+#options { overflow-y: auto; align-items: flex-start; padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; }
+#options .op-box { margin: auto; max-height: none; }
+@media (max-height: 760px) {
+  #options .op-box { padding: 12px 20px 12px; } #options .op-title { font-size: 22px; letter-spacing: .24em; } #options .op-sub { margin: 2px 0 8px; }
+  #options .op-row { padding: 5px 0; gap: 12px; } #options .op-note { min-height: 0; margin: 0 0 4px; font-size: 12px; line-height: 1.35; }
+  #options .op-row input[type=range] { width: 200px; }
+  #options .op-btns { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px; } #options .op-btns .btn-primary, #options .op-btns .btn-ghost { width: auto; flex: 1 1 140px; margin: 0; padding: 9px 12px; font-size: 15px; }
+}
+@media (max-width: 560px) {
+  #options .op-box { padding: 12px 14px; } #options .op-row { flex-wrap: wrap; } #options .op-row input[type=range] { width: 100%; } #options .op-row .seg { flex-wrap: wrap; }
+}
+/* touch: the banner keeps clear of the kill feed (landscape: feed on the right; portrait: feed under the minimap) */
+@media (orientation: landscape) { body.touch #announce { right: 214px; } }
+@media (orientation: portrait) { body.touch #announce { top: 26%; } body.touch #feed .item:nth-last-child(n+3) { display: none; } }

@@ -460,6 +460,9 @@ function syncOptions() {
   $('#optMaster').value = Math.round(v.master * 100); $('#optMusic').value = Math.round(v.music * 100); $('#optSfx').value = Math.round(v.sfx * 100);
   document.querySelectorAll('#optFps button').forEach((b) => b.classList.toggle('on', (b.dataset.v === '1') === !fpsEl.classList.contains('hidden')));
   document.querySelectorAll('#optLook button').forEach((b) => b.classList.toggle('on', b.dataset.v === seaLook));
+  document.querySelectorAll('#optCam button').forEach((b) => b.classList.toggle('on', b.dataset.v === cameraDir.mode));
+  document.querySelectorAll('#optEdge button').forEach((b) => b.classList.toggle('on', (b.dataset.v === '1') === cameraDir.edgePan));
+  $('#optCamNote').textContent = cameraDir.mode === 'lock' ? 'Locked: the camera follows your ship. Push the mouse to a screen edge (or use the arrow keys) to peek ahead; let go and it springs back.' : 'Free: an RTS camera. Edge or arrow keys move it and it stays put; Space flies back to your ship and locks.';
   $('#options .op-sub').textContent = mpOn() ? 'The battle goes on without you' : 'The battle is paused';
   quitArmed = 0; $('#optQuit').textContent = 'QUIT TO MENU'; $('#optQuit').classList.remove('confirm');
 }
@@ -478,6 +481,9 @@ document.querySelectorAll('#optQual button').forEach((b) => {
   b.onclick = () => { audio.play('uiClick'); applyQuality(b.dataset.v); syncOptions(); };
   b.onmouseenter = () => audio.play('uiHover');
 });
+cameraDir.mode = localGet('aa.cam') === 'free' ? 'free' : 'lock'; cameraDir.edgePan = localGet('aa.edge') !== '0';
+document.querySelectorAll('#optCam button').forEach((b) => { b.onclick = () => { audio.play('uiClick'); cameraDir.mode = b.dataset.v; localSet('aa.cam', b.dataset.v); if (G && G.player && cameraDir.mode === 'lock') cameraDir.relock(G.player.x, G.player.z, false); syncOptions(); }; });
+document.querySelectorAll('#optEdge button').forEach((b) => { b.onclick = () => { audio.play('uiClick'); cameraDir.edgePan = b.dataset.v === '1'; localSet('aa.edge', b.dataset.v); syncOptions(); }; });
 let seaLook = localGet('aa.look') === 'real' ? 'real' : 'bright';
 function applySeaLook(v) { seaLook = v; localSet('aa.look', v); ocean.setLook(v); document.querySelectorAll('#optLook button').forEach((b) => b.classList.toggle('on', b.dataset.v === v)); }
 ocean.setLook(seaLook); if (seaLook === 'real' && ocean.uniforms) ocean.uniforms.uReal.value = 1;
@@ -569,7 +575,7 @@ hud.on('castButton', (i, manual) => {
 let castHinted = false;
 hud.on('recenter', () => {
   const p = G && G.player; if (!p || mode !== 'play') return;
-  cameraDir.locked = true; cameraDir.orbiting = false; cameraDir.snapTo(p.x, p.z);
+  cameraDir.relock(p.x, p.z);
   hud.hint('Camera locked to your ship', 1400);
 });
 hud.on('minimapLook', (x, z) => { cameraDir.locked = false; cameraDir.goal.set(x, 0, z); });
@@ -613,6 +619,7 @@ canvas.addEventListener('pointermove', (e) => {
   cameraDir.mouse.x = e.clientX / window.innerWidth; cameraDir.mouse.y = e.clientY / window.innerHeight; cameraDir.mouse.inside = true;
 });
 document.addEventListener('pointerleave', () => (cameraDir.mouse.inside = false));
+canvas.addEventListener('pointerleave', () => (cameraDir.mouse.inside = false)); // over a HUD panel: no edge panning
 // Orbit: middle-drag (or Shift + left-drag on a trackpad) swings the camera around the focus.
 let orbitDrag = null;
 let rightDrag = null; // right button: a quick click still sails / attacks (on release), a drag orbits the camera
@@ -781,9 +788,9 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'v' && mpOn()) session.mark(mouse.ground.x, mouse.ground.z);
   else if (k === 'g') { if (mpOn()) sendCmd(Cmd.rally(mouse.ground.x, mouse.ground.z)); else G.callRally && G.callRally(G.player, mouse.ground.x, mouse.ground.z); }
   else if (k === 's') { if (mpOn()) sendCmd(Cmd.stop()); else G.player && G.player.stop(); }
-  else if (k === ' ') { cameraDir.locked = true; e.preventDefault(); }
-  else if (k === 'y') cameraDir.locked = !cameraDir.locked;
-  else if (k === 'c') { cameraDir.resetOrbit(); cameraDir.locked = true; }
+  else if (k === ' ') { e.preventDefault(); if (G.player) cameraDir.relock(G.player.x, G.player.z, !cameraDir.locked); else cameraDir.locked = true; }
+  else if (k === 'y') { if (cameraDir.locked) cameraDir.locked = false; else if (G.player) cameraDir.relock(G.player.x, G.player.z, false); }
+  else if (k === 'c') { cameraDir.resetOrbit(); if (G.player) cameraDir.relock(G.player.x, G.player.z, false); else cameraDir.locked = true; }
   else if (k === 'z' || k === 'x') cameraDir.orbitBy(k === 'z' ? 60 : -60, 0);
   else if (k === 'tab') { e.preventDefault(); hud.toggleScoreboard(true); }
   else if (k === 'alt') { hud.showRange = true; e.preventDefault(); }
@@ -895,6 +902,8 @@ function tick(dt, draw) {
   const f = cameraDir.focus;
   SEE_THROUGH.uSeeCam.value.copy(R.camera.position); SEE_THROUGH.uSeeFoc.value.copy(f); SEE_THROUGH.uSeeOn.value = G && mode === 'play' && !cameraDir.cine ? 1 : 0;
   if (G) { G.listener.x = f.x; G.listener.z = f.z; G.viewScale = 1.15 + THREE.MathUtils.smoothstep(cameraDir.dist, 160, 290) * 0.25; /* captains always read a size above gunboats */ }
+  document.body.classList.toggle('camfree', mode === 'play' && !cameraDir.locked);
+  { const pd = cameraDir.peekDir, key = (pd.x < 0 ? 'l' : pd.x > 0 ? 'r' : '') + (pd.z < 0 ? 't' : pd.z > 0 ? 'b' : ''); if (document.body.dataset.peek !== key) document.body.dataset.peek = key; }
   audio.setListener(f.x, f.z, cameraDir.dist, cameraDir.yaw);
   audio.setOwn(G && G.player && G.player.alive ? G.player.x : NaN, G && G.player ? G.player.z : NaN);
 

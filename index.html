@@ -38,7 +38,8 @@
     <div><b>Orange rings</b> on the water are incoming enemy salvos and strikes: sail out of them</div>
     <div><kbd>T</kbd> advance to the next age · <kbd>G</kbd> rally allies to the cursor</div>
     <div><kbd>Ctrl</kbd>+<kbd>1-5</kbd> buy armory upgrades</div>
-    <div><kbd>Space</kbd> center camera · <kbd>Y</kbd> free camera · <kbd>C</kbd> reset orbit</div>
+    <div><b>Camera</b> follows your ship. Push the mouse to a <b>screen edge</b> (or use the arrow keys) to <b>peek</b> ahead: let go and it springs back. <kbd>Space</kbd> or double-click the ship portrait: back to your ship and locked · <kbd>Y</kbd> free camera · <kbd>C</kbd> reset orbit</div>
+    <div><b>Minimap</b>: left-click or drag to look there · <b>right-click</b> to sail there · <b>double-click</b> to come back to your ship. When the ship is off-screen a gold <b>YOU</b> arrow points to it, and red arrows point to enemy captains close to it.</div>
     <div><kbd>Wheel</kbd> zoom · <b><kbd>Right-drag</kbd></b> orbit 360° around your ship (also <kbd>Middle-drag</kbd>, <kbd>Shift</kbd>+drag, <kbd>Z</kbd><kbd>X</kbd>) · <kbd>Esc</kbd> options</div>
     <div><kbd>Enter</kbd> chat in multiplayer (<kbd>/t</kbd> + message = team only) · <kbd>V</kbd> ping the map for your team · <kbd>Tab</kbd> scoreboard · <kbd>Alt</kbd> gun range · <kbd>H</kbd> how to play</div>
     <div><kbd>S</kbd> stop · <kbd>M</kbd> mute · <kbd>F3</kbd> performance</div>
@@ -90,6 +91,11 @@
       <div class="op-row"><div class="lbl">Graphics</div>
         <div class="seg" id="optQual"><button data-v="safe">Compat</button><button data-v="low">Low</button><button data-v="medium">Medium</button><button data-v="high">Ultra</button></div></div>
       <div class="op-note" id="optQualNote"></div>
+      <div class="op-row"><div class="lbl">Camera</div>
+        <div class="seg" id="optCam"><button data-v="lock">Locked</button><button data-v="free">Free</button></div></div>
+      <div class="op-note" id="optCamNote"></div>
+      <div class="op-row"><div class="lbl">Edge pan</div>
+        <div class="seg" id="optEdge"><button data-v="1">On</button><button data-v="0">Off</button></div></div>
       <div class="op-row"><div class="lbl">Sea look</div>
         <div class="seg" id="optLook"><button data-v="bright">Bright</button><button data-v="real">Realistic</button></div></div>
       <div class="op-row"><div class="lbl">Master volume</div><input type="range" id="optMaster" min="0" max="100" /></div>
